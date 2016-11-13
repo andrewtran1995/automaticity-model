@@ -30,12 +30,12 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 100;              % Number of trials in automaticity experiment
+    TRIALS = 150;              % Number of trials in automaticity experiment
     GRID_SIZE = 100;          % Length of side of square grid for visual input; should always be an even number
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
     DECISION_PT = 1;          % Integral value which determines which PMC neuron acts on a visual input
-    INIT_PMC_WEIGHT = 0.08;
+    INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
 
     % Quantity of Visual Stimulus
     Visual = struct( ...
@@ -43,9 +43,15 @@ function automaticityModel()
     );
 
     % Radial Basis Function
+    % To account for cutoff of visual stimulus's effect at the boundaries
+    % of the visual input grid, configure a 'PEEK_RADIUS'. If the circle
+    % formed by the PEEK_RADIUS is cut off by the boundary, calculate the
+    % cut-off values proportionally to the rest of the circle formed by
+    % this radius.
     RBF = struct( ...
         'RADIUS', 1, ...
-        'rbv', zeros(GRID_SIZE) ...
+        'rbv', zeros(GRID_SIZE), ...
+        'PEEK_RADIUS', 10 ... % TODO: must implement
     );
 
     % PFC scaling information
@@ -356,14 +362,16 @@ function automaticityModel()
         g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
         % Iterate through grid to determine new weights of visual PMC_A synapses
+        temp_diff = zeros(GRID_SIZE);
         for y=1:GRID_SIZE
             for x=1:GRID_SIZE
                 PMC_A.weights(y,x,j+1) = PMC_A.weights(y,x,j) + RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A*(W_MAX - PMC_A.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A*PMC_A.weights(y,x,j));
+                temp_diff(y,x) = RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A*(W_MAX - PMC_A.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A*PMC_A.weights(y,x,j));
             end
         end
-        % Limit values of PMC_A.weights to be in range [0,100]
+        % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
-        PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), 100);
+        PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
 
         %% Calculation of Hebbian Weight for PMC_B
         % Visual input to PMC_B neuron (presynaptic)
@@ -382,9 +390,9 @@ function automaticityModel()
                 PMC_B.weights(y,x,j+1) = PMC_B.weights(y,x,j) + RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B*(W_MAX - PMC_B.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B*PMC_B.weights(y,x,j));
             end
         end
-        % Limit values of PMC_A.weights to be in range [0,100]
+        % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
-        PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), 100);
+        PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
 
         % Record average weight for PMC_A and PMC_B
         PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j+1)));
@@ -405,10 +413,6 @@ function automaticityModel()
         fprintf('g_t_2_A: %d\n', g_t_2_A);
         fprintf('g_t_1_B: %d\n', g_t_1_B);
         fprintf('g_t_2_B: %d\n', g_t_2_B);
-        % disp('PMC_A.weights(:,:,j+1)');
-        % disp(PMC_A.weights(:,:,j+1));
-        % disp('PMC_B.weights(:,:,j+1)');
-        % disp(PMC_B.weights(:,:,j+1));
 
         integral_PMCAvoltage_mat(j) = integral_PMCAvoltage;
         integral_PMCBvoltage_mat(j) = integral_PMCBvoltage;
@@ -428,7 +432,7 @@ function automaticityModel()
 %     close all;
 
     %% Figure 1 - neuron information from last trial or throughout trials
-    fig1 = figure;
+    figure;
 
     % Plot items
     rows = 3;
@@ -493,7 +497,7 @@ function automaticityModel()
     title('PMC_A (Red) & PMC_B (Blue) Reaction Time');
 
     %% Figure 2
-    fig2 = figure;
+    figure;
 
     % Force slider to integer/discrete value: https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
     rows = 1;
