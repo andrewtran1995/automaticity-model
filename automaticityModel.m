@@ -30,8 +30,9 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 150;              % Number of trials in automaticity experiment
-    GRID_SIZE = 100;          % Length of side of square grid for visual input; should always be an even number
+    TRIALS = 1500;              % Number of trials in automaticity experiment
+    GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
+    BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
     DECISION_PT = 1;          % Integral value which determines which PMC neuron acts on a visual input
@@ -43,15 +44,9 @@ function automaticityModel()
     );
 
     % Radial Basis Function
-    % To account for cutoff of visual stimulus's effect at the boundaries
-    % of the visual input grid, configure a 'PEEK_RADIUS'. If the circle
-    % formed by the PEEK_RADIUS is cut off by the boundary, calculate the
-    % cut-off values proportionally to the rest of the circle formed by
-    % this radius.
     RBF = struct( ...
         'RADIUS', 1, ...
-        'rbv', zeros(GRID_SIZE), ...
-        'PEEK_RADIUS', 10 ... % TODO: must implement
+        'rbv', zeros(GRID_SIZE) ...
     );
 
     % PFC scaling information
@@ -156,10 +151,6 @@ function automaticityModel()
 
     Reaction_Matrix = zeros(TRIALS, 2);
 
-    %% Temp variables for debugging
-    integral_PMCAvoltage_mat = zeros(1, TRIALS);
-    integral_PMCBvoltage_mat = zeros(1, TRIALS);
-
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% LOOP ON CALCULATIONS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -199,11 +190,12 @@ function automaticityModel()
         PMC_B.out(:) = 0;
 
         % Determine visual stimulus in range [1, GRID_SIZE] to pick
-        % random gabor for each trial
+        % random gabor for each trial, padded with the BORDER_SIZE such
+        % that the visual stimulus is accounted for properly
 %         r_y = randi([1 GRID_SIZE],1,1);
 %         r_x = randi([1 GRID_SIZE],1,1);
-        r_y = r_y_mat(j);
-        r_x = r_x_mat(j);
+        r_y = r_y_mat(j) + BORDER_SIZE;
+        r_x = r_x_mat(j) + BORDER_SIZE;
 
         %% Radial Basis Function (RBF) Implementation
         % Use temp variables x and y to iterate the entire grid, calculating visual input
@@ -361,14 +353,9 @@ function automaticityModel()
         g_t_1_A = max(0, integral_PMCAvoltage - Hebbian.NMDA);
         g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
-        % Iterate through grid to determine new weights of visual PMC_A synapses
-        temp_diff = zeros(GRID_SIZE);
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                PMC_A.weights(y,x,j+1) = PMC_A.weights(y,x,j) + RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A*(W_MAX - PMC_A.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A*PMC_A.weights(y,x,j));
-                temp_diff(y,x) = RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A*(W_MAX - PMC_A.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A*PMC_A.weights(y,x,j));
-            end
-        end
+        % Determine new weights of visual PMC_A synapses
+        PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
+        
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
         PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
@@ -384,12 +371,9 @@ function automaticityModel()
         g_t_1_B = max(0, integral_PMCBvoltage - Hebbian.NMDA);
         g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
-        % Iterate through grid to determine new weights of visual PMC_B synapses
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                PMC_B.weights(y,x,j+1) = PMC_B.weights(y,x,j) + RBF.rbv(y,x)*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B*(W_MAX - PMC_B.weights(y,x,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B*PMC_B.weights(y,x,j));
-            end
-        end
+        % Determine new weights of visual PMC_B synapses
+        PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
+        
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
         PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
@@ -402,20 +386,14 @@ function automaticityModel()
         fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
         fprintf('r_y: %d\n', r_y);
         fprintf('r_x: %d\n', r_x);
-        fprintf('Visual.stim: %d\n', Visual.stim);
         fprintf('PFC_A.v_stim: %d\n', PFC_A.v_stim);
         fprintf('PFC_B.v_stim: %d\n', PFC_B.v_stim);
         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
-        fprintf('integral_PMCAvoltage: %d\n', integral_PMCAvoltage);
-        fprintf('integral_PMCBvoltage: %d\n', integral_PMCBvoltage);
         fprintf('g_t_1_A: %d\n', g_t_1_A);
         fprintf('g_t_2_A: %d\n', g_t_2_A);
         fprintf('g_t_1_B: %d\n', g_t_1_B);
         fprintf('g_t_2_B: %d\n', g_t_2_B);
-
-        integral_PMCAvoltage_mat(j) = integral_PMCAvoltage;
-        integral_PMCBvoltage_mat(j) = integral_PMCBvoltage;
 
     end
 
@@ -427,9 +405,6 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    %% Close all open figures (including those not related to this program!)
-%     close all;
 
     %% Figure 1 - neuron information from last trial or throughout trials
     figure;
@@ -479,7 +454,7 @@ function automaticityModel()
     title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
-    surf(RBF.rbv(:,:,:));
+    surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE,BORDER_SIZE:end-BORDER_SIZE,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
 
     subplot(rows,columns,10);
@@ -504,9 +479,11 @@ function automaticityModel()
     columns = 2;
 
     PMC_A_trial_num = 1;
+    PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                    BORDER_SIZE:end-BORDER_SIZE, :);
 
     subplot(rows,columns,1);
-    data3 = PMC_A.weights(:,:,PMC_A_trial_num);
+    data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
     colormap('hot');
     imagesc(data3);
     colorbar;
@@ -515,12 +492,14 @@ function automaticityModel()
         'Min', 1, 'Max', TRIALS, ...
         'Value', 1, ...
         'Position', [100 50 300 20]);
-    set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A.weights, 'PMC_A'});
+    set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
 
     PMC_B_trial_num = 1;
+    PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                    BORDER_SIZE:end-BORDER_SIZE, :);
 
     subplot(rows,columns,2);
-    data4 = PMC_B.weights(:,:,PMC_B_trial_num);
+    data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
     colormap('hot');
     imagesc(data4);
     colorbar;
@@ -529,7 +508,11 @@ function automaticityModel()
         'Min', 1, 'Max', TRIALS, ...
         'Value', 1, ...
         'Position', [500 50 300 20]);
-    set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B.weights, 'PMC_B'});
+    set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+    
+    % Starts debug mode, allowing variables to be observed before the
+    % function ends
+%     keyboard;
 end
 
 % Handles the slider functionality for the synaptic weight heatmaps
