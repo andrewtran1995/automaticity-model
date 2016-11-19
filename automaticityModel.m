@@ -69,7 +69,7 @@ function automaticityModel()
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', 0.00000001, ...
-        'anti_heb', 0.001, ...
+        'anti_heb', 0.0001, ... % former value 0.001
         'NMDA', 380, ...
         'AMPA', 0 ...
     );
@@ -512,7 +512,7 @@ function automaticityModel()
     
     % Starts debug mode, allowing variables to be observed before the
     % function ends
-%     keyboard;
+    keyboard;
 end
 
 % Handles the slider functionality for the synaptic weight heatmaps
