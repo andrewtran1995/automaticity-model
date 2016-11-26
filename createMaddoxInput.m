@@ -9,9 +9,8 @@ function [visualInputMatrix] = createMaddoxInput()
     y_values = x_values;
     grouping = ['L', 'M', 'S', 'S', 'M', 'L'];
     
-    [X, Y] = meshgrid(x_values, y_values);
-    all_points = reshape(cat(2, X', Y'), [], 2);
-    
+%     [X, Y] = meshgrid(x_values, y_values);
+%     all_points = reshape(cat(2, X', Y'), [], 2);
 %     scatter(all_points(:, 1), all_points(:, 2));
 %     axis([0 100 0 100]);
 
@@ -19,11 +18,14 @@ function [visualInputMatrix] = createMaddoxInput()
     
     for row=1:size(visualInputMatrix, 1)
         x = randi(6);
-        y = (mod(x,2)+1)*randi(3); % TODO: need to fix logic here
+        y = randi(3)*2 - mod(x,2);
+        disp(y)
         visualInputMatrix(row,:) = [x_values(x), y_values(y), grouping(x)];
     end
     
-    scatter(all_points(:,1), all_points(:,2));
+    scatter(visualInputMatrix(:,1), visualInputMatrix(:,2));
     axis([0 100 0 100]);
+    
+    return;
 end
 
