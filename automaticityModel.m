@@ -30,7 +30,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1500;              % Number of trials in automaticity experiment
+    TRIALS = 6000;              % Number of trials in automaticity experiment
     GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -390,10 +390,10 @@ function automaticityModel()
         fprintf('PFC_B.v_stim: %d\n', PFC_B.v_stim);
         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
-        fprintf('g_t_1_A: %d\n', g_t_1_A);
-        fprintf('g_t_2_A: %d\n', g_t_2_A);
-        fprintf('g_t_1_B: %d\n', g_t_1_B);
-        fprintf('g_t_2_B: %d\n', g_t_2_B);
+%         fprintf('g_t_1_A: %d\n', g_t_1_A);
+%         fprintf('g_t_2_A: %d\n', g_t_2_A);
+%         fprintf('g_t_1_B: %d\n', g_t_1_B);
+%         fprintf('g_t_2_B: %d\n', g_t_2_B);
 
     end
 
