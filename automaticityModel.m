@@ -23,14 +23,17 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Load random visual stimulus matrix
-    load('randomVisualInput.mat');
+    % Load visual stimulus matrix
+    % load('randomVisualInput.mat');
+    load('maddoxVisualInput.mat');
+    r_x_val = maddoxVisualInput(:, 1);
+    r_y_val = maddoxVisualInput(:, 2);
     
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 6000;              % Number of trials in automaticity experiment
+    TRIALS = 1000;              % Number of trials in automaticity experiment
     GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -194,8 +197,8 @@ function automaticityModel()
         % that the visual stimulus is accounted for properly
 %         r_y = randi([1 GRID_SIZE],1,1);
 %         r_x = randi([1 GRID_SIZE],1,1);
-        r_y = r_y_mat(j) + BORDER_SIZE;
-        r_x = r_x_mat(j) + BORDER_SIZE;
+        r_y = r_y_val(j) + BORDER_SIZE;
+        r_x = r_x_val(j) + BORDER_SIZE;
 
         %% Radial Basis Function (RBF) Implementation
         % Use temp variables x and y to iterate the entire grid, calculating visual input
@@ -456,6 +459,7 @@ function automaticityModel()
     subplot(rows,columns,9);
     surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE,BORDER_SIZE:end-BORDER_SIZE,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
+    axis([0 100 0 100]);
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
