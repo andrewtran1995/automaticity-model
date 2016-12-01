@@ -22,9 +22,6 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    % Debugging variable
-    USING_VERSION_2016 = 0; % true
     
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
@@ -37,7 +34,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 300;              % Number of trials in automaticity experiment
+    TRIALS = 1000;              % Number of trials in automaticity experiment
     GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -483,19 +480,6 @@ function automaticityModel()
     legend('PMC_A', 'PMC_B');
     title('PMC_A & PMC_B Reaction Time');
     
-    if USING_VERSION_2016
-        subplot(rows,columns,12);
-        PMC_S = Reaction_Matrix(:,3) == 'S';
-        PMC_M = Reaction_Matrix(:,3) == 'M';
-        PMC_L = Reaction_Matrix(:,3) == 'L';
-        cdfplot(Reaction_Matrix(PMC_S, 2));
-        hold on;
-        cdfplot(Reaction_Matrix(PMC_M, 2));
-        hold on;
-        cdfplot(Reaction_Matrix(PMC_L, 2));
-        legend('S', 'M', 'L');
-        title('CDF of RT by Grouping');
-    end
 
     %% Figure 2
     figure;
@@ -537,8 +521,25 @@ function automaticityModel()
         'Value', 1, ...
         'Position', [500 50 300 20]);
     set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
-
-    % Starts debug mode, allowing variables to be observed before the
+    
+    %% Figure 3
+    figure;
+    
+    PMC_S = Reaction_Matrix(:,3) == 'S';
+    PMC_M = Reaction_Matrix(:,3) == 'M';
+    PMC_L = Reaction_Matrix(:,3) == 'L';
+    p1 = cdfplot(Reaction_Matrix(PMC_S, 2));
+    set(p1, 'Color', 'r');
+    hold on;
+    p2 = cdfplot(Reaction_Matrix(PMC_M, 2));
+    set(p2, 'Color', 'b');
+    hold on;
+    p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
+    set(p3, 'Color', 'g');
+    legend('S', 'M', 'L', 'Location', 'southeast');
+    title('CDF of RT by Grouping');
+    
+    %% Starts debug mode, allowing variables to be observed before the
     % function ends
     keyboard;
 end
