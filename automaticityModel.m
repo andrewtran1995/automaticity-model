@@ -34,7 +34,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1000;              % Number of trials in automaticity experiment
+    TRIALS = 50;              % Number of trials in automaticity experiment
     GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -153,7 +153,8 @@ function automaticityModel()
         'weights_avg', zeros(1,TRIALS) ...
     );
 
-    Reaction_Matrix = zeros(TRIALS, 2);
+    % Matrix to store information about which matrix responds during a trial
+    Reaction_Matrix = zeros(TRIALS, 3);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% LOOP ON CALCULATIONS %%%%%%%%%%
@@ -459,9 +460,9 @@ function automaticityModel()
     title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
-    surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE,BORDER_SIZE:end-BORDER_SIZE,:));
+    surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
-    axis([0 100 0 100]);
+%     axis([0 100 0 100]);
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -476,6 +477,18 @@ function automaticityModel()
     hold on;
     scatter(x_axis(PMC_B_Rx), Reaction_Matrix(PMC_B_Rx,2), 10, 'b', 'filled');
     title('PMC_A (Red) & PMC_B (Blue) Reaction Time');
+    
+    subplot(rows,columns,12);
+    PMC_S = Reaction_Matrix(:,3) == 'S';
+    PMC_M = Reaction_Matrix(:,3) == 'M';
+    PMC_L = Reaction_Matrix(:,3) == 'L';
+    cdfplot(Reaction_Matrix(PMC_S, 2));
+    hold on;
+    cdfplot(Reaction_Matrix(PMC_M, 2));
+    hold on;
+    cdfplot(Reaction_Matrix(PMC_L, 2));
+    legend('S', 'M', 'L');
+    title('CDF of RT by Grouping');
 
     %% Figure 2
     figure;
