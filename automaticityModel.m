@@ -22,13 +22,14 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
+
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
     load('maddoxVisualInput.mat');
-    r_x_val = maddoxVisualInput(:, 1);
-    r_y_val = maddoxVisualInput(:, 2);
-    
+    r_x_vals = maddoxVisualInput(:, 1);
+    r_y_vals = maddoxVisualInput(:, 2);
+    r_groups = maddoxVisualInput(:, 3);
+
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
@@ -197,8 +198,9 @@ function automaticityModel()
         % that the visual stimulus is accounted for properly
 %         r_y = randi([1 GRID_SIZE],1,1);
 %         r_x = randi([1 GRID_SIZE],1,1);
-        r_y = r_y_val(j) + BORDER_SIZE;
-        r_x = r_x_val(j) + BORDER_SIZE;
+        r_y = r_y_vals(j) + BORDER_SIZE;
+        r_x = r_x_vals(j) + BORDER_SIZE;
+        r_group = r_groups(j);
 
         %% Radial Basis Function (RBF) Implementation
         % Use temp variables x and y to iterate the entire grid, calculating visual input
@@ -334,11 +336,11 @@ function automaticityModel()
             % If PMC_A meets the decision point sooner, indicate it in the
             % first column with a '0'
             if trapz(PMC_A.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [0, i];
+                Reaction_Matrix(j,:) = [0, i, r_group];
                 break;
             % Else, indicate PMC_B with '1'
             elseif trapz(PMC_B.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [1, i];
+                Reaction_Matrix(j,:) = [1, i, r_group];
                 break;
             else
                 continue;
@@ -358,7 +360,7 @@ function automaticityModel()
 
         % Determine new weights of visual PMC_A synapses
         PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
-        
+
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
         PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
@@ -376,7 +378,7 @@ function automaticityModel()
 
         % Determine new weights of visual PMC_B synapses
         PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
-        
+
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
         PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
@@ -513,7 +515,7 @@ function automaticityModel()
         'Value', 1, ...
         'Position', [500 50 300 20]);
     set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
-    
+
     % Starts debug mode, allowing variables to be observed before the
     % function ends
     keyboard;
