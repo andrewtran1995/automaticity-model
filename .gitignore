@@ -1,2 +1,9 @@
 # Ignore Matlab autosaved files
 *.asv
+
+# Ignore Windows desktop.ini
+*desktop.ini
+
+# Ignore Google Doc files
+*.gdoc
+Reference\ Papers/
