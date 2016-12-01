@@ -23,6 +23,9 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+    % Debugging variable
+    USING_VERSION_2016 = 0; % true
+    
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
     load('maddoxVisualInput.mat');
@@ -34,7 +37,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 50;              % Number of trials in automaticity experiment
+    TRIALS = 300;              % Number of trials in automaticity experiment
     GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -467,7 +470,8 @@ function automaticityModel()
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
     plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
-    title('PMC_A (Red) & PMC_B (Blue) Weight Average');
+    legend('PMC_A', 'PMC_B', 'Location', 'southeast');
+    title('PMC_A & PMC_B Weight Average');
 
     subplot(rows,columns,11);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -476,24 +480,29 @@ function automaticityModel()
     scatter(x_axis(PMC_A_Rx), Reaction_Matrix(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
     scatter(x_axis(PMC_B_Rx), Reaction_Matrix(PMC_B_Rx,2), 10, 'b', 'filled');
-    title('PMC_A (Red) & PMC_B (Blue) Reaction Time');
+    legend('PMC_A', 'PMC_B');
+    title('PMC_A & PMC_B Reaction Time');
     
-    subplot(rows,columns,12);
-    PMC_S = Reaction_Matrix(:,3) == 'S';
-    PMC_M = Reaction_Matrix(:,3) == 'M';
-    PMC_L = Reaction_Matrix(:,3) == 'L';
-    cdfplot(Reaction_Matrix(PMC_S, 2));
-    hold on;
-    cdfplot(Reaction_Matrix(PMC_M, 2));
-    hold on;
-    cdfplot(Reaction_Matrix(PMC_L, 2));
-    legend('S', 'M', 'L');
-    title('CDF of RT by Grouping');
+    if USING_VERSION_2016
+        subplot(rows,columns,12);
+        PMC_S = Reaction_Matrix(:,3) == 'S';
+        PMC_M = Reaction_Matrix(:,3) == 'M';
+        PMC_L = Reaction_Matrix(:,3) == 'L';
+        cdfplot(Reaction_Matrix(PMC_S, 2));
+        hold on;
+        cdfplot(Reaction_Matrix(PMC_M, 2));
+        hold on;
+        cdfplot(Reaction_Matrix(PMC_L, 2));
+        legend('S', 'M', 'L');
+        title('CDF of RT by Grouping');
+    end
 
     %% Figure 2
     figure;
 
-    % Force slider to integer/discrete value: https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
+    % Force slider to integer/discrete value:
+    % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-
+    % values-to-round-to-a-valid-number
     rows = 1;
     columns = 2;
 
