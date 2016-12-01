@@ -5,7 +5,7 @@ function [visualInputMatrix] = createMaddoxInput()
 %       (2) Y coordinate
 %       (3) "Group" that coordinate belongs to (i.e., short, medium, or
 %       long)
-    x_values = [10, 26, 42, 58, 74, 90];
+    x_values = [5, 23, 41, 59, 77, 95];
     y_values = x_values;
     grouping = ['L', 'M', 'S', 'S', 'M', 'L'];
     
