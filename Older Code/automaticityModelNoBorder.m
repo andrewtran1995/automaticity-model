@@ -17,26 +17,21 @@
 % The goal is to enforce readability by standardizing the names of grouped variables
 % and making relationships between variables more apparent
 
-function automaticityModel()
+function automaticityModelNoBorder()
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Load visual stimulus matrix
-    % load('randomVisualInput.mat');
-    load('maddoxVisualInput.mat');
-    r_x_vals = maddoxVisualInput(:, 1);
-    r_y_vals = maddoxVisualInput(:, 2);
-    r_groups = maddoxVisualInput(:, 3);
-
+    % Load random visual stimulus matrix
+    load('randomVisualInput.mat');
+    
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1000;              % Number of trials in automaticity experiment
-    GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
-    BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    TRIALS = 1500;              % Number of trials in automaticity experiment
+    GRID_SIZE = 100;          % Length of side of square grid for visual input; should always be an even number
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
     DECISION_PT = 1;          % Integral value which determines which PMC neuron acts on a visual input
@@ -73,7 +68,7 @@ function automaticityModel()
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', 0.00000001, ...
-        'anti_heb', 0.0001, ... % former value 0.001
+        'anti_heb', 0.0001, ...
         'NMDA', 380, ...
         'AMPA', 0 ...
     );
@@ -153,8 +148,7 @@ function automaticityModel()
         'weights_avg', zeros(1,TRIALS) ...
     );
 
-    % Matrix to store information about which matrix responds during a trial
-    Reaction_Matrix = zeros(TRIALS, 3);
+    Reaction_Matrix = zeros(TRIALS, 2);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% LOOP ON CALCULATIONS %%%%%%%%%%
@@ -199,9 +193,8 @@ function automaticityModel()
         % that the visual stimulus is accounted for properly
 %         r_y = randi([1 GRID_SIZE],1,1);
 %         r_x = randi([1 GRID_SIZE],1,1);
-        r_y = r_y_vals(j) + BORDER_SIZE;
-        r_x = r_x_vals(j) + BORDER_SIZE;
-        r_group = r_groups(j);
+        r_y = r_y_mat(j);
+        r_x = r_x_mat(j);
 
         %% Radial Basis Function (RBF) Implementation
         % Use temp variables x and y to iterate the entire grid, calculating visual input
@@ -337,11 +330,11 @@ function automaticityModel()
             % If PMC_A meets the decision point sooner, indicate it in the
             % first column with a '0'
             if trapz(PMC_A.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [0, i, r_group];
+                Reaction_Matrix(j,:) = [0, i];
                 break;
             % Else, indicate PMC_B with '1'
             elseif trapz(PMC_B.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [1, i, r_group];
+                Reaction_Matrix(j,:) = [1, i];
                 break;
             else
                 continue;
@@ -361,7 +354,7 @@ function automaticityModel()
 
         % Determine new weights of visual PMC_A synapses
         PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
-
+        
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
         PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
@@ -379,7 +372,7 @@ function automaticityModel()
 
         % Determine new weights of visual PMC_B synapses
         PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
-
+        
         % Limit values of PMC_A.weights to be in range [0,W_MAX]
         PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
         PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
@@ -396,10 +389,10 @@ function automaticityModel()
         fprintf('PFC_B.v_stim: %d\n', PFC_B.v_stim);
         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
-%         fprintf('g_t_1_A: %d\n', g_t_1_A);
-%         fprintf('g_t_2_A: %d\n', g_t_2_A);
-%         fprintf('g_t_1_B: %d\n', g_t_1_B);
-%         fprintf('g_t_2_B: %d\n', g_t_2_B);
+        fprintf('g_t_1_A: %d\n', g_t_1_A);
+        fprintf('g_t_2_A: %d\n', g_t_2_A);
+        fprintf('g_t_1_B: %d\n', g_t_1_B);
+        fprintf('g_t_2_B: %d\n', g_t_2_B);
 
     end
 
@@ -460,15 +453,13 @@ function automaticityModel()
     title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
-    surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
+    surf(RBF.rbv(:,:,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
-%     axis([0 100 0 100]);
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
     plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
-    legend('PMC_A', 'PMC_B', 'Location', 'southeast');
-    title('PMC_A & PMC_B Weight Average');
+    title('PMC_A (Red) & PMC_B (Blue) Weight Average');
 
     subplot(rows,columns,11);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -477,25 +468,19 @@ function automaticityModel()
     scatter(x_axis(PMC_A_Rx), Reaction_Matrix(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
     scatter(x_axis(PMC_B_Rx), Reaction_Matrix(PMC_B_Rx,2), 10, 'b', 'filled');
-    legend('PMC_A', 'PMC_B');
-    title('PMC_A & PMC_B Reaction Time');
-    
+    title('PMC_A (Red) & PMC_B (Blue) Reaction Time');
 
     %% Figure 2
     figure;
 
-    % Force slider to integer/discrete value:
-    % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-
-    % values-to-round-to-a-valid-number
+    % Force slider to integer/discrete value: https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
     rows = 1;
     columns = 2;
 
     PMC_A_trial_num = 1;
-    PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                    BORDER_SIZE:end-BORDER_SIZE, :);
 
     subplot(rows,columns,1);
-    data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
+    data3 = PMC_A.weights(:,:,PMC_A_trial_num);
     colormap('hot');
     imagesc(data3);
     colorbar;
@@ -504,14 +489,12 @@ function automaticityModel()
         'Min', 1, 'Max', TRIALS, ...
         'Value', 1, ...
         'Position', [100 50 300 20]);
-    set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
+    set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A.weights, 'PMC_A'});
 
     PMC_B_trial_num = 1;
-    PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                    BORDER_SIZE:end-BORDER_SIZE, :);
 
     subplot(rows,columns,2);
-    data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
+    data4 = PMC_B.weights(:,:,PMC_B_trial_num);
     colormap('hot');
     imagesc(data4);
     colorbar;
@@ -520,28 +503,11 @@ function automaticityModel()
         'Min', 1, 'Max', TRIALS, ...
         'Value', 1, ...
         'Position', [500 50 300 20]);
-    set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+    set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B.weights, 'PMC_B'});
     
-    %% Figure 3
-    figure;
-    
-    PMC_S = Reaction_Matrix(:,3) == 'S';
-    PMC_M = Reaction_Matrix(:,3) == 'M';
-    PMC_L = Reaction_Matrix(:,3) == 'L';
-    p1 = cdfplot(Reaction_Matrix(PMC_S, 2));
-    set(p1, 'Color', 'r');
-    hold on;
-    p2 = cdfplot(Reaction_Matrix(PMC_M, 2));
-    set(p2, 'Color', 'b');
-    hold on;
-    p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
-    set(p3, 'Color', 'g');
-    legend('S', 'M', 'L', 'Location', 'southeast');
-    title('CDF of RT by Grouping');
-    
-    %% Starts debug mode, allowing variables to be observed before the
+    % Starts debug mode, allowing variables to be observed before the
     % function ends
-    keyboard;
+%     keyboard;
 end
 
 % Handles the slider functionality for the synaptic weight heatmaps
