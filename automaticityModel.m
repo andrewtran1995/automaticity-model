@@ -156,10 +156,15 @@ function automaticityModel()
     % Matrix to store information about which matrix responds during a trial
     Reaction_Matrix = zeros(TRIALS, 3);
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%%%%%%%%% LOOP ON CALCULATIONS %%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%% CALCULATIONS %%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+    %% Precompute RBF.rbv matrices
+%     parfor j=1:TRIALS
+%         
+%     end
+    
     %% Learning trials
     trial_number = 0;
 
@@ -197,8 +202,6 @@ function automaticityModel()
         % Determine visual stimulus in range [1, GRID_SIZE] to pick
         % random gabor for each trial, padded with the BORDER_SIZE such
         % that the visual stimulus is accounted for properly
-%         r_y = randi([1 GRID_SIZE],1,1);
-%         r_x = randi([1 GRID_SIZE],1,1);
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
