@@ -34,12 +34,12 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1000;              % Number of trials in automaticity experiment
-    GRID_SIZE = 120;          % Length of side of square grid for visual input; should always be an even number
-    BORDER_SIZE = 10;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    TRIALS = 300;              % Number of trials in automaticity experiment
+    GRID_SIZE = 140;          % Length of side of square grid for visual input; should always be an even number
+    BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
-    DECISION_PT = 1;          % Integral value which determines which PMC neuron acts on a visual input
+    DECISION_PT = 4;          % Integral value which determines which PMC neuron acts on a visual input
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
 
     % Quantity of Visual Stimulus
@@ -49,7 +49,7 @@ function automaticityModel()
 
     % Radial Basis Function
     RBF = struct( ...
-        'RADIUS', 1, ...
+        'RADIUS', 2, ...
         'rbv', zeros(GRID_SIZE) ...
     );
 
@@ -73,8 +73,8 @@ function automaticityModel()
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', 0.00000001, ...
-        'anti_heb', 0.0001, ... % former value 0.001
-        'NMDA', 380, ...
+        'anti_heb', 0.00000001, ...
+        'NMDA', 1500, ...
         'AMPA', 0 ...
     );
 
@@ -403,6 +403,24 @@ function automaticityModel()
 
     end
 
+    %% Determine decision neuron and reaction time
+%     parfor j=1:TRIALS
+%         for i=1:n
+%             % If PMC_A meets the decision point sooner, indicate it in the
+%             % first column with a '0'
+%             if trapz(PMC_A.out(1:i)) >= DECISION_PT
+%                 Reaction_Matrix(j,:) = [0, i, r_group];
+%                 break;
+%             % Else, indicate PMC_B with '1'
+%             elseif trapz(PMC_B.out(1:i)) >= DECISION_PT
+%                 Reaction_Matrix(j,:) = [1, i, r_group];
+%                 break;
+%             else
+%                 continue;
+%             end
+%         end
+%     end
+    
     % Delete first matrix (initialization matrix) of PMC_A.weights and PMC_B.weights
     % so that the trial number matches the index
     PMC_A.weights(:,:,1) = [];
