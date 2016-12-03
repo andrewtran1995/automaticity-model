@@ -23,6 +23,9 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    % Programming Parameters
+    PERF_TEST = 1; % Enable/disable performance output
+    
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
     load('maddoxVisualInput.mat');
@@ -41,6 +44,7 @@ function automaticityModel()
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
     DECISION_PT = 4;          % Integral value which determines which PMC neuron acts on a visual input
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
+    loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
     % Quantity of Visual Stimulus
     Visual = struct( ...
@@ -169,6 +173,9 @@ function automaticityModel()
     trial_number = 0;
 
     for j=1:TRIALS
+        if PERF_TEST
+            tic;
+        end
         %% Initialize appropriate variables for each loop
         trial_number = trial_number + 1;    % track number of current trial
 
@@ -403,6 +410,9 @@ function automaticityModel()
 %         fprintf('g_t_2_A: %d\n', g_t_2_A);
 %         fprintf('g_t_1_B: %d\n', g_t_1_B);
 %         fprintf('g_t_2_B: %d\n', g_t_2_B);
+        if PERF_TEST
+            loop_times(j) = toc;
+        end
 
     end
 
@@ -559,6 +569,12 @@ function automaticityModel()
     set(p3, 'Color', 'g');
     legend('S', 'M', 'L', 'Location', 'southeast');
     title('CDF of RT by Grouping');
+    
+    %% Figure 4 - Performance Tests 
+    if PERF_TEST
+        figure;
+        plot(loop_times);
+    end
     
     %% Starts debug mode, allowing variables to be observed before the
     % function ends
