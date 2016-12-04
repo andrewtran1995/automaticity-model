@@ -419,10 +419,6 @@ function automaticityModel()
         fprintf('PFC_B.v_stim: %d\n', PFC_B.v_stim);
         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
-%         fprintf('g_t_1_A: %d\n', g_t_1_A);
-%         fprintf('g_t_2_A: %d\n', g_t_2_A);
-%         fprintf('g_t_1_B: %d\n', g_t_1_B);
-%         fprintf('g_t_2_B: %d\n', g_t_2_B);
         if PERF_TEST
             loop_times(j) = toc;
         end
@@ -431,6 +427,7 @@ function automaticityModel()
 
     %% Determine decision neuron and reaction time
 %     parfor j=1:TRIALS
+%         fprintf('we are looping: %d\n', j);
 %         for i=1:n
 %             % If PMC_A meets the decision point sooner, indicate it in the
 %             % first column with a '0'
@@ -446,7 +443,7 @@ function automaticityModel()
 %             end
 %         end
 %     end
-    
+%     
     % Delete first matrix (initialization matrix) of PMC_A.weights and PMC_B.weights
     % so that the trial number matches the index
     PMC_A.weights(:,:,1) = [];
@@ -587,6 +584,7 @@ function automaticityModel()
     if PERF_TEST
         figure;
         plot(loop_times);
+        disp(mean(loop_times));
     end
     
     %% Starts debug mode, allowing variables to be observed before the
