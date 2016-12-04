@@ -52,9 +52,13 @@ function automaticityModel()
     );
 
     % Radial Basis Function
+    [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
     RBF = struct( ...
         'RADIUS', 2, ...
-        'rbv', zeros(GRID_SIZE) ...
+        'rbv', zeros(GRID_SIZE), ...
+        'X', X, ...
+        'Y', Y, ...
+        'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE ...
     );
 
     % PFC scaling information
@@ -218,6 +222,8 @@ function automaticityModel()
         % Note: Recall that r_y corresponds to rows, and r_x corresponds to columns
         PFC_A.v_stim = 0;
         PFC_B.v_stim = 0;
+        PMC_A.v_stim = 0;
+        PMC_B.v_stim = 0;
         for y=1:GRID_SIZE
             for x=1:GRID_SIZE
                 distance = sqrt(((r_y-y)^2) + ((r_x-x)^2));
@@ -230,14 +236,21 @@ function automaticityModel()
                 else
                     PFC_B.v_stim = PFC_B.v_stim + RBF.rbv(y,x);
                 end
+                % Calculate PMC_A and PMC_B v_stim (dependent on their
+                % respective weights
+%                 PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
+%                 PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
             end
         end
+        % Vectorized implementation of above for loops
+%         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
+%         PFC_A.v_stim = sum(reshape((RBF.rbv(:, 1:GRID_SIZE/2)), 1, RBF.HALF_NUM_WEIGHTS));
+%         PFC_B.v_stim = sum(reshape((RBF.rbv(:, GRID_SIZE/2+1:end)), 1, RBF.HALF_NUM_WEIGHTS));
         % Scale PFC_A.v_stim and PFC_B.v_stim to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-        % Iterate through entire grid, calculating PMC_A.v_stim (matrix or value?)
-        PMC_A.v_stim = 0;
-        PMC_B.v_stim = 0;
+        % Calculate PMC_A and PMC_B v_stim (dependent on their respective
+        % weights)
         for y=1:GRID_SIZE
             for x=1:GRID_SIZE
                 PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
