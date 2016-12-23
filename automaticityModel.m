@@ -25,6 +25,9 @@ function automaticityModel()
     
     % Programming Parameters
     PERF_TEST = 1; % Enable/disable performance output
+    if PERF_TEST
+        startTime = tic;
+    end
     
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
@@ -37,7 +40,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 300;              % Number of trials in automaticity experiment
+    TRIALS = 600;              % Number of trials in automaticity experiment
     GRID_SIZE = 140;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
@@ -58,7 +61,8 @@ function automaticityModel()
         'rbv', zeros(GRID_SIZE), ...
         'X', X, ...
         'Y', Y, ...
-        'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE ...
+        'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, ...
+        'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
 
     % PFC scaling information
@@ -164,6 +168,73 @@ function automaticityModel()
     % Matrix to store information about which matrix responds during a trial
     Reaction_Matrix = zeros(TRIALS, 3);
 
+    if 0
+        disp('Testing vectorization vs. non-vec');
+        tic;
+        for j=1:TRIALS
+            r_y = r_y_vals(j) + BORDER_SIZE;
+            r_x = r_x_vals(j) + BORDER_SIZE;
+            % Calculations
+            RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
+            PFC_A.v_stim = sum(reshape((RBF.rbv(:, 1:GRID_SIZE/2)), 1, RBF.HALF_NUM_WEIGHTS));
+            PFC_B.v_stim = sum(reshape((RBF.rbv(:, GRID_SIZE/2+1:end)), 1, RBF.HALF_NUM_WEIGHTS));
+            PMC_A.v_stim = RBF.rbv(:,:).*PMC_A.weights(:,:,j);
+            PMC_B.v_stim = RBF.rbv(:,:).*PMC_B.weights(:,:,j);
+            % Scaling
+            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
+            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
+            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
+            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
+        end
+        disp(toc);
+        tic;
+        for j=1:TRIALS
+            r_y = r_y_vals(j) + BORDER_SIZE;
+            r_x = r_x_vals(j) + BORDER_SIZE;
+            % Calculations
+            RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
+            PFC_A.v_stim = sum(sum(RBF.rbv(:, 1:GRID_SIZE/2)));
+            PFC_B.v_stim = sum(sum(RBF.rbv(:, GRID_SIZE/2+1:end)));
+            PMC_A.v_stim = RBF.rbv(:,:).*PMC_A.weights(:,:,j);
+            PMC_B.v_stim = RBF.rbv(:,:).*PMC_B.weights(:,:,j);
+            % Scaling
+            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
+            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
+            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
+            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
+        end
+        disp(toc);
+        tic;
+        for j=1:TRIALS
+            disp(j);
+            r_y = r_y_vals(j) + BORDER_SIZE;
+            r_x = r_x_vals(j) + BORDER_SIZE;
+            for y=1:GRID_SIZE
+                for x=1:GRID_SIZE
+                    distance = sqrt(((r_y-y)^2) + ((r_x-x)^2));
+                    RBF.rbv(y,x) = exp(-(distance/RBF.RADIUS))*Visual.stim;
+                    if (x <= GRID_SIZE/2)
+                        PFC_A.v_stim = PFC_A.v_stim + RBF.rbv(y,x);
+                    else
+                        PFC_B.v_stim = PFC_B.v_stim + RBF.rbv(y,x);
+                    end
+                    PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
+                    PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
+                end
+            end
+            % Scaling
+            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
+            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
+            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
+            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
+        end
+        disp(toc);
+        return
+    end
+    
+    
+    
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -218,46 +289,18 @@ function automaticityModel()
         r_group = r_groups(j);
 
         %% Radial Basis Function (RBF) Implementation
-        % Use temp variables x and y to iterate the entire grid, calculating visual input
-        % Note: Recall that r_y corresponds to rows, and r_x corresponds to columns
-        PFC_A.v_stim = 0;
-        PFC_B.v_stim = 0;
-        PMC_A.v_stim = 0;
-        PMC_B.v_stim = 0;
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                distance = sqrt(((r_y-y)^2) + ((r_x-x)^2));
-                % Initialize RBF.rbv matrix while iterating to save computation time
-                RBF.rbv(y,x) = exp(-(distance/RBF.RADIUS))*Visual.stim;
-                % if r_x <= GRID_SIZE/2, must be on "left" side for PFC A
-                if (x <= GRID_SIZE/2)
-                    PFC_A.v_stim = PFC_A.v_stim + RBF.rbv(y,x);
-                % else, r_x must be > GRID_SIZE/2 and is on the "right" side for PFC B
-                else
-                    PFC_B.v_stim = PFC_B.v_stim + RBF.rbv(y,x);
-                end
-                % Calculate PMC_A and PMC_B v_stim (dependent on their
-                % respective weights
-%                 PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
-%                 PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
-            end
-        end
-        % Vectorized implementation of above for loops
-%         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
-%         PFC_A.v_stim = sum(reshape((RBF.rbv(:, 1:GRID_SIZE/2)), 1, RBF.HALF_NUM_WEIGHTS));
-%         PFC_B.v_stim = sum(reshape((RBF.rbv(:, GRID_SIZE/2+1:end)), 1, RBF.HALF_NUM_WEIGHTS));
-        % Scale PFC_A.v_stim and PFC_B.v_stim to prevent them from becoming too large
+        % Calculate RBF grid
+        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
+        % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
+        PFC_A.v_stim = sum(reshape(         RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
+        PFC_B.v_stim = sum(reshape(     RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
+        % Scale RBF values by PMC_A and PMC_B weights to find respective
+        % v_stim values
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
+        % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-        % Calculate PMC_A and PMC_B v_stim (dependent on their respective
-        % weights)
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
-                PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
-            end
-        end
-        % Scale PMC_A.v_stim and PMC_B.v_stim to prevent them from becoming too large
         PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
@@ -582,9 +625,10 @@ function automaticityModel()
     
     %% Figure 4 - Performance Tests 
     if PERF_TEST
+        elapsedTime = toc(startTime);
         figure;
         plot(loop_times);
-        disp(mean(loop_times));
+        title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
     end
     
     %% Starts debug mode, allowing variables to be observed before the
