@@ -170,9 +170,8 @@ function automaticityModel()
     Reaction_Matrix = zeros(TRIALS, 3);
 
     %% Sandbox area
-    % Placed after all values are initalized, and serves as an area where
-    % code can be prototyped and tested (for validity or performance
-    % reasons) before being implemented into the main body of the function
+    % Placed after all values are initalized, and serves as an area where code can be prototyped and tested
+    % (for validity or performance reasons) before being implemented into the main body of the function
     if PERF_TEST && SANDBOX
         return
     end
@@ -197,10 +196,10 @@ function automaticityModel()
         trial_number = trial_number + 1;    % track number of current trial
 
         % variables tracking spiking rate in each neuron
-        PMC_A.spikes = 0;
-        PMC_B.spikes = 0;
         PFC_A.spikes = 0;
         PFC_B.spikes = 0;
+        PMC_A.spikes = 0;
+        PMC_B.spikes = 0;
 
         % variables keep track of positive voltage values for calculation of
         % integral (for Hebbian learning equation)
@@ -223,9 +222,8 @@ function automaticityModel()
         PMC_A.out(:) = 0;
         PMC_B.out(:) = 0;
 
-        % Determine visual stimulus in range [1, GRID_SIZE] to pick
-        % random gabor for each trial, padded with the BORDER_SIZE such
-        % that the visual stimulus is accounted for properly
+        % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
+        % the BORDER_SIZE such that the visual stimulus is accounted for properly
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
@@ -236,8 +234,7 @@ function automaticityModel()
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
         PFC_A.v_stim = sum(reshape(         RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
         PFC_B.v_stim = sum(reshape(     RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
-        % Scale RBF values by PMC_A and PMC_B weights to find respective
-        % v_stim values
+        % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
         PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
         % Scale v_stim values to prevent them from becoming too large
@@ -317,26 +314,12 @@ function automaticityModel()
                 end
             end
 
-            % Record PFC v value if positive. Else, do nothing.
+            % Record voltage value if positive. Else, do nothing.
             % For computation of integral
-            if PFC_A.v(i) > 0
-                PFC_A.pos_volt(i) = PFC_A.v(i);
-            end
-
-            if PFC_B.v(i) > 0
-                PFC_B.pos_volt(i) = PFC_B.v(i);
-            end
-
-            % this code creates a positive number matrix for the PMC voltages
-            % only the positive values are retained and all other values
-            % are converted to zero (for computation of integral)
-            if PMC_A.v(i) > 0
-                PMC_A.pos_volt(i) = PMC_A.v(i);
-            end
-
-            if PMC_B.v(i) > 0
-                PMC_B.pos_volt(i) = PMC_B.v(i);
-            end
+            if PFC_A.v(i) > 0; PFC_A.pos_volt(i) = PFC_A.v(i); end
+            if PFC_B.v(i) > 0; PFC_B.pos_volt(i) = PFC_B.v(i); end
+            if PMC_A.v(i) > 0; PMC_A.pos_volt(i) = PMC_A.v(i); end
+            if PMC_B.v(i) > 0; PMC_B.pos_volt(i) = PMC_B.v(i); end
 
         end
 
