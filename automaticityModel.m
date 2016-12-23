@@ -25,6 +25,7 @@ function automaticityModel()
     
     % Programming Parameters
     PERF_TEST = 1; % Enable/disable performance output
+    SANDBOX = 0; % Controls whether "sandbox" area executes, or main func
     if PERF_TEST
         startTime = tic;
     end
@@ -168,73 +169,14 @@ function automaticityModel()
     % Matrix to store information about which matrix responds during a trial
     Reaction_Matrix = zeros(TRIALS, 3);
 
-    if 0
-        disp('Testing vectorization vs. non-vec');
-        tic;
-        for j=1:TRIALS
-            r_y = r_y_vals(j) + BORDER_SIZE;
-            r_x = r_x_vals(j) + BORDER_SIZE;
-            % Calculations
-            RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
-            PFC_A.v_stim = sum(reshape((RBF.rbv(:, 1:GRID_SIZE/2)), 1, RBF.HALF_NUM_WEIGHTS));
-            PFC_B.v_stim = sum(reshape((RBF.rbv(:, GRID_SIZE/2+1:end)), 1, RBF.HALF_NUM_WEIGHTS));
-            PMC_A.v_stim = RBF.rbv(:,:).*PMC_A.weights(:,:,j);
-            PMC_B.v_stim = RBF.rbv(:,:).*PMC_B.weights(:,:,j);
-            % Scaling
-            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
-            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
-            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
-        end
-        disp(toc);
-        tic;
-        for j=1:TRIALS
-            r_y = r_y_vals(j) + BORDER_SIZE;
-            r_x = r_x_vals(j) + BORDER_SIZE;
-            % Calculations
-            RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
-            PFC_A.v_stim = sum(sum(RBF.rbv(:, 1:GRID_SIZE/2)));
-            PFC_B.v_stim = sum(sum(RBF.rbv(:, GRID_SIZE/2+1:end)));
-            PMC_A.v_stim = RBF.rbv(:,:).*PMC_A.weights(:,:,j);
-            PMC_B.v_stim = RBF.rbv(:,:).*PMC_B.weights(:,:,j);
-            % Scaling
-            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
-            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
-            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
-        end
-        disp(toc);
-        tic;
-        for j=1:TRIALS
-            disp(j);
-            r_y = r_y_vals(j) + BORDER_SIZE;
-            r_x = r_x_vals(j) + BORDER_SIZE;
-            for y=1:GRID_SIZE
-                for x=1:GRID_SIZE
-                    distance = sqrt(((r_y-y)^2) + ((r_x-x)^2));
-                    RBF.rbv(y,x) = exp(-(distance/RBF.RADIUS))*Visual.stim;
-                    if (x <= GRID_SIZE/2)
-                        PFC_A.v_stim = PFC_A.v_stim + RBF.rbv(y,x);
-                    else
-                        PFC_B.v_stim = PFC_B.v_stim + RBF.rbv(y,x);
-                    end
-                    PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
-                    PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
-                end
-            end
-            % Scaling
-            PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
-            PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-            PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
-            PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
-        end
-        disp(toc);
+    %% Sandbox area
+    % Placed after all values are initalized, and serves as an area where
+    % code can be prototyped and tested (for validity or performance
+    % reasons) before being implemented into the main body of the function
+    if PERF_TEST && SANDBOX
         return
     end
-    
-    
-    
-    
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
