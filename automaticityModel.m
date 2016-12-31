@@ -500,11 +500,11 @@ function automaticityModel()
     
 
     %% Figure 2
+    % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     figure;
 
     % Force slider to integer/discrete value:
-    % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-
-    % values-to-round-to-a-valid-number
+    % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
     rows = 1;
     columns = 2;
 
@@ -541,6 +541,7 @@ function automaticityModel()
     set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
     
     %% Figure 3
+    % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
     figure;
     
     PMC_S = Reaction_Matrix(:,3) == 'S';
