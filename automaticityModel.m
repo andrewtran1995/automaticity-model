@@ -23,6 +23,13 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    % Programming Parameters
+    PERF_TEST = 1; % Enable/disable performance output
+    SANDBOX = 0; % Controls whether "sandbox" area executes, or main func
+    if PERF_TEST
+        startTime = tic;
+    end
+    
     % Load visual stimulus matrix
     % load('randomVisualInput.mat');
     load('maddoxVisualInput.mat');
@@ -34,13 +41,14 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 300;              % Number of trials in automaticity experiment
+    TRIALS = 600;              % Number of trials in automaticity experiment
     GRID_SIZE = 140;          % Length of side of square grid for visual input; should always be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;              % maximum possible weight for Hebbian Synapses
     DECISION_PT = 4;          % Integral value which determines which PMC neuron acts on a visual input
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
+    loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
     % Quantity of Visual Stimulus
     Visual = struct( ...
@@ -48,9 +56,14 @@ function automaticityModel()
     );
 
     % Radial Basis Function
+    [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
     RBF = struct( ...
         'RADIUS', 2, ...
-        'rbv', zeros(GRID_SIZE) ...
+        'rbv', zeros(GRID_SIZE), ...
+        'X', X, ...
+        'Y', Y, ...
+        'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, ...
+        'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
 
     % PFC scaling information
@@ -156,22 +169,37 @@ function automaticityModel()
     % Matrix to store information about which matrix responds during a trial
     Reaction_Matrix = zeros(TRIALS, 3);
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%%%%%%%%% LOOP ON CALCULATIONS %%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% Sandbox area
+    % Placed after all values are initalized, and serves as an area where code can be prototyped and tested
+    % (for validity or performance reasons) before being implemented into the main body of the function
+    if PERF_TEST && SANDBOX
+        return
+    end
 
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%% CALCULATIONS %%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    %% Precompute RBF.rbv matrices
+%     parfor j=1:TRIALS
+%         
+%     end
+    
     %% Learning trials
     trial_number = 0;
 
     for j=1:TRIALS
+        if PERF_TEST
+            tic;
+        end
         %% Initialize appropriate variables for each loop
         trial_number = trial_number + 1;    % track number of current trial
 
         % variables tracking spiking rate in each neuron
-        PMC_A.spikes = 0;
-        PMC_B.spikes = 0;
         PFC_A.spikes = 0;
         PFC_B.spikes = 0;
+        PMC_A.spikes = 0;
+        PMC_B.spikes = 0;
 
         % variables keep track of positive voltage values for calculation of
         % integral (for Hebbian learning equation)
@@ -194,47 +222,24 @@ function automaticityModel()
         PMC_A.out(:) = 0;
         PMC_B.out(:) = 0;
 
-        % Determine visual stimulus in range [1, GRID_SIZE] to pick
-        % random gabor for each trial, padded with the BORDER_SIZE such
-        % that the visual stimulus is accounted for properly
-%         r_y = randi([1 GRID_SIZE],1,1);
-%         r_x = randi([1 GRID_SIZE],1,1);
+        % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
+        % the BORDER_SIZE such that the visual stimulus is accounted for properly
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
 
         %% Radial Basis Function (RBF) Implementation
-        % Use temp variables x and y to iterate the entire grid, calculating visual input
-        % Note: Recall that r_y corresponds to rows, and r_x corresponds to columns
-        PFC_A.v_stim = 0;
-        PFC_B.v_stim = 0;
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                distance = sqrt(((r_y-y)^2) + ((r_x-x)^2));
-                % Initialize RBF.rbv matrix while iterating to save computation time
-                RBF.rbv(y,x) = exp(-(distance/RBF.RADIUS))*Visual.stim;
-                % if r_x <= GRID_SIZE/2, must be on "left" side for PFC A
-                if (x <= GRID_SIZE/2)
-                    PFC_A.v_stim = PFC_A.v_stim + RBF.rbv(y,x);
-                % else, r_x must be > GRID_SIZE/2 and is on the "right" side for PFC B
-                else
-                    PFC_B.v_stim = PFC_B.v_stim + RBF.rbv(y,x);
-                end
-            end
-        end
-        % Scale PFC_A.v_stim and PFC_B.v_stim to prevent them from becoming too large
+        % Calculate RBF grid
+        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
+        % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
+        PFC_A.v_stim = sum(reshape(         RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
+        PFC_B.v_stim = sum(reshape(     RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
+        % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
+        % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
-        % Iterate through entire grid, calculating PMC_A.v_stim (matrix or value?)
-        PMC_A.v_stim = 0;
-        PMC_B.v_stim = 0;
-        for y=1:GRID_SIZE
-            for x=1:GRID_SIZE
-                PMC_A.v_stim = PMC_A.v_stim + RBF.rbv(y,x)*PMC_A.weights(y,x,j);
-                PMC_B.v_stim = PMC_B.v_stim + RBF.rbv(y,x)*PMC_B.weights(y,x,j);
-            end
-        end
-        % Scale PMC_A.v_stim and PMC_B.v_stim to prevent them from becoming too large
         PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
@@ -309,26 +314,12 @@ function automaticityModel()
                 end
             end
 
-            % Record PFC v value if positive. Else, do nothing.
+            % Record voltage value if positive. Else, do nothing.
             % For computation of integral
-            if PFC_A.v(i) > 0
-                PFC_A.pos_volt(i) = PFC_A.v(i);
-            end
-
-            if PFC_B.v(i) > 0
-                PFC_B.pos_volt(i) = PFC_B.v(i);
-            end
-
-            % this code creates a positive number matrix for the PMC voltages
-            % only the positive values are retained and all other values
-            % are converted to zero (for computation of integral)
-            if PMC_A.v(i) > 0
-                PMC_A.pos_volt(i) = PMC_A.v(i);
-            end
-
-            if PMC_B.v(i) > 0
-                PMC_B.pos_volt(i) = PMC_B.v(i);
-            end
+            if PFC_A.v(i) > 0; PFC_A.pos_volt(i) = PFC_A.v(i); end
+            if PFC_B.v(i) > 0; PFC_B.pos_volt(i) = PFC_B.v(i); end
+            if PMC_A.v(i) > 0; PMC_A.pos_volt(i) = PMC_A.v(i); end
+            if PMC_B.v(i) > 0; PMC_B.pos_volt(i) = PMC_B.v(i); end
 
         end
 
@@ -396,15 +387,15 @@ function automaticityModel()
         fprintf('PFC_B.v_stim: %d\n', PFC_B.v_stim);
         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
-%         fprintf('g_t_1_A: %d\n', g_t_1_A);
-%         fprintf('g_t_2_A: %d\n', g_t_2_A);
-%         fprintf('g_t_1_B: %d\n', g_t_1_B);
-%         fprintf('g_t_2_B: %d\n', g_t_2_B);
+        if PERF_TEST
+            loop_times(j) = toc;
+        end
 
     end
 
     %% Determine decision neuron and reaction time
 %     parfor j=1:TRIALS
+%         fprintf('we are looping: %d\n', j);
 %         for i=1:n
 %             % If PMC_A meets the decision point sooner, indicate it in the
 %             % first column with a '0'
@@ -420,7 +411,7 @@ function automaticityModel()
 %             end
 %         end
 %     end
-    
+%     
     % Delete first matrix (initialization matrix) of PMC_A.weights and PMC_B.weights
     % so that the trial number matches the index
     PMC_A.weights(:,:,1) = [];
@@ -557,6 +548,14 @@ function automaticityModel()
     set(p3, 'Color', 'g');
     legend('S', 'M', 'L', 'Location', 'southeast');
     title('CDF of RT by Grouping');
+    
+    %% Figure 4 - Performance Tests 
+    if PERF_TEST
+        elapsedTime = toc(startTime);
+        figure;
+        plot(loop_times);
+        title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
+    end
     
     %% Starts debug mode, allowing variables to be observed before the
     % function ends
