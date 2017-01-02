@@ -24,7 +24,7 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % Programming Parameters
-    PERF_TEST = 1; % Enable/disable performance output
+    PERF_TEST = 0; % Enable/disable performance output
     SANDBOX = 0; % Controls whether "sandbox" area executes, or main func
     if PERF_TEST
         startTime = tic;
@@ -533,6 +533,7 @@ function automaticityModel()
     
     %% Figure 3
     % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+    % CDF = P(RT <= t), for each specific value t
     figure;
     
     PMC_S = Reaction_Matrix(:,3) == 'S';
@@ -547,9 +548,25 @@ function automaticityModel()
     p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
     set(p3, 'Color', 'g');
     legend('S', 'M', 'L', 'Location', 'southeast');
-    title('CDF of RT by Grouping');
+    title('CDFs of RTs by Grouping');
     
-    %% Figure 4 - Performance Tests 
+    %% Figure 4 - Hazard Functions
+    % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
+    % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
+    figure;
+    
+    % Reuse vars from CDF plot
+    pts = (min(Reaction_Matrix(:, 2)):1:max(Reaction_Matrix(:, 2)));
+    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_S, 2), pts), 'Color', 'r');
+    hold on;
+    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_M, 2), pts), 'Color', 'b');
+    hold on;
+    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_L, 2), pts), 'Color', 'g');
+    legend('S', 'M', 'L', 'Location', 'southeast');
+    title('Hazard Functions');
+    
+    %% Figure 5 - Performance Tests 
+    % Information regarding the performance, or run-time, of this program
     if PERF_TEST
         elapsedTime = toc(startTime);
         figure;
@@ -562,7 +579,7 @@ function automaticityModel()
     keyboard;
 end
 
-% Handles the slider functionality for the synaptic weight heatmaps
+%% Handles the slider functionality for the synaptic weight heatmaps
 function synaptic_slider_callback(src, ~, position, data, neuron_name)
     subplot(1, 2, position, 'replace');
     trial_num = round(get(src, 'value'));
@@ -571,4 +588,12 @@ function synaptic_slider_callback(src, ~, position, data, neuron_name)
     imagesc(data(:,:,trial_num));
     colorbar;
     title(sprintf('%s Synaptic Heatmap, Trial %d\n', neuron_name, trial_num'));
+end
+
+%% Find the hazard function as defined by Hazard = f(t)/S(t),
+% where f(t) is the PDF and S(t) is the survivor function
+function [f] = get_hazard_estimate(x, pts)
+    [f_pdf, ~] = ksdensity(x, pts, 'function', 'pdf');
+    [f_sur, ~] = ksdensity(x, pts, 'function', 'survivor');
+    f = f_pdf./f_sur;
 end
