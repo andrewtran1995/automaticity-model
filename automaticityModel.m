@@ -24,31 +24,44 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % Programming Parameters
-    PERF_TEST = 0; % Enable/disable performance output
-    SANDBOX = 0; % Controls whether "sandbox" area executes, or main func
+    PERF_TEST = 0;      % Enable/disable performance output
+    SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
+    INPUT_GROUPING = 0; % Set to 1 (true) if loaded visual input groups stimulus
     if PERF_TEST
         startTime = tic;
     end
     
-    % Load visual stimulus matrix
+    %% Load visual stimulus matrix
+    % %% Random Visual Input, 100 x 100 %%
     % load('randomVisualInput.mat');
+    % %% Random Visual Input to Maddox Grid, 100 X 100 %%
     load('maddoxVisualInput.mat');
+    INPUT_GROUPING = 1;
     r_x_vals = maddoxVisualInput(:, 1);
     r_y_vals = maddoxVisualInput(:, 2);
     r_groups = maddoxVisualInput(:, 3);
+    
+    % If input grouping not enabled, set r_groups to zeros
+    if not(INPUT_GROUPING)
+        r_groups = zeros(1, length(r_x_vals));
+    end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1000;              % Number of trials in automaticity experiment
-    GRID_SIZE = 140;          % Length of side of square grid for visual input; should always be an even number
+    TRIALS = 1000;            % Number of trials in automaticity experiment
+    
+    STIM_GRID_SIZE = 100;     % Length of side of square grid used for visual input; shoudl be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
+    
     LAMBDA = 20;              % Lambda Value
-    W_MAX = 10;              % maximum possible weight for Hebbian Synapses
+    W_MAX = 10;               % maximum possible weight for Hebbian Synapses
     DECISION_PT = 4;          % Integral value which determines which PMC neuron acts on a visual input
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
     NOISE = 2;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
     % Quantity of Visual Stimulus
@@ -248,7 +261,7 @@ function automaticityModel()
         for i=1:n-1
             % Neuron Equations
             % PFC A Neuron
-            PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrd(0,NOISE);
+            PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
             PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
             if PFC_A.v(i+1)>=RSN.vpeak;
                 PFC_A.v(i)= RSN.vpeak;
@@ -265,7 +278,7 @@ function automaticityModel()
             end
 
             % PFC B Neuron
-            PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrd(0,NOISE);
+            PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
             PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
             if PFC_B.v(i+1)>=RSN.vpeak;
                 PFC_B.v(i)= RSN.vpeak;
@@ -282,7 +295,7 @@ function automaticityModel()
             end
 
             % PMC_A Neuron
-            PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrd(0,NOISE);
+            PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
             PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
             if PMC_A.v(i+1)>=RSN.vpeak;
                 PMC_A.v(i)= RSN.vpeak;
@@ -299,7 +312,7 @@ function automaticityModel()
             end
 
             % PMC_B Neuron
-            PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrd(0,NOISE);
+            PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
             PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
             if PMC_B.v(i+1)>=RSN.vpeak;
                 PMC_B.v(i)= RSN.vpeak;
@@ -470,9 +483,10 @@ function automaticityModel()
     title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
-    surf(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
+%     plot(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
+    colormap('cold');
+    imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
-%     axis([0 100 0 100]);
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -511,9 +525,9 @@ function automaticityModel()
     colorbar;
     title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
     slider_PMC_A = uicontrol('Style', 'slider', ...
-        'Min', 1, 'Max', TRIALS, ...
-        'Value', 1, ...
-        'Position', [100 50 300 20]);
+                             'Min', 1, 'Max', TRIALS, ...
+                             'Value', 1, ...
+                             'Position', [100 50 300 20]);
     set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
 
     PMC_B_trial_num = 1;
@@ -527,44 +541,46 @@ function automaticityModel()
     colorbar;
     title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
     slider_PMC_B = uicontrol('Style', 'slider', ...
-        'Min', 1, 'Max', TRIALS, ...
-        'Value', 1, ...
-        'Position', [500 50 300 20]);
+                             'Min', 1, 'Max', TRIALS, ...
+                             'Value', 1, ...
+                             'Position', [500 50 300 20]);
     set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
     
-    %% Figure 3
-    % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
-    % CDF = P(RT <= t), for each specific value t
-    figure;
-    
-    PMC_S = Reaction_Matrix(:,3) == 'S';
-    PMC_M = Reaction_Matrix(:,3) == 'M';
-    PMC_L = Reaction_Matrix(:,3) == 'L';
-    p1 = cdfplot(Reaction_Matrix(PMC_S, 2));
-    set(p1, 'Color', 'r');
-    hold on;
-    p2 = cdfplot(Reaction_Matrix(PMC_M, 2));
-    set(p2, 'Color', 'b');
-    hold on;
-    p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
-    set(p3, 'Color', 'g');
-    legend('S', 'M', 'L', 'Location', 'southeast');
-    title('CDFs of RTs by Grouping');
-    
-    %% Figure 4 - Hazard Functions
-    % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
-    % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
-    figure;
-    
-    % Reuse vars from CDF plot
-    pts = (min(Reaction_Matrix(:, 2)):0.25:max(Reaction_Matrix(:, 2)));
-    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_S, 2), pts), 'Color', 'r');
-    hold on;
-    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_M, 2), pts), 'Color', 'b');
-    hold on;
-    plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_L, 2), pts), 'Color', 'g');
-    legend('S', 'M', 'L', 'Location', 'southeast');
-    title('Hazard Functions');
+    if INPUT_GROUPING
+        %% Figure 3
+        % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+        % CDF = P(RT <= t), for each specific value t
+        figure;
+
+        PMC_S = Reaction_Matrix(:,3) == 'S';
+        PMC_M = Reaction_Matrix(:,3) == 'M';
+        PMC_L = Reaction_Matrix(:,3) == 'L';
+        p1 = cdfplot(Reaction_Matrix(PMC_S, 2));
+        set(p1, 'Color', 'r');
+        hold on;
+        p2 = cdfplot(Reaction_Matrix(PMC_M, 2));
+        set(p2, 'Color', 'b');
+        hold on;
+        p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
+        set(p3, 'Color', 'g');
+        legend('S', 'M', 'L', 'Location', 'southeast');
+        title('CDFs of RTs by Grouping');
+
+        %% Figure 4 - Hazard Functions
+        % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
+        % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
+        figure;
+
+        % Reuse vars from CDF plot
+        pts = (min(Reaction_Matrix(:, 2)):0.25:max(Reaction_Matrix(:, 2)));
+        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_S, 2), pts), 'Color', 'r');
+        hold on;
+        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_M, 2), pts), 'Color', 'b');
+        hold on;
+        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_L, 2), pts), 'Color', 'g');
+        legend('S', 'M', 'L', 'Location', 'southeast');
+        title('Hazard Functions');
+    end
     
     %% Figure 5 - Performance Tests 
     % Information regarding the performance, or run-time, of this program
