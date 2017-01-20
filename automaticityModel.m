@@ -33,13 +33,19 @@ function automaticityModel()
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
-    % load('randomVisualInput.mat');
+    if 0
+        load('randomVisualInput.mat');
+        r_x_vals = r_x_mat;
+        r_y_vals = r_y_mat;
+    end
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
-    load('maddoxVisualInput.mat');
-    INPUT_GROUPING = 1;
-    r_x_vals = maddoxVisualInput(:, 1);
-    r_y_vals = maddoxVisualInput(:, 2);
-    r_groups = maddoxVisualInput(:, 3);
+    if 1
+        load('maddoxVisualInput.mat');
+        INPUT_GROUPING = 1;
+        r_x_vals = maddoxVisualInput(:, 1);
+        r_y_vals = maddoxVisualInput(:, 2);
+        r_groups = maddoxVisualInput(:, 3);
+    end
     
     % If input grouping not enabled, set r_groups to zeros
     if not(INPUT_GROUPING)
@@ -50,7 +56,7 @@ function automaticityModel()
     % Experiment parameters
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
-    TRIALS = 1000;            % Number of trials in automaticity experiment
+    TRIALS = 800;             % Number of trials in automaticity experiment
     
     STIM_GRID_SIZE = 100;     % Length of side of square grid used for visual input; shoudl be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
@@ -58,9 +64,8 @@ function automaticityModel()
     
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;               % maximum possible weight for Hebbian Synapses
-    DECISION_PT = 4;          % Integral value which determines which PMC neuron acts on a visual input
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
-    NOISE = 2;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = 1;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
@@ -82,14 +87,18 @@ function automaticityModel()
 
     % PFC scaling information
     PFC = struct( ...
-        'V_SCALE', 1, ... % scaling factor for visual input into PFC neurons
-        'W_LI', 2 ...       % lateral inhibition between PFC A / PFC B
+        'V_SCALE', 1, ...                % scaling factor for visual input into PFC neurons
+        'W_LI', 2, ...                   % lateral inhibition between PFC A / PFC B
+        'DECISION_PT', 4, ...            % Integral value which determines which PFC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PFC neuron reacting during trial
     );
 
     % PMC scaling information
     PMC = struct( ...
-        'V_SCALE', 1, ...     % can use to scale PMC visual input value if it comes out way too high
-        'W_LI', 2 ...         % lateral inhibition between PMC A / PMC B
+        'V_SCALE', 1, ...                % can use to scale PMC visual input value if it comes out way too high
+        'W_LI', 2, ...                   % lateral inhibition between PMC A / PMC B
+        'DECISION_PT', 4, ...            % Integral value which determines which PMC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PMC neuron reacting during trial
     );
 
     % Hebbian Constants (determine the subtle attributes of learning at the
@@ -179,9 +188,6 @@ function automaticityModel()
         'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS+1), ...
         'weights_avg', zeros(1,TRIALS) ...
     );
-
-    % Matrix to store information about which matrix responds during a trial
-    Reaction_Matrix = zeros(TRIALS, 3);
 
     %% Sandbox area
     % Placed after all values are initalized, and serves as an area where code can be prototyped and tested
@@ -338,15 +344,28 @@ function automaticityModel()
         end
 
         %% Determine decision neuron and reaction time
+%         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
+%         PMC.rx_matrix(j,3) = r_group;
+        for i=1:n
+            if trapz(PFC_A.out(1:i)) >= PFC.DECISION_PT
+                PFC.rx_matrix(j,:) = [1, i, r_group];
+                break;
+            elseif trapz(PFC_B.out(1:i)) >= PFC.DECISION_PT
+                PFC.rx_matrix(j,:) = [2, i, r_group];
+                break;
+            else
+                continue;
+            end
+        end
         for i=1:n
             % If PMC_A meets the decision point sooner, indicate it in the
-            % first column with a '0'
-            if trapz(PMC_A.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [0, i, r_group];
+            % first column with a '1'
+            if trapz(PMC_A.out(1:i)) >= PMC.DECISION_PT
+                PMC.rx_matrix(j,:) = [1, i, r_group];
                 break;
-            % Else, indicate PMC_B with '1'
-            elseif trapz(PMC_B.out(1:i)) >= DECISION_PT
-                Reaction_Matrix(j,:) = [1, i, r_group];
+            % Else, indicate PMC_B with '2'
+            elseif trapz(PMC_B.out(1:i)) >= PMC.DECISION_PT
+                PMC.rx_matrix(j,:) = [2, i, r_group];
                 break;
             else
                 continue;
@@ -356,7 +375,6 @@ function automaticityModel()
         %% Calculation of Hebbian Weight for PMC_A
         % Visual input to PMC_A neuron (presynaptic)
         integral_visinputA   = trapz(PFC_A.pos_volt);
-
         % Activation of PMC_A neuron   (post-synaptic)
         integral_PMCAvoltage = trapz(PMC_A.pos_volt);
 
@@ -374,7 +392,6 @@ function automaticityModel()
         %% Calculation of Hebbian Weight for PMC_B
         % Visual input to PMC_B neuron (presynaptic)
         integral_visinputB   = trapz(PFC_B.pos_volt);
-
         % Activation of PMC_B neuron   (post-synaptic)
         integral_PMCBvoltage = trapz(PMC_B.pos_volt);
 
@@ -404,28 +421,8 @@ function automaticityModel()
         if PERF_TEST
             loop_times(j) = toc;
         end
-
     end
-
-    %% Determine decision neuron and reaction time
-%     parfor j=1:TRIALS
-%         fprintf('we are looping: %d\n', j);
-%         for i=1:n
-%             % If PMC_A meets the decision point sooner, indicate it in the
-%             % first column with a '0'
-%             if trapz(PMC_A.out(1:i)) >= DECISION_PT
-%                 Reaction_Matrix(j,:) = [0, i, r_group];
-%                 break;
-%             % Else, indicate PMC_B with '1'
-%             elseif trapz(PMC_B.out(1:i)) >= DECISION_PT
-%                 Reaction_Matrix(j,:) = [1, i, r_group];
-%                 break;
-%             else
-%                 continue;
-%             end
-%         end
-%     end
-%     
+     
     % Delete first matrix (initialization matrix) of PMC_A.weights and PMC_B.weights
     % so that the trial number matches the index
     PMC_A.weights(:,:,1) = [];
@@ -483,8 +480,7 @@ function automaticityModel()
     title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
-%     plot(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    colormap('cold');
+    colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
     title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.stim));
 
@@ -496,11 +492,11 @@ function automaticityModel()
 
     subplot(rows,columns,11);
     x_axis = linspace(1, TRIALS, TRIALS);
-    PMC_A_Rx = Reaction_Matrix(:,1) == 0;
+    PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
     PMC_B_Rx = ~PMC_A_Rx;
-    scatter(x_axis(PMC_A_Rx), Reaction_Matrix(PMC_A_Rx,2), 10, 'r', 'filled');
+    scatter(x_axis(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
-    scatter(x_axis(PMC_B_Rx), Reaction_Matrix(PMC_B_Rx,2), 10, 'b', 'filled');
+    scatter(x_axis(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
     title('PMC_A & PMC_B Reaction Time');
     
@@ -517,7 +513,6 @@ function automaticityModel()
     PMC_A_trial_num = 1;
     PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
                                     BORDER_SIZE:end-BORDER_SIZE, :);
-
     subplot(rows,columns,1);
     data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
     colormap('hot');
@@ -533,7 +528,6 @@ function automaticityModel()
     PMC_B_trial_num = 1;
     PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
                                     BORDER_SIZE:end-BORDER_SIZE, :);
-
     subplot(rows,columns,2);
     data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
     colormap('hot');
@@ -552,16 +546,16 @@ function automaticityModel()
         % CDF = P(RT <= t), for each specific value t
         figure;
 
-        PMC_S = Reaction_Matrix(:,3) == 'S';
-        PMC_M = Reaction_Matrix(:,3) == 'M';
-        PMC_L = Reaction_Matrix(:,3) == 'L';
-        p1 = cdfplot(Reaction_Matrix(PMC_S, 2));
+        PMC_S = PMC.rx_matrix(:,3) == 'S';
+        PMC_M = PMC.rx_matrix(:,3) == 'M';
+        PMC_L = PMC.rx_matrix(:,3) == 'L';
+        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
         set(p1, 'Color', 'r');
         hold on;
-        p2 = cdfplot(Reaction_Matrix(PMC_M, 2));
+        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2));
         set(p2, 'Color', 'b');
         hold on;
-        p3 = cdfplot(Reaction_Matrix(PMC_L, 2));
+        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2));
         set(p3, 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         title('CDFs of RTs by Grouping');
@@ -572,17 +566,21 @@ function automaticityModel()
         figure;
 
         % Reuse vars from CDF plot
-        pts = (min(Reaction_Matrix(:, 2)):0.25:max(Reaction_Matrix(:, 2)));
-        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_S, 2), pts), 'Color', 'r');
+        pts = (min(PMC.rx_matrix(:, 2)):0.25:max(PMC.rx_matrix(:, 2)));
+        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
         hold on;
-        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_M, 2), pts), 'Color', 'b');
+        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
         hold on;
-        plot(pts, get_hazard_estimate(Reaction_Matrix(PMC_L, 2), pts), 'Color', 'g');
+        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_L, 2), pts), 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         title('Hazard Functions');
     end
     
-    %% Figure 5 - Performance Tests 
+    %% Figure 5 - Reaction Latency
+    % Compare the latency of the PFC versus the PMC
+    
+    
+    %% Figure 6 - Performance Tests
     % Information regarding the performance, or run-time, of this program
     if PERF_TEST
         elapsedTime = toc(startTime);
@@ -594,6 +592,44 @@ function automaticityModel()
     %% Starts debug mode, allowing variables to be observed before the
     % function ends
     keyboard;
+end
+
+%% Return what neuron reacts to the stimuli, and the latency
+% Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
+    n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
+    n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
+    % If n1 or n2 only contains zeroes, the alternative must be the reacting neuron
+    if any(n1) == 0
+        neuron_id = 2;
+        latency = n2_latency;
+    elseif any(n2) == 0
+        neuron_id = 1;
+        latency = n1_latency;
+    % Else, both n1 and n2 have valid values -- compare latencies
+    elseif n2_latency < n1_latency
+        neuron_id = 2;
+        latency = n2_latency;
+    else
+        neuron_id = 1;
+        latency = n1_latency;
+    end
+    % If n2_latency only contains zeroes, n1 must be the reacting neuron
+%     fprintf('N1 Latency is %f\n', n1_latency);
+%     fprintf('N2 Latency is %f\n', n2_latency);
+%     fprintf('any(n1) is %d\n', any(n1));
+%     fprintf('any(n2) is %f\n', any(n2));
+%     if n1_latency <= n2_latency || any(n2) == 0
+%         neuron_id = 1;
+%         latency = n1_latency;
+%     else
+%         neuron_id = 2;
+%         latency = n2_latency;
+%     end
+
+%     if isempty(latency)
+%         keyboard;
+%     end
 end
 
 %% Handles the slider functionality for the synaptic weight heatmaps
