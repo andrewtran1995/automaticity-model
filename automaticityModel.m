@@ -57,6 +57,7 @@ function automaticityModel()
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
     TRIALS = 800;             % Number of trials in automaticity experiment
+    NO_LEARNING_TRIALS = 200; % Number of trials where no learning is involved
     
     STIM_GRID_SIZE = 100;     % Length of side of square grid used for visual input; shoudl be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
@@ -372,6 +373,7 @@ function automaticityModel()
             end
         end
 
+        % Weight change calculations
         %% Calculation of Hebbian Weight for PMC_A
         % Visual input to PMC_A neuron (presynaptic)
         integral_visinputA   = trapz(PFC_A.pos_volt);
@@ -596,6 +598,7 @@ end
 
 %% Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+% Not currently used -- potentially slower, and inaccurate results
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
@@ -614,22 +617,6 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
         neuron_id = 1;
         latency = n1_latency;
     end
-    % If n2_latency only contains zeroes, n1 must be the reacting neuron
-%     fprintf('N1 Latency is %f\n', n1_latency);
-%     fprintf('N2 Latency is %f\n', n2_latency);
-%     fprintf('any(n1) is %d\n', any(n1));
-%     fprintf('any(n2) is %f\n', any(n2));
-%     if n1_latency <= n2_latency || any(n2) == 0
-%         neuron_id = 1;
-%         latency = n1_latency;
-%     else
-%         neuron_id = 2;
-%         latency = n2_latency;
-%     end
-
-%     if isempty(latency)
-%         keyboard;
-%     end
 end
 
 %% Handles the slider functionality for the synaptic weight heatmaps
