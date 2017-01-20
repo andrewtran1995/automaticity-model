@@ -17,6 +17,9 @@
 % The goal is to enforce readability by standardizing the names of grouped variables
 % and making relationships between variables more apparent
 
+% If debugging, one can observe the workspace of the function by issuing the following
+% command before execution: "dbstop if error"
+
 function automaticityModel()
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,9 +40,8 @@ function automaticityModel()
         load('randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
-    end
+    elseif 1
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
-    if 1
         load('maddoxVisualInput.mat');
         INPUT_GROUPING = 1;
         r_x_vals = maddoxVisualInput(:, 1);
@@ -57,7 +59,8 @@ function automaticityModel()
     n = 1000;                 % Time period for one trial (in milliseconds)
     TAU = 1;
     TRIALS = 800;             % Number of trials in automaticity experiment
-    NO_LEARNING_TRIALS = 200; % Number of trials where no learning is involved
+    NO_LEARNING_TRIALS = 0;   % Number of trials where no learning is involved
+    LEARNING = [ones(1,TRIALS), zeros(1,NO_LEARNING_TRIALS)]; % Create matrix to store information on when learning should occur
     
     STIM_GRID_SIZE = 100;     % Length of side of square grid used for visual input; shoudl be an even number
     BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
@@ -66,7 +69,7 @@ function automaticityModel()
     LAMBDA = 20;              % Lambda Value
     W_MAX = 10;               % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
-    NOISE = 1;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = 2;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
@@ -86,24 +89,25 @@ function automaticityModel()
         'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
 
+    %% General settings for PFC, PMC neurons
+    % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC scaling information
     PFC = struct( ...
-        'V_SCALE', 1, ...                % scaling factor for visual input into PFC neurons
-        'W_LI', 2, ...                   % lateral inhibition between PFC A / PFC B
-        'DECISION_PT', 4, ...            % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PFC neuron reacting during trial
+        'V_SCALE', 1, ...                                   % scaling factor for visual input into PFC neurons
+        'W_LI', 2, ...                                      % lateral inhibition between PFC A / PFC B
+        'DECISION_PT', 4, ...                               % Integral value which determines which PFC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS+NO_LEARNING_TRIALS,3) ... % Stores information about PFC neuron reacting during trial
     );
 
     % PMC scaling information
     PMC = struct( ...
-        'V_SCALE', 1, ...                % can use to scale PMC visual input value if it comes out way too high
-        'W_LI', 2, ...                   % lateral inhibition between PMC A / PMC B
-        'DECISION_PT', 4, ...            % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PMC neuron reacting during trial
+        'V_SCALE', 1, ...                                   % can use to scale PMC visual input value if it comes out way too high
+        'W_LI', 2, ...                                      % lateral inhibition between PMC A / PMC B
+        'DECISION_PT', 4, ...                               % Integral value which determines which PMC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS+NO_LEARNING_TRIALS,3) ... % Stores information about PMC neuron reacting during trial
     );
 
-    % Hebbian Constants (determine the subtle attributes of learning at the
-    % Hebbian synapses)
+    %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
     % NMDA - upper threshold
     % AMPA - lower threshold
     % Strengthening occurs if integral_PMCAvoltage > Hebbian.NMDA
@@ -201,7 +205,8 @@ function automaticityModel()
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    %% Precompute RBF.rbv matrices
+    %% Pre-calculations
+    % Precompute RBF.rbv matrices
 %     parfor j=1:TRIALS
 %         
 %     end
@@ -209,7 +214,7 @@ function automaticityModel()
     %% Learning trials
     trial_number = 0;
 
-    for j=1:TRIALS
+    for j=1:(TRIALS + NO_LEARNING_TRIALS)
         if PERF_TEST
             tic;
         end
@@ -248,6 +253,15 @@ function automaticityModel()
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
+        
+        % Set PMC weights
+        if LEARNING(j)
+            PMC_A_weights = PMC_A.weights(:,:,j);
+            PMC_B_weights = PMC_B.weights(:,:,j);
+        else
+            PMC_A_weights = PMC_A.weights(:,:,end);
+            PMC_B_weights = PMC_B.weights(:,:,end);
+        end
 
         %% Radial Basis Function (RBF) Implementation
         % Calculate RBF grid
@@ -256,8 +270,8 @@ function automaticityModel()
         PFC_A.v_stim = sum(reshape(         RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
         PFC_B.v_stim = sum(reshape(     RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
-        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
-        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B.weights(:,:,j),      [1 RBF.NUM_WEIGHTS]));
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [1 RBF.NUM_WEIGHTS]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [1 RBF.NUM_WEIGHTS]));
         % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
@@ -374,43 +388,45 @@ function automaticityModel()
         end
 
         % Weight change calculations
-        %% Calculation of Hebbian Weight for PMC_A
-        % Visual input to PMC_A neuron (presynaptic)
-        integral_visinputA   = trapz(PFC_A.pos_volt);
-        % Activation of PMC_A neuron   (post-synaptic)
-        integral_PMCAvoltage = trapz(PMC_A.pos_volt);
+        if LEARNING(j)
+            %% Calculation of Hebbian Weight for PMC_A
+            % Visual input to PMC_A neuron (presynaptic)
+            integral_visinputA   = trapz(PFC_A.pos_volt);
+            % Activation of PMC_A neuron   (post-synaptic)
+            integral_PMCAvoltage = trapz(PMC_A.pos_volt);
 
-        % Ensure g(t)-1 and g(2)-2 are never less than zero
-        g_t_1_A = max(0, integral_PMCAvoltage - Hebbian.NMDA);
-        g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
+            % Ensure g(t)-1 and g(2)-2 are never less than zero
+            g_t_1_A = max(0, integral_PMCAvoltage - Hebbian.NMDA);
+            g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
-        % Determine new weights of visual PMC_A synapses
-        PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
+            % Determine new weights of visual PMC_A synapses
+            PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
 
-        % Limit values of PMC_A.weights to be in range [0,W_MAX]
-        PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
-        PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
+            % Limit values of PMC_A.weights to be in range [0,W_MAX]
+            PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
+            PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
 
-        %% Calculation of Hebbian Weight for PMC_B
-        % Visual input to PMC_B neuron (presynaptic)
-        integral_visinputB   = trapz(PFC_B.pos_volt);
-        % Activation of PMC_B neuron   (post-synaptic)
-        integral_PMCBvoltage = trapz(PMC_B.pos_volt);
+            %% Calculation of Hebbian Weight for PMC_B
+            % Visual input to PMC_B neuron (presynaptic)
+            integral_visinputB   = trapz(PFC_B.pos_volt);
+            % Activation of PMC_B neuron   (post-synaptic)
+            integral_PMCBvoltage = trapz(PMC_B.pos_volt);
 
-        % Ensures g(t)-1 and g(2)-2 are never less than zero
-        g_t_1_B = max(0, integral_PMCBvoltage - Hebbian.NMDA);
-        g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
+            % Ensures g(t)-1 and g(2)-2 are never less than zero
+            g_t_1_B = max(0, integral_PMCBvoltage - Hebbian.NMDA);
+            g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
-        % Determine new weights of visual PMC_B synapses
-        PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
+            % Determine new weights of visual PMC_B synapses
+            PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
 
-        % Limit values of PMC_A.weights to be in range [0,W_MAX]
-        PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
-        PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
+            % Limit values of PMC_A.weights to be in range [0,W_MAX]
+            PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
+            PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
 
-        % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j+1)));
-        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j+1)));
+            % Record average weight for PMC_A and PMC_B
+            PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j+1)));
+            PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j+1)));
+        end
 
         %% Print data to console
         fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
@@ -496,9 +512,9 @@ function automaticityModel()
     x_axis = linspace(1, TRIALS, TRIALS);
     PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
     PMC_B_Rx = ~PMC_A_Rx;
-    scatter(x_axis(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
+    scatter(find(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
-    scatter(x_axis(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
+    scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
     title('PMC_A & PMC_B Reaction Time');
     
@@ -548,9 +564,9 @@ function automaticityModel()
         % CDF = P(RT <= t), for each specific value t
         figure;
 
-        PMC_S = PMC.rx_matrix(:,3) == 'S';
-        PMC_M = PMC.rx_matrix(:,3) == 'M';
-        PMC_L = PMC.rx_matrix(:,3) == 'L';
+        PMC_S = PMC.rx_matrix(1:TRIALS,3) == 'S';
+        PMC_M = PMC.rx_matrix(1:TRIALS,3) == 'M';
+        PMC_L = PMC.rx_matrix(1:TRIALS,3) == 'L';
         p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
         set(p1, 'Color', 'r');
         hold on;
@@ -580,7 +596,32 @@ function automaticityModel()
     
     %% Figure 5 - Reaction Latency
     % Compare the latency of the PFC versus the PMC
+    % TODO: factor out x/y labeling
+    f = figure;
+    rows = 2;
+    columns = 2;
+    numBins = 20;
     
+    subplot(rows,columns,1);
+    hist(PFC.rx_matrix(1:TRIALS,2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PFC Latencies (Learning)');
+    subplot(rows,columns,2);
+    hist(PMC.rx_matrix(1:TRIALS,2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PMC Latencies (Learning)');
+    subplot(rows,columns,3);
+    hist(PFC.rx_matrix(end-NO_LEARNING_TRIALS+1:end, 2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PFC Latencies (No Learning)');
+    subplot(rows,columns,4);
+    hist(PMC.rx_matrix(end-NO_LEARNING_TRIALS+1:end, 2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PMC Latencies (No Learning)');
     
     %% Figure 6 - Performance Tests
     % Information regarding the performance, or run-time, of this program
@@ -591,8 +632,7 @@ function automaticityModel()
         title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
     end
     
-    %% Starts debug mode, allowing variables to be observed before the
-    % function ends
+    %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
 end
 
