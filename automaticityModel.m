@@ -27,7 +27,7 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % Programming Parameters
-    PERF_TEST = 0;      % Enable/disable performance output
+    PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     INPUT_GROUPING = 0; % Set to 1 (true) if loaded visual input groups stimulus
     if PERF_TEST
@@ -36,11 +36,11 @@ function automaticityModel()
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
-    if 0
+    if 1
         load('randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
-    elseif 1
+    elseif 0
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
         load('maddoxVisualInput.mat');
         INPUT_GROUPING = 1;
@@ -55,21 +55,30 @@ function automaticityModel()
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
-    % Experiment parameters
-    n = 1000;                 % Time period for one trial (in milliseconds)
-    TAU = 1;
-    TRIALS = 800;             % Number of trials in automaticity experiment
-    NO_LEARNING_TRIALS = 0;   % Number of trials where no learning is involved
-    LEARNING = [ones(1,TRIALS), zeros(1,NO_LEARNING_TRIALS)]; % Create matrix to store information on when learning should occur
-    
-    STIM_GRID_SIZE = 100;     % Length of side of square grid used for visual input; shoudl be an even number
-    BORDER_SIZE = 20;         % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    % Set behavior and number of trials
+    PRE_LEARNING_TRIALS = 100;  % Number of control trials run before learning trials
+    LEARNING_TRIALS = 100;        % Number of learning trials in automaticity experiment
+    POST_LEARNING_TRIALS = 100; % Number of trials where no learning is involved after learning trials
+    TRIALS = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
+    % Create matrix to store information on when learning should occur
+    LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
+                ones(1,LEARNING_TRIALS), ...
+                zeros(1,POST_LEARNING_TRIALS)]; 
+    % Convenience variables
+    LEARNING_IDX = PRE_LEARNING_TRIALS+1:PRE_LEARNING_TRIALS+LEARNING_TRIALS;
+
+    % Set properties of grid
+    STIM_GRID_SIZE = 100;      % Length of side of square grid used for visual input; shoudl be an even number
+    BORDER_SIZE = 20;          % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
-    LAMBDA = 20;              % Lambda Value
-    W_MAX = 10;               % maximum possible weight for Hebbian Synapses
-    INIT_PMC_WEIGHT = 0.08;   % Initial weight for PMC neurons
-    NOISE = 2;                % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    % Other parameters
+    n = 1000;                  % Time period for one trial (in milliseconds)
+    TAU = 1;
+    LAMBDA = 20;               % Lambda Value
+    W_MAX = 10;                % maximum possible weight for Hebbian Synapses
+    INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
+    NOISE = 2;                 % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
@@ -96,7 +105,7 @@ function automaticityModel()
         'V_SCALE', 1, ...                                   % scaling factor for visual input into PFC neurons
         'W_LI', 2, ...                                      % lateral inhibition between PFC A / PFC B
         'DECISION_PT', 4, ...                               % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS+NO_LEARNING_TRIALS,3) ... % Stores information about PFC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PFC neuron reacting during trial
     );
 
     % PMC scaling information
@@ -104,7 +113,7 @@ function automaticityModel()
         'V_SCALE', 1, ...                                   % can use to scale PMC visual input value if it comes out way too high
         'W_LI', 2, ...                                      % lateral inhibition between PMC A / PMC B
         'DECISION_PT', 4, ...                               % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS+NO_LEARNING_TRIALS,3) ... % Stores information about PMC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PMC neuron reacting during trial
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -178,7 +187,7 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS+1), ...
+        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
         'weights_avg', zeros(1,TRIALS) ...
     );
 
@@ -190,7 +199,7 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS+1), ...
+        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
         'weights_avg', zeros(1,TRIALS) ...
     );
 
@@ -214,7 +223,7 @@ function automaticityModel()
     %% Learning trials
     trial_number = 0;
 
-    for j=1:(TRIALS + NO_LEARNING_TRIALS)
+    for j=1:TRIALS
         if PERF_TEST
             tic;
         end
@@ -222,53 +231,46 @@ function automaticityModel()
         trial_number = trial_number + 1;    % track number of current trial
 
         % variables tracking spiking rate in each neuron
-        PFC_A.spikes = 0;
-        PFC_B.spikes = 0;
-        PMC_A.spikes = 0;
-        PMC_B.spikes = 0;
+        PFC_A.spikes = 0;       PMC_A.spikes = 0;
+        PFC_B.spikes = 0;       PMC_B.spikes = 0;
 
         % variables keep track of positive voltage values for calculation of
         % integral (for Hebbian learning equation)
-        PFC_A.pos_volt(:) = 0;
-        PFC_B.pos_volt(:) = 0;
-        PMC_A.pos_volt(:) = 0;
-        PMC_B.pos_volt(:) = 0;
+        PFC_A.pos_volt(:) = 0;  PMC_A.pos_volt(:) = 0;
+        PFC_B.pos_volt(:) = 0;  PMC_B.pos_volt(:) = 0;
 
         % Re-initialize Neuron Voltage Matrices (set all v to RSN.rv; all u to 0)
         PFC_A.v(:) = RSN.rv;     PFC_A.u(:) = 0;
         PFC_B.v(:) = RSN.rv;     PFC_B.u(:) = 0;
-
         PMC_A.v(:) = RSN.rv;     PMC_A.u(:) = 0;
         PMC_B.v(:) = RSN.rv;     PMC_B.u(:) = 0;
 
         % Re-initialize Neuron Output Matrices
-        PFC_A.out(:) = 0;
-        PFC_B.out(:) = 0;
-
-        PMC_A.out(:) = 0;
-        PMC_B.out(:) = 0;
+        PFC_A.out(:) = 0;        PMC_A.out(:) = 0;
+        PFC_B.out(:) = 0;        PMC_B.out(:) = 0;
+        
+        % Set PMC weights; if first trial, set to initial weights
+        if j==1
+            PMC_A_weights = PMC_A.weights(:,:,1);
+            PMC_B_weights = PMC_B.weights(:,:,1);
+        % Else, set weights to results of previous trial
+        else
+            PMC_A_weights = PMC_A.weights(:,:,j-1);
+            PMC_B_weights = PMC_B.weights(:,:,j-1);
+        end
 
         % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
-        
-        % Set PMC weights
-        if LEARNING(j)
-            PMC_A_weights = PMC_A.weights(:,:,j);
-            PMC_B_weights = PMC_B.weights(:,:,j);
-        else
-            PMC_A_weights = PMC_A.weights(:,:,end);
-            PMC_B_weights = PMC_B.weights(:,:,end);
-        end
 
         %% Radial Basis Function (RBF) Implementation
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(reshape(         RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
-        PFC_B.v_stim = sum(reshape(     RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
+        PFC_A.v_stim = sum(reshape(    RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
+        PFC_B.v_stim = sum(reshape(RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [1 RBF.NUM_WEIGHTS]));
         PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [1 RBF.NUM_WEIGHTS]));
@@ -387,7 +389,7 @@ function automaticityModel()
             end
         end
 
-        % Weight change calculations
+        %% Weight change calculations
         if LEARNING(j)
             %% Calculation of Hebbian Weight for PMC_A
             % Visual input to PMC_A neuron (presynaptic)
@@ -400,11 +402,11 @@ function automaticityModel()
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A.weights(:,:,j+1) = PMC_A.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights(:,:,j));
+            PMC_A.weights(:,:,j) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,j+1) = max(PMC_A.weights(:,:,j+1), 0);
-            PMC_A.weights(:,:,j+1) = min(PMC_A.weights(:,:,j+1), W_MAX);
+            PMC_A.weights(:,:,j) = max(PMC_A.weights(:,:,j), 0);
+            PMC_A.weights(:,:,j) = min(PMC_A.weights(:,:,j), W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
@@ -417,16 +419,20 @@ function automaticityModel()
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B.weights(:,:,j+1) = PMC_B.weights(:,:,j) + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights(:,:,j)) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights(:,:,j));
+            PMC_B.weights(:,:,j) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,j+1) = max(PMC_B.weights(:,:,j+1), 0);
-            PMC_B.weights(:,:,j+1) = min(PMC_B.weights(:,:,j+1), W_MAX);
-
-            % Record average weight for PMC_A and PMC_B
-            PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j+1)));
-            PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j+1)));
+            PMC_B.weights(:,:,j) = max(PMC_B.weights(:,:,j), 0);
+            PMC_B.weights(:,:,j) = min(PMC_B.weights(:,:,j), W_MAX); 
+        % Else, if not learning, set new weights to previous weights
+        else
+            PMC_A.weights(:,:,j) = PMC_A_weights;
+            PMC_B_weights(:,:,j) = PMC_B_weights;
         end
+        
+        % Record average weight for PMC_A and PMC_B
+        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j)));
+        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j)));
 
         %% Print data to console
         fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
@@ -440,11 +446,6 @@ function automaticityModel()
             loop_times(j) = toc;
         end
     end
-     
-    % Delete first matrix (initialization matrix) of PMC_A.weights and PMC_B.weights
-    % so that the trial number matches the index
-    PMC_A.weights(:,:,1) = [];
-    PMC_B.weights(:,:,1) = [];
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
@@ -452,6 +453,7 @@ function automaticityModel()
 
     %% Figure 1 - neuron information from last trial or throughout trials
     figure;
+    title('Neuron Information from Last Trial, Rx Times, Etc.');
 
     % Plot items
     rows = 3;
@@ -519,54 +521,61 @@ function automaticityModel()
     title('PMC_A & PMC_B Reaction Time');
     
 
+    
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
-    figure;
-
-    % Force slider to integer/discrete value:
-    % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
-    rows = 1;
-    columns = 2;
-
-    PMC_A_trial_num = 1;
-    PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                    BORDER_SIZE:end-BORDER_SIZE, :);
-    subplot(rows,columns,1);
-    data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
-    colormap('hot');
-    imagesc(data3);
-    colorbar;
-    title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
-    slider_PMC_A = uicontrol('Style', 'slider', ...
-                             'Min', 1, 'Max', TRIALS, ...
-                             'Value', 1, ...
-                             'Position', [100 50 300 20]);
-    set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
-
-    PMC_B_trial_num = 1;
-    PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                    BORDER_SIZE:end-BORDER_SIZE, :);
-    subplot(rows,columns,2);
-    data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
-    colormap('hot');
-    imagesc(data4);
-    colorbar;
-    title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
-    slider_PMC_B = uicontrol('Style', 'slider', ...
-                             'Min', 1, 'Max', TRIALS, ...
-                             'Value', 1, ...
-                             'Position', [500 50 300 20]);
-    set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
-    
-    if INPUT_GROUPING
-        %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
-        % CDF = P(RT <= t), for each specific value t
+    % Only relevant if any learning trials were conducted
+    if LEARNING_TRIALS > 0
         figure;
+        title('Synaptic Heatmaps');
+        rows = 1;
+        columns = 2;
+        % Force slider to integer/discrete value:
+        % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
+        PMC_A_trial_num = 1;
+        PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                        BORDER_SIZE:end-BORDER_SIZE, ...
+                                        LEARNING_IDX);
+        subplot(rows,columns,1);
+        data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
+        colormap('hot');
+        imagesc(data3);
+        colorbar;
+        title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
+        slider_PMC_A = uicontrol('Style', 'slider', ...
+                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                 'Value', 1, ...
+                                 'Position', [100 50 300 20]);
+        set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
 
-        PMC_S = PMC.rx_matrix(1:TRIALS,3) == 'S';
-        PMC_M = PMC.rx_matrix(1:TRIALS,3) == 'M';
-        PMC_L = PMC.rx_matrix(1:TRIALS,3) == 'L';
+        PMC_B_trial_num = 1;
+        PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                        BORDER_SIZE:end-BORDER_SIZE, ...
+                                        LEARNING_IDX);
+        subplot(rows,columns,2);
+        data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
+        colormap('hot');
+        imagesc(data4);
+        colorbar;
+        title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
+        slider_PMC_B = uicontrol('Style', 'slider', ...
+                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                 'Value', 1, ...
+                                 'Position', [500 50 300 20]);
+        set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+    end
+    
+    %% Figure 3
+    % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+    % CDF = P(RT <= t), for each specific value t
+    if INPUT_GROUPING
+        % Set-up
+        PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
+        PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
+        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';        
+        figure;
+        title('CDFs of PMC Rx Times (Grouped by Distance)');
+
         p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
         set(p1, 'Color', 'r');
         hold on;
@@ -582,9 +591,10 @@ function automaticityModel()
         % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
         % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
         figure;
+        title('PMC Rx Times Hazard Functions');
 
         % Reuse vars from CDF plot
-        pts = (min(PMC.rx_matrix(:, 2)):0.25:max(PMC.rx_matrix(:, 2)));
+        pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
         plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
         hold on;
         plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
@@ -598,27 +608,41 @@ function automaticityModel()
     % Compare the latency of the PFC versus the PMC
     % TODO: factor out x/y labeling
     f = figure;
-    rows = 2;
+    title('Reaction Latency Histograms');
+    rows = 3;
     columns = 2;
     numBins = 20;
     
+    % Pre-Learning
     subplot(rows,columns,1);
-    hist(PFC.rx_matrix(1:TRIALS,2), numBins);
+    hist(PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PFC Latencies (Pre-Learning)');
+    subplot(rows,columns,2);
+    hist(PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
+    xlabel('Latency of selectivity for the behavioral response (ms)');
+    ylabel('Number of neurons');
+    title('PMC Latencies (Pre-Learning)');
+    % Learning
+    subplot(rows,columns,3);
+    hist(PFC.rx_matrix(LEARNING_IDX,2), numBins);
     xlabel('Latency of selectivity for the behavioral response (ms)');
     ylabel('Number of neurons');
     title('PFC Latencies (Learning)');
-    subplot(rows,columns,2);
-    hist(PMC.rx_matrix(1:TRIALS,2), numBins);
+    subplot(rows,columns,4);
+    hist(PMC.rx_matrix(LEARNING_IDX,2), numBins);
     xlabel('Latency of selectivity for the behavioral response (ms)');
     ylabel('Number of neurons');
     title('PMC Latencies (Learning)');
-    subplot(rows,columns,3);
-    hist(PFC.rx_matrix(end-NO_LEARNING_TRIALS+1:end, 2), numBins);
+    % Post-Learning
+    subplot(rows,columns,5);
+    hist(PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
     xlabel('Latency of selectivity for the behavioral response (ms)');
     ylabel('Number of neurons');
     title('PFC Latencies (No Learning)');
-    subplot(rows,columns,4);
-    hist(PMC.rx_matrix(end-NO_LEARNING_TRIALS+1:end, 2), numBins);
+    subplot(rows,columns,6);
+    hist(PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
     xlabel('Latency of selectivity for the behavioral response (ms)');
     ylabel('Number of neurons');
     title('PMC Latencies (No Learning)');
