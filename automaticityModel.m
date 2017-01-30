@@ -427,7 +427,7 @@ function automaticityModel()
         % Else, if not learning, set new weights to previous weights
         else
             PMC_A.weights(:,:,j) = PMC_A_weights;
-            PMC_B_weights(:,:,j) = PMC_B_weights;
+            PMC_B.weights(:,:,j) = PMC_B_weights;
         end
         
         % Record average weight for PMC_A and PMC_B
