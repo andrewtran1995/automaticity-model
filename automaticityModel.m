@@ -36,7 +36,7 @@ function automaticityModel()
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
-    if 1
+    if 0
         load('randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
@@ -47,6 +47,11 @@ function automaticityModel()
         r_x_vals = maddoxVisualInput(:, 1);
         r_y_vals = maddoxVisualInput(:, 2);
         r_groups = maddoxVisualInput(:, 3);
+    elseif 1
+    % %% Wallis Visual Input, 100 X 100 %%
+        load('wallisVisualInput.mat');
+        r_x_vals = wallisVisualInput5(:,1);
+        r_y_vals = wallisVisualInput5(:,2);
     end
     
     % If input grouping not enabled, set r_groups to zeros
