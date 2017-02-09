@@ -26,6 +26,12 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    % Load parameters
+    % CONFIGURATIONS = {'MADDOX', 'WALLIS'};
+    CONFIGURATION = 'WALLIS';
+    PARAM_CONFS = get_parameter_configurations();
+    PARAMS = PARAM_CONFS(CONFIGURATION);
+    
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
@@ -56,9 +62,9 @@ function automaticityModel()
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
-    PRE_LEARNING_TRIALS = 100;  % Number of control trials run before learning trials
-    LEARNING_TRIALS = 100;        % Number of learning trials in automaticity experiment
-    POST_LEARNING_TRIALS = 100; % Number of trials where no learning is involved after learning trials
+    PRE_LEARNING_TRIALS = PARAMS.PRE_LEARNING_TRIALS;   % Number of control trials run before learning trials
+    LEARNING_TRIALS = PARAMS.LEARNING_TRIALS;           % Number of learning trials in automaticity experiment
+    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS; % Number of trials where no learning is involved after learning trials
     TRIALS = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
     LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
@@ -78,7 +84,7 @@ function automaticityModel()
     LAMBDA = 20;               % Lambda Value
     W_MAX = 10;                % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
-    NOISE = 2;                 % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
@@ -102,18 +108,18 @@ function automaticityModel()
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC scaling information
     PFC = struct( ...
-        'V_SCALE', 1, ...                                   % scaling factor for visual input into PFC neurons
-        'W_LI', 2, ...                                      % lateral inhibition between PFC A / PFC B
-        'DECISION_PT', 4, ...                               % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PFC neuron reacting during trial
+        'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
+        'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
+        'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % Integral value which determines which PFC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PFC neuron reacting during trial
     );
 
     % PMC scaling information
     PMC = struct( ...
-        'V_SCALE', 1, ...                                   % can use to scale PMC visual input value if it comes out way too high
-        'W_LI', 2, ...                                      % lateral inhibition between PMC A / PMC B
-        'DECISION_PT', 4, ...                               % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PMC neuron reacting during trial
+        'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
+        'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
+        'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PMC neuron reacting during trial
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -128,10 +134,7 @@ function automaticityModel()
         'AMPA', 0 ...
     );
 
-    %% Initialize data structures (some constants contained in data structures)
-    % Neuron constants (RSN: Regular Spiking Neuron)
-    % Set for a cortical regular spiking neuron
-    % Usage: RSN.C to get C value
+    %% Neuron constants (RSN: Regular Spiking Neuron), set for a cortical regular spiking neuron
     RSN = struct( ...
         'C', 100, ...
         'rv', -60, ...
@@ -145,10 +148,8 @@ function automaticityModel()
         'E', 60 ...
     );
 
-    % Neuron-related variables and matrices contained in
-    % "structures", such as output matrix, output weight, etc.
-    % Certain variables are also initialized here and nowhere
-    % else in the program (W_OUT)
+    %% Neuron-related variables and matrices contained in structures, such as output matrix, output weight, etc.
+    % Certain variables are also initialized here and nowhere else in the program (W_OUT)
     % Neuron.W_OUT: weight of output from one neuron to another (PFC to PMC or PMC to PFC)
     % Neuron.out: output array
     % Neuron.spikes: variables tracking spiking rate per trial
@@ -174,11 +175,6 @@ function automaticityModel()
         'v_stim', 0 ...
     );
 
-    % Please note that PMC_A.weights and PMC_B.weights has TRIALS+1 amount of entries
-    % where weights(1) is the intialization matrix, and weights(i+1) is the true
-    % synaptic weight values for trial i
-    % The initialization matrix is removed at the end of the calculation section so that
-    % the index matches the synaptic weight values for that trial
     PMC_A = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
@@ -658,6 +654,27 @@ function automaticityModel()
     
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Return set of parameters based on argument?
+% https://www.mathworks.com/matlabcentral/answers/59686-strategies-to-store-load-configuration-data
+function [param_map] = get_parameter_configurations()
+    % Field names of parameters (used in returned structure)
+    param_names = {'CONF_NAME', 'PRE_LEARNING_TRIALS', 'LEARNING_TRIALS', 'POST_LEARNING_TRIALS', ...
+                   'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
+    % Different configurations of parameters
+    configurations = {'MADDOX',   0, 100,   0, 0,   4,   4; ...
+                      'WALLIS', 100, 100, 100, 2, 400, 400; ...
+                     };
+    % Join parameter names and specified parameter configuration as structure
+    param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
+    param_struct_in_cells = arrayfun(@(x) x, param_struct', 'UniformOutput', false);
+    % Create mapping from strings to parameter configurations
+    param_map = containers.Map(configurations(:,1), param_struct_in_cells);
 end
 
 %% Return what neuron reacts to the stimuli, and the latency
