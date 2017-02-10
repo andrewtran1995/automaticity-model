@@ -26,9 +26,16 @@ function automaticityModel()
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    % Load parameters
+    % CONFIGURATIONS = {'MADDOX', 'WALLIS'};
+    CONFIGURATION = 'WALLIS';
+    PARAM_CONFS = get_parameter_configurations();
+    PARAMS = PARAM_CONFS(CONFIGURATION);
+    
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
+    PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
     INPUT_GROUPING = 0; % Set to 1 (true) if loaded visual input groups stimulus
     if PERF_TEST
         startTime = tic;
@@ -36,7 +43,7 @@ function automaticityModel()
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
-    if 0
+    if 1
         load('randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
@@ -47,7 +54,7 @@ function automaticityModel()
         r_x_vals = maddoxVisualInput(:, 1);
         r_y_vals = maddoxVisualInput(:, 2);
         r_groups = maddoxVisualInput(:, 3);
-    elseif 1
+    elseif 0
     % %% Wallis Visual Input, 100 X 100 %%
         load('wallisVisualInput.mat');
         r_x_vals = wallisVisualInput5(:,1);
@@ -61,9 +68,9 @@ function automaticityModel()
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
-    PRE_LEARNING_TRIALS = 100;  % Number of control trials run before learning trials
-    LEARNING_TRIALS = 100;        % Number of learning trials in automaticity experiment
-    POST_LEARNING_TRIALS = 100; % Number of trials where no learning is involved after learning trials
+    PRE_LEARNING_TRIALS = PARAMS.PRE_LEARNING_TRIALS;   % Number of control trials run before learning trials
+    LEARNING_TRIALS = PARAMS.LEARNING_TRIALS;           % Number of learning trials in automaticity experiment
+    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS; % Number of trials where no learning is involved after learning trials
     TRIALS = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
     LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
@@ -83,7 +90,7 @@ function automaticityModel()
     LAMBDA = 20;               % Lambda Value
     W_MAX = 10;                % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
-    NOISE = 2;                 % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
 
@@ -107,18 +114,18 @@ function automaticityModel()
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC scaling information
     PFC = struct( ...
-        'V_SCALE', 1, ...                                   % scaling factor for visual input into PFC neurons
-        'W_LI', 2, ...                                      % lateral inhibition between PFC A / PFC B
-        'DECISION_PT', 4, ...                               % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PFC neuron reacting during trial
+        'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
+        'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
+        'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % Integral value which determines which PFC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PFC neuron reacting during trial
     );
 
     % PMC scaling information
     PMC = struct( ...
-        'V_SCALE', 1, ...                                   % can use to scale PMC visual input value if it comes out way too high
-        'W_LI', 2, ...                                      % lateral inhibition between PMC A / PMC B
-        'DECISION_PT', 4, ...                               % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ... % Stores information about PMC neuron reacting during trial
+        'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
+        'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
+        'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PMC neuron reacting during trial
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -133,10 +140,7 @@ function automaticityModel()
         'AMPA', 0 ...
     );
 
-    %% Initialize data structures (some constants contained in data structures)
-    % Neuron constants (RSN: Regular Spiking Neuron)
-    % Set for a cortical regular spiking neuron
-    % Usage: RSN.C to get C value
+    %% Neuron constants (RSN: Regular Spiking Neuron), set for a cortical regular spiking neuron
     RSN = struct( ...
         'C', 100, ...
         'rv', -60, ...
@@ -150,10 +154,8 @@ function automaticityModel()
         'E', 60 ...
     );
 
-    % Neuron-related variables and matrices contained in
-    % "structures", such as output matrix, output weight, etc.
-    % Certain variables are also initialized here and nowhere
-    % else in the program (W_OUT)
+    %% Neuron-related variables and matrices contained in structures, such as output matrix, output weight, etc.
+    % Certain variables are also initialized here and nowhere else in the program (W_OUT)
     % Neuron.W_OUT: weight of output from one neuron to another (PFC to PMC or PMC to PFC)
     % Neuron.out: output array
     % Neuron.spikes: variables tracking spiking rate per trial
@@ -162,6 +164,7 @@ function automaticityModel()
     PFC_A = struct( ...
         'W_OUT', 9, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -172,6 +175,7 @@ function automaticityModel()
     PFC_B = struct( ...
         'W_OUT', 9, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -179,14 +183,10 @@ function automaticityModel()
         'v_stim', 0 ...
     );
 
-    % Please note that PMC_A.weights and PMC_B.weights has TRIALS+1 amount of entries
-    % where weights(1) is the intialization matrix, and weights(i+1) is the true
-    % synaptic weight values for trial i
-    % The initialization matrix is removed at the end of the calculation section so that
-    % the index matches the synaptic weight values for that trial
     PMC_A = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -199,6 +199,7 @@ function automaticityModel()
     PMC_B = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -368,30 +369,18 @@ function automaticityModel()
         %% Determine decision neuron and reaction time
 %         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
 %         PMC.rx_matrix(j,3) = r_group;
-        for i=1:n
-            if trapz(PFC_A.out(1:i)) >= PFC.DECISION_PT
-                PFC.rx_matrix(j,:) = [1, i, r_group];
-                break;
-            elseif trapz(PFC_B.out(1:i)) >= PFC.DECISION_PT
-                PFC.rx_matrix(j,:) = [2, i, r_group];
-                break;
-            else
-                continue;
-            end
-        end
-        for i=1:n
-            % If PMC_A meets the decision point sooner, indicate it in the
-            % first column with a '1'
-            if trapz(PMC_A.out(1:i)) >= PMC.DECISION_PT
-                PMC.rx_matrix(j,:) = [1, i, r_group];
-                break;
-            % Else, indicate PMC_B with '2'
-            elseif trapz(PMC_B.out(1:i)) >= PMC.DECISION_PT
-                PMC.rx_matrix(j,:) = [2, i, r_group];
-                break;
-            else
-                continue;
-            end
+        if PARALLEL
+            PFC_A.out_all(j,:) = PFC_A.out(:);
+            PFC_B.out_all(j,:) = PFC_B.out(:);
+            PMC_A.out_all(j,:) = PMC_A.out(:);
+            PMC_B.out_all(j,:) = PMC_B.out(:);
+        else
+            [neuron_id, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
+            PFC.rx_matrix(j,1:2) = [neuron_id, latency];
+            PFC.rx_matrix(j,3) = r_group;
+            [neuron_id, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
+            PMC.rx_matrix(j,1:2) = [neuron_id, latency];
+            PMC.rx_matrix(j,3) = r_group;
         end
 
         %% Weight change calculations
@@ -450,6 +439,32 @@ function automaticityModel()
         if PERF_TEST
             loop_times(j) = toc;
         end
+    end
+    
+    %% Post-calculations
+    if PARALLEL
+        % Copy variables over to temporary vars for parallel computation
+        PFC_rx_matrix = PFC.rx_matrix(:,1:2);
+        PMC_rx_matrix = PMC.rx_matrix(:,1:2);
+        PFC_A_out_all = PFC_A.out_all(:,:);
+        PFC_B_out_all = PFC_B.out_all(:,:);
+        PMC_A_out_all = PMC_A.out_all(:,:);
+        PMC_B_out_all = PMC_B.out_all(:,:);
+        PFC_DECISION_PT = PFC.DECISION_PT;
+        PMC_DECISION_PT = PMC.DECISION_PT;
+        neuron_id = 0;
+        latency = 0;
+        keyboard;
+        % Run parallel for loop to determine reaction times
+        parfor j = 1:TRIALS
+            [neuron_id, latency] = determine_reacting_neuron(PFC_A_out_all(j), PFC_B_out_all(j), PFC_DECISION_PT);
+            PFC_rx_matrix(j,:) = [neuron_id, latency];
+            [neuron_id, latency] = determine_reacting_neuron(PMC_A_out_all(j), PMC_B_out_all(j), PMC_DECISION_PT);
+            PMC_rx_matrix(j,:) = [neuron_id, latency];
+        end
+        % Copy results into rx_matrix
+        PFC.rx_matrix(:,1:2) = PFC_rx_matrix;
+        PMC.rx_matrix(:,1:2) = PMC_rx_matrix;
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -665,21 +680,43 @@ function automaticityModel()
     keyboard;
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Return set of parameters based on argument?
+% https://www.mathworks.com/matlabcentral/answers/59686-strategies-to-store-load-configuration-data
+function [param_map] = get_parameter_configurations()
+    % Field names of parameters (used in returned structure)
+    param_names = {'CONF_NAME', 'PRE_LEARNING_TRIALS', 'LEARNING_TRIALS', 'POST_LEARNING_TRIALS', ...
+                   'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
+    % Different configurations of parameters
+    configurations = {'MADDOX',   0, 100,   0, 0,   4,   4; ...
+                      'WALLIS',   0, 200, 100, 2, 400, 400; ...
+                     };
+    % Join parameter names and specified parameter configuration as structure
+    param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
+    param_struct_in_cells = arrayfun(@(x) x, param_struct', 'UniformOutput', false);
+    % Create mapping from strings to parameter configurations
+    param_map = containers.Map(configurations(:,1), param_struct_in_cells);
+end
+
 %% Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
 % Not currently used -- potentially slower, and inaccurate results
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
-    % If n1 or n2 only contains zeroes, the alternative must be the reacting neuron
-    if any(n1) == 0
-        neuron_id = 2;
-        latency = n2_latency;
-    elseif any(n2) == 0
-        neuron_id = 1;
-        latency = n1_latency;
+    % n1_latency or n2_latency could be empty if the decision_pt was never reached
+    % If so, set it to the maximum allowed value
+    if isempty(n1_latency)
+        n1_latency = length(n1);
+    end
+    if isempty(n2_latency)
+        n2_latency = length(n2);
+    end
     % Else, both n1 and n2 have valid values -- compare latencies
-    elseif n2_latency < n1_latency
+    if n2_latency < n1_latency
         neuron_id = 2;
         latency = n2_latency;
     else
