@@ -163,6 +163,7 @@ function automaticityModel()
     PFC_A = struct( ...
         'W_OUT', 9, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -173,6 +174,7 @@ function automaticityModel()
     PFC_B = struct( ...
         'W_OUT', 9, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -183,6 +185,7 @@ function automaticityModel()
     PMC_A = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -195,6 +198,7 @@ function automaticityModel()
     PMC_B = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
+        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(1,n), ...
         'u', zeros(1,n), ...
@@ -364,29 +368,36 @@ function automaticityModel()
         %% Determine decision neuron and reaction time
 %         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
 %         PMC.rx_matrix(j,3) = r_group;
-        for i=1:n
-            if trapz(PFC_A.out(1:i)) >= PFC.DECISION_PT
-                PFC.rx_matrix(j,:) = [1, i, r_group];
-                break;
-            elseif trapz(PFC_B.out(1:i)) >= PFC.DECISION_PT
-                PFC.rx_matrix(j,:) = [2, i, r_group];
-                break;
-            else
-                continue;
+        if 1
+            PFC_A.out_all(j,:) = PFC_A.out(:);
+            PFC_B.out_all(j,:) = PFC_B.out(:);
+            PMC_A.out_all(j,:) = PMC_A.out(:);
+            PMC_B.out_all(j,:) = PMC_B.out(:);
+        else
+            for i=1:n
+                if trapz(PFC_A.out(1:i)) >= PFC.DECISION_PT
+                    PFC.rx_matrix(j,:) = [1, i, r_group];
+                    break;
+                elseif trapz(PFC_B.out(1:i)) >= PFC.DECISION_PT
+                    PFC.rx_matrix(j,:) = [2, i, r_group];
+                    break;
+                else
+                    continue;
+                end
             end
-        end
-        for i=1:n
-            % If PMC_A meets the decision point sooner, indicate it in the
-            % first column with a '1'
-            if trapz(PMC_A.out(1:i)) >= PMC.DECISION_PT
-                PMC.rx_matrix(j,:) = [1, i, r_group];
-                break;
-            % Else, indicate PMC_B with '2'
-            elseif trapz(PMC_B.out(1:i)) >= PMC.DECISION_PT
-                PMC.rx_matrix(j,:) = [2, i, r_group];
-                break;
-            else
-                continue;
+            for i=1:n
+                % If PMC_A meets the decision point sooner, indicate it in the
+                % first column with a '1'
+                if trapz(PMC_A.out(1:i)) >= PMC.DECISION_PT
+                    PMC.rx_matrix(j,:) = [1, i, r_group];
+                    break;
+                % Else, indicate PMC_B with '2'
+                elseif trapz(PMC_B.out(1:i)) >= PMC.DECISION_PT
+                    PMC.rx_matrix(j,:) = [2, i, r_group];
+                    break;
+                else
+                    continue;
+                end
             end
         end
 
@@ -447,6 +458,29 @@ function automaticityModel()
             loop_times(j) = toc;
         end
     end
+    
+    %% Post-calculations
+    % Copy variables over to temporary vars for parallel computation
+    PFC_rx_matrix = PFC.rx_matrix(:,1:2);
+    PMC_rx_matrix = PMC.rx_matrix(:,1:2);
+    PFC_A_out_all = PFC_A.out_all;
+    PFC_B_out_all = PFC_B.out_all;
+    PMC_A_out_all = PMC_A.out_all;
+    PMC_B_out_all = PMC_B.out_all;
+    PFC_DECISION_PT = PFC.DECISION_PT;
+    PMC_DECISION_PT = PMC.DECISION_PT;
+    neuron_id = 0;
+    latency = 0;
+    % Run parallel for loop to determine reaction times
+    parfor j = 1:TRIALS
+        [neuron_id, latency] = determine_reacting_neuron(PFC_A_out_all(j), PFC_B_out_all(j), PFC_DECISION_PT);
+        PFC_rx_matrix(j,:) = [neuron_id, latency];
+        [neuron_id, latency] = determine_reacting_neuron(PMC_A_out_all(j), PMC_B_out_all(j), PMC_DECISION_PT);
+        PMC_rx_matrix(j,:) = [neuron_id, latency];
+    end
+    % Copy results into rx_matrix
+    PFC.rx_matrix(:,1:2) = PFC_rx_matrix;
+    PMC.rx_matrix(:,1:2) = PMC_rx_matrix;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
@@ -673,7 +707,7 @@ function [param_map] = get_parameter_configurations()
                    'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
     % Different configurations of parameters
     configurations = {'MADDOX',   0, 100,   0, 0,   4,   4; ...
-                      'WALLIS', 100, 100, 100, 2, 400, 400; ...
+                      'WALLIS',   0, 100, 100, 2, 400, 400; ...
                      };
     % Join parameter names and specified parameter configuration as structure
     param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
@@ -686,22 +720,41 @@ end
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
 % Not currently used -- potentially slower, and inaccurate results
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
-    n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
-    n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
-    % If n1 or n2 only contains zeroes, the alternative must be the reacting neuron
-    if any(n1) == 0
-        neuron_id = 2;
-        latency = n2_latency;
-    elseif any(n2) == 0
+    if 1
+        for i=1:length(n1)
+            if trapz(n1(1:i)) >= decision_pt
+                keyboard
+                neuron_id = 1;
+                latency = i;
+                return;
+            elseif trapz(n2(1:i)) >= decision_pt
+                neuron_id = 2;
+                latency = i;
+                return;
+            end
+        end
         neuron_id = 1;
-        latency = n1_latency;
-    % Else, both n1 and n2 have valid values -- compare latencies
-    elseif n2_latency < n1_latency
-        neuron_id = 2;
-        latency = n2_latency;
+        latency = length(n1);
+        return;
     else
-        neuron_id = 1;
-        latency = n1_latency;
+        n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
+        n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
+        % n1_latency or n2_latency could be empty if the decision_pt was never reached
+        % If so, set it to the maximum allowed value
+        if isempty(n1_latency)
+            n1_latency = length(n1);
+        end
+        if isempty(n2_latency)
+            n2_latency = length(n2);
+        end
+        % Else, both n1 and n2 have valid values -- compare latencies
+        if n2_latency < n1_latency
+            neuron_id = 2;
+            latency = n2_latency;
+        else
+            neuron_id = 1;
+            latency = n1_latency;
+        end
     end
 end
 
