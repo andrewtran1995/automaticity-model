@@ -27,8 +27,10 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % Load parameters
-    % CONFIGURATIONS = {'MADDOX', 'WALLIS'};
-    CONFIGURATION = 'WALLIS';
+    MADDOX = 'MADDOX';
+    WALLIS = 'WALLIS';
+    CONFIGURATIONS = {MADDOX, WALLIS};
+    CONFIGURATION = CONFIGURATIONS{2};
     PARAM_CONFS = get_parameter_configurations();
     PARAMS = PARAM_CONFS(CONFIGURATION);
     
@@ -584,11 +586,11 @@ function automaticityModel()
                                  'Position', [500 50 300 20]);
         set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
     end
-    
-    %% Figure 3
-    % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
-    % CDF = P(RT <= t), for each specific value t
-    if INPUT_GROUPING
+
+    if strcmp(CONFIGURATION, MADDOX)
+        %% Figure 3
+        % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+        % CDF = P(RT <= t), for each specific value t
         % Set-up
         PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
         PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
