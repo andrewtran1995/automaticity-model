@@ -9,6 +9,8 @@ Automaticity model for the Ashby lab.
     4. Y-axis coordinate of stimulus
     5. Subject Category Response
     6. Response Time
+2. 3-D Matrix
+    1. 
 
 ## Referenced Papers
 * [From Rule to Response: Neuronal Processes in the Premotor and Prefrontal Cortex](https://ekmillerlab.mit.edu/wp-content/uploads/2013/03/Wallis-Miller-JNP-2003.pdf)
