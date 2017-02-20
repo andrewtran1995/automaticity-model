@@ -7,3 +7,6 @@
 # Ignore Google Doc files
 *.gdoc
 Reference\ Papers/
+
+# Ignore IDE-related files
+.idea
