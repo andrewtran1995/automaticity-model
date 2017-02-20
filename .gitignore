@@ -10,3 +10,6 @@ Reference\ Papers/
 
 # Ignore IDE-related files
 .idea
+
+# Ignore data directory
+data
