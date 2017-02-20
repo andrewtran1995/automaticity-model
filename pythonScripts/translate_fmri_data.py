@@ -55,10 +55,20 @@ def standardize_name(filename):
 
 
 def flagged_name(standardized_name):
+    """
+    Appends a string to the start of the filename to indicate that it should be inspected.
+    :param standardized_name:
+    :return:
+    """
     return "dup_" + standardized_name
 
 
 def load_dat_file(datname):
+    """
+    Loads the data of a dat file as a 2-dimensional matrix.
+    :param datname:
+    :return: 2-dimensional numpy array
+    """
     return np.genfromtxt(datname, dtype=np.float)
 
 
