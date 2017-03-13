@@ -20,7 +20,7 @@
 % If debugging, one can observe the workspace of the function by issuing the following
 % command before execution: "dbstop if error"
 
-function automaticityModel()
+function automaticityModelFast()
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
@@ -94,9 +94,7 @@ function automaticityModel()
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
     NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
-    % Performance parameters
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
-    trial_times = zeros(1, TRIALS);
 
     % Quantity of Visual Stimulus
     Visual = struct( ...
@@ -113,11 +111,6 @@ function automaticityModel()
         'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, ...
         'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
-
-    % Accuracy matrix, where first dimension has two rows (1 = PFC; 2 = PMC)
-    % and second dimension is trial number
-    % Each element is a boolean indicating if the correct neuron reacted that trial
-    accuracy = zeros(1, TRIALS);
 
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
@@ -201,7 +194,7 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
+        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE), ...
         'weights_avg', zeros(1,TRIALS) ...
     );
 
@@ -214,7 +207,7 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
+        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE), ...
         'weights_avg', zeros(1,TRIALS) ...
     );
 
@@ -228,18 +221,13 @@ function automaticityModel()
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    %% Pre-calculations (for performance reasons)
-    % Calculate lambda values for individual trials
-    t = 0:n;
-    LAMBDA_PRECALC = (t/LAMBDA).*exp((LAMBDA-t)/LAMBDA);
     
     %% Learning trials
     trial_number = 0;
 
     for j=1:TRIALS
         if PERF_TEST
-            loopStart = tic;
+            tic;
         end
         %% Initialize appropriate variables for each loop
         trial_number = trial_number + 1;    % track number of current trial
@@ -262,16 +250,6 @@ function automaticityModel()
         % Re-initialize Neuron Output Matrices
         PFC_A.out(:) = 0;        PMC_A.out(:) = 0;
         PFC_B.out(:) = 0;        PMC_B.out(:) = 0;
-        
-        % Set PMC weights; if first trial, set to initial weights
-        if j==1
-            PMC_A_weights = PMC_A.weights(:,:,1);
-            PMC_B_weights = PMC_B.weights(:,:,1);
-        % Else, set weights to results of previous trial
-        else
-            PMC_A_weights = PMC_A.weights(:,:,j-1);
-            PMC_B_weights = PMC_B.weights(:,:,j-1);
-        end
 
         % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
@@ -286,8 +264,8 @@ function automaticityModel()
         PFC_A.v_stim = sum(reshape(    RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
         PFC_B.v_stim = sum(reshape(RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
-        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [1 RBF.NUM_WEIGHTS]));
-        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [1 RBF.NUM_WEIGHTS]));
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A.weights,      [1 RBF.NUM_WEIGHTS]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B.weights,      [1 RBF.NUM_WEIGHTS]));
         % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
@@ -295,59 +273,74 @@ function automaticityModel()
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
         %% Individual Time Trial
-        timeTrialStart = tic;
         for i=1:n-1
             % Neuron Equations
             % PFC A Neuron
-            PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
+            PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out_all(j,i)) - PFC.W_LI*PFC_B.out_all(j,i))/RSN.C) + normrnd(0,NOISE);
             PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
             if PFC_A.v(i+1)>=RSN.vpeak;
                 PFC_A.v(i)= RSN.vpeak;
                 PFC_A.v(i+1)= RSN.c;
                 PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
             end
+
             if (PFC_A.v(i) >= RSN.vpeak)
                 PFC_A.spikes = PFC_A.spikes + 1;
-                PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                for k=i:n
+                   t= k-i;
+                   PFC_A.out_all(j,k)= PFC_A.out_all(j,k)+((t/LAMBDA)*exp((LAMBDA-t)/LAMBDA));
+                end
             end
 
             % PFC B Neuron
-            PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
+            PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out_all(j,i)) - PFC.W_LI*PFC_A.out_all(j,i))/RSN.C) + normrnd(0,NOISE);
             PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
             if PFC_B.v(i+1)>=RSN.vpeak;
                 PFC_B.v(i)= RSN.vpeak;
                 PFC_B.v(i+1)= RSN.c;
                 PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
             end
+
             if (PFC_B.v(i) >= RSN.vpeak)
                 PFC_B.spikes = PFC_B.spikes + 1;
-                PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                for k=i:n
+                   t= k-i;
+                   PFC_B.out_all(j,k)= PFC_B.out_all(j,k)+((t/LAMBDA)*exp((LAMBDA-t)/LAMBDA));
+                end
             end
 
             % PMC_A Neuron
-            PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
+            PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out_all(j,i)) - PMC.W_LI*PMC_B.out_all(j,i) )/RSN.C) + normrnd(0,NOISE);
             PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
             if PMC_A.v(i+1)>=RSN.vpeak;
                 PMC_A.v(i)= RSN.vpeak;
                 PMC_A.v(i+1)= RSN.c;
                 PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
             end
+
             if (PMC_A.v(i) >= RSN.vpeak)
                 PMC_A.spikes = PMC_A.spikes + 1;
-                PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                for k=i:n
+                   t= k-i;
+                   PMC_A.out_all(j,k)= PMC_A.out_all(j,k)+((t/LAMBDA)*exp((LAMBDA-t)/LAMBDA));
+                end
             end
 
             % PMC_B Neuron
-            PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
+            PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out_all(j,i)) - PMC.W_LI*PMC_A.out_all(j,i) )/RSN.C) + normrnd(0,NOISE);
             PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
             if PMC_B.v(i+1)>=RSN.vpeak;
                 PMC_B.v(i)= RSN.vpeak;
                 PMC_B.v(i+1)= RSN.c;
                 PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
             end
+
             if (PMC_B.v(i) >= RSN.vpeak)
                 PMC_B.spikes = PMC_B.spikes + 1;
-                PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                for k=i:n
+                   t= k-i;
+                   PMC_B.out_all(j,k)= PMC_B.out_all(j,k)+((t/LAMBDA)*exp((LAMBDA-t)/LAMBDA));
+                end
             end
 
             % Record voltage value if positive. Else, do nothing.
@@ -356,10 +349,10 @@ function automaticityModel()
             if PFC_B.v(i) > 0; PFC_B.pos_volt(i) = PFC_B.v(i); end
             if PMC_A.v(i) > 0; PMC_A.pos_volt(i) = PMC_A.v(i); end
             if PMC_B.v(i) > 0; PMC_B.pos_volt(i) = PMC_B.v(i); end
-        end
-        trial_times(j) = toc(timeTrialStart);
 
-        %% Determine decision neuron and reaction time, and record accuracy
+        end
+
+        %% Determine decision neuron and reaction time
 %         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
 %         PMC.rx_matrix(j,3) = r_group;
         if PARALLEL
@@ -368,13 +361,12 @@ function automaticityModel()
             PMC_A.out_all(j,:) = PMC_A.out(:);
             PMC_B.out_all(j,:) = PMC_B.out(:);
         else
-            [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
-            PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
+            [neuron_id, latency] = determine_reacting_neuron(PFC_A.out_all(j), PFC_B.out_all(j), PFC.DECISION_PT);
+            PFC.rx_matrix(j,1:2) = [neuron_id, latency];
             PFC.rx_matrix(j,3) = r_group;
-            [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
-            PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
+            [neuron_id, latency] = determine_reacting_neuron(PMC_A.out_all(j), PMC_B.out_all(j), PMC.DECISION_PT);
+            PMC.rx_matrix(j,1:2) = [neuron_id, latency];
             PMC.rx_matrix(j,3) = r_group;
-            accuracy(j) = neuron_id_PFC == neuron_id_PMC;
         end
 
         %% Weight change calculations
@@ -390,11 +382,11 @@ function automaticityModel()
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A.weights(:,:,j) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
+            PMC_A.weights = PMC_A.weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A.weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A.weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,j) = max(PMC_A.weights(:,:,j), 0);
-            PMC_A.weights(:,:,j) = min(PMC_A.weights(:,:,j), W_MAX);
+            PMC_A.weights = max(PMC_A.weights, 0);
+            PMC_A.weights = min(PMC_A.weights, W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
@@ -407,20 +399,17 @@ function automaticityModel()
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B.weights(:,:,j) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
+            PMC_B.weights = PMC_B.weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B.weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B.weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,j) = max(PMC_B.weights(:,:,j), 0);
-            PMC_B.weights(:,:,j) = min(PMC_B.weights(:,:,j), W_MAX); 
-        % Else, if not learning, set new weights to previous weights
-        else
-            PMC_A.weights(:,:,j) = PMC_A_weights;
-            PMC_B.weights(:,:,j) = PMC_B_weights;
+            PMC_B.weights = max(PMC_B.weights, 0);
+            PMC_B.weights = min(PMC_B.weights, W_MAX); 
+        % Else, if not learning, do nothing
         end
         
         % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j)));
-        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j)));
+        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights));
+        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights));
 
         %% Print data to console
         fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
@@ -431,7 +420,7 @@ function automaticityModel()
 %         fprintf('PMC_A.v_stim: %d\n', PMC_A.v_stim);
 %         fprintf('PMC_B.v_stim: %d\n', PMC_B.v_stim);
         if PERF_TEST
-            loop_times(j) = toc(loopStart);
+            loop_times(j) = toc;
         end
     end
     
@@ -494,22 +483,22 @@ function automaticityModel()
     title('PMC_B Neuron Voltage');
 
     subplot(rows,columns,5);
-    plot(TAU*(1:n),PFC_A.out);
+    plot(TAU*(1:n),PFC_A.out_all(end));
     axis([0 n -1 10]);
     title('PFC_A Neuron Output');    % PMC_B.out
 
     subplot(rows,columns,6);
-    plot(TAU*(1:n),PFC_B.out);
+    plot(TAU*(1:n),PFC_B.out_all(end));
     axis([0 n -1 10]);
     title('PFC_B Neuron Output');
 
     subplot(rows,columns,7);
-    plot(TAU*(1:n),PMC_A.out);
+    plot(TAU*(1:n),PMC_A.out_all(end));
     axis([0 n -1 10]);
     title('PMC_A Neuron Output');
 
     subplot(rows,columns,8);
-    plot(TAU*(1:n),PMC_B.out);
+    plot(TAU*(1:n),PMC_B.out_all(end));
     axis([0 n -1 10]);
     title('PMC_B Neuron Output');
 
@@ -533,51 +522,6 @@ function automaticityModel()
     scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
     title('PMC_A & PMC_B Reaction Time');
-    
-
-    
-    %% Figure 2
-    % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
-    % Only relevant if any learning trials were conducted
-    if LEARNING_TRIALS > 0
-        figure;
-        title('Synaptic Heatmaps');
-        rows = 1;
-        columns = 2;
-        % Force slider to integer/discrete value:
-        % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
-        PMC_A_trial_num = 1;
-        PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
-        subplot(rows,columns,1);
-        data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
-        colormap('hot');
-        imagesc(data3);
-        colorbar;
-        title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
-        slider_PMC_A = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [100 50 300 20]);
-        set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
-
-        PMC_B_trial_num = 1;
-        PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
-        subplot(rows,columns,2);
-        data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
-        colormap('hot');
-        imagesc(data4);
-        colorbar;
-        title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
-        slider_PMC_B = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [500 50 300 20]);
-        set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
-    end
 
     if strcmp(CONFIGURATION, MADDOX)
         %% Figure 3
@@ -661,19 +605,12 @@ function automaticityModel()
     ylabel('Number of neurons');
     title('PMC Latencies (No Learning)');
     
-    %% Figure 6 - Accuracy
-    figure;
-    plot(smooth(accuracy, 10), 'b');
-    title('Accuracy');
-    
-    %% Figure 7 - Performance Tests
+    %% Figure 6 - Performance Tests
     % Information regarding the performance, or run-time, of this program
     if PERF_TEST
         elapsedTime = toc(startTime);
         figure;
-        plot(loop_times, 'b');
-        hold on;
-        plot(trial_times, 'r');
+        plot(loop_times);
         title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
     end
     
@@ -724,17 +661,6 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
         neuron_id = 1;
         latency = n1_latency;
     end
-end
-
-%% Handles the slider functionality for the synaptic weight heatmaps
-function synaptic_slider_callback(src, ~, position, data, neuron_name)
-    subplot(1, 2, position, 'replace');
-    trial_num = round(get(src, 'value'));
-    set(src, 'value', trial_num);
-    colormap('hot');
-    imagesc(data(:,:,trial_num));
-    colorbar;
-    title(sprintf('%s Synaptic Heatmap, Trial %d\n', neuron_name, trial_num'));
 end
 
 %% Find the hazard function as defined by Hazard = f(t)/S(t),
