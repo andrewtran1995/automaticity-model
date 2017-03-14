@@ -61,22 +61,22 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
     if 1
-        load('randomVisualInput.mat');
+        load('datasets/randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
     elseif strcmp(CONFIGURATION, MADDOX)
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
-        load('maddoxVisualInput.mat');
+        load('datasets/maddoxVisualInput.mat');
         r_x_vals = maddoxVisualInput(:, 1);
         r_y_vals = maddoxVisualInput(:, 2);
         r_groups = maddoxVisualInput(:, 3);
     elseif strcmp(CONFIGURATION, WALLIS)
     % %% Wallis Visual Input, 100 X 100 %%
-        load('wallisVisualInput.mat');
+        load('datasets/wallisVisualInput.mat');
         r_x_vals = wallisVisualInput5(:,1);
         r_y_vals = wallisVisualInput5(:,2);
     elseif strcmp(CONFIGURATION, FMRI)
-        load('randomVisualInput.mat');
+        load('datasets/fMRI_data.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
     end
@@ -494,7 +494,9 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization
-    % Calculate sum of squared deviations
+    % Calculate Sum of Squared Errors of Prediction (SSE)
+    
+    
     
     %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
