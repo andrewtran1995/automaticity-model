@@ -50,6 +50,10 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     PARAM_CONFS = get_parameter_configurations();
     PARAMS = PARAM_CONFS(CONFIGURATION);
     
+    % Struct to contain meta-data of FMRI configuration
+    FMRI_META = struct('NUM_TRIALS', 11520, 'SES_4', 1681:2160, ...
+                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
+    
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
@@ -495,8 +499,16 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    
-    
+    target = csvread('fmri_data/initial_particle_test.csv');
+    % Look into SSE (Neural Network toolbox?)
+    % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+    output_acc = [mean(accuracy(FMRI_META.SES_4)), ...
+                  mean(accuracy(FMRI_META.SES_10)), ...
+                  mean(accuracy(FMRI_META.SES_20))];
+    % Calculate Mean Median RT for trials from Session 4, 10, and 20
+    output_rt = [median(PMC.rx_matrix(2,FMRI_META.SES_4)), ...
+                 median(PMC.rx_matrix(2,FMRI_META.SES_10)), ...
+                 median(PMC.rx_matrix(2,FMRI_META.SES_20))];
     
     %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
@@ -733,7 +745,7 @@ function [param_map] = get_parameter_configurations()
     % Different configurations of parameters
     configurations = {'MADDOX',   0,   100,   0, 0,   4,   4; ...
                       'WALLIS',   0,   200, 100, 2, 400, 400; ...
-                      'FMRI',     0, 400,   0, 2, 400, 400; ...
+                      'FMRI',     0, 11520,   0, 2, 400, 400; ...
                      };
     % Join parameter names and specified parameter configuration as structure
     param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
