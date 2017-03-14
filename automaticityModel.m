@@ -20,17 +20,33 @@
 % If debugging, one can observe the workspace of the function by issuing the following
 % command before execution: "dbstop if error"
 
-function automaticityModel()
+function automaticityModel(heb_consts, pmc_dec_pt, varargin)
+    %% ============================= %%
+    %%%%%%%%%% INPUT PARSING %%%%%%%%%%
+    %  =============================  %
+    
+    parser = inputParser;
+    addOptional(parser, 'heb_consts', 1e-6);
+    addOptional(parser, 'pmc_dec_pt', 400);
+    parse(parser, varargin{:});
+    
+%     keyboard;
+%     if nargin == 0
+%         heb_consts = 1e-6;
+%         pmc_dec_pt = 400;
+%     end
+%     keyboard;
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  =======================================  %
     
     % Load parameters
     MADDOX = 'MADDOX';
     WALLIS = 'WALLIS';
-    CONFIGURATIONS = {MADDOX, WALLIS};
-    CONFIGURATION = CONFIGURATIONS{2};
+    FMRI = 'FMRI';
+    CONFIGURATIONS = {MADDOX, WALLIS, FMRI};
+    CONFIGURATION = CONFIGURATIONS{3};
     PARAM_CONFS = get_parameter_configurations();
     PARAMS = PARAM_CONFS(CONFIGURATION);
     
@@ -38,7 +54,6 @@ function automaticityModel()
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
-    INPUT_GROUPING = 0; % Set to 1 (true) if loaded visual input groups stimulus
     if PERF_TEST
         startTime = tic;
     end
@@ -49,22 +64,25 @@ function automaticityModel()
         load('randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
-    elseif 0
+    elseif strcmp(CONFIGURATION, MADDOX)
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
         load('maddoxVisualInput.mat');
-        INPUT_GROUPING = 1;
         r_x_vals = maddoxVisualInput(:, 1);
         r_y_vals = maddoxVisualInput(:, 2);
         r_groups = maddoxVisualInput(:, 3);
-    elseif 0
+    elseif strcmp(CONFIGURATION, WALLIS)
     % %% Wallis Visual Input, 100 X 100 %%
         load('wallisVisualInput.mat');
         r_x_vals = wallisVisualInput5(:,1);
         r_y_vals = wallisVisualInput5(:,2);
+    elseif strcmp(CONFIGURATION, FMRI)
+        load('randomVisualInput.mat');
+        r_x_vals = r_x_mat;
+        r_y_vals = r_y_mat;
     end
     
     % If input grouping not enabled, set r_groups to zeros
-    if not(INPUT_GROUPING)
+    if not(strcmp(CONFIGURATION, MADDOX))
         r_groups = zeros(1, length(r_x_vals));
     end
 
@@ -97,6 +115,7 @@ function automaticityModel()
     % Performance parameters
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
     trial_times = zeros(1, TRIALS);
+    rt_calc_times = zeros(1, TRIALS);
 
     % Quantity of Visual Stimulus
     Visual = struct( ...
@@ -145,8 +164,8 @@ function automaticityModel()
     Hebbian = struct( ...
         'heb_coef', 0.00000001, ...
         'anti_heb', 0.00000001, ...
-        'NMDA', 1500, ...
-        'AMPA', 0 ...
+        'NMDA',     1500, ...
+        'AMPA',     0 ...
     );
 
     %% Neuron constants (RSN: Regular Spiking Neuron), set for a cortical regular spiking neuron
@@ -180,7 +199,6 @@ function automaticityModel()
         'pos_volt', zeros(1,n), ...
         'v_stim', 0 ...
     );
-
     PFC_B = struct( ...
         'W_OUT', 9, ...
         'out', zeros(1,n), ...
@@ -191,7 +209,12 @@ function automaticityModel()
         'pos_volt', zeros(1,n), ...
         'v_stim', 0 ...
     );
-
+    % Use a simplified weights matrix for FMRI (due to large amount of trials)
+    if strcmp(CONFIGURATION, FMRI)
+        WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE);
+    else
+        WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
+    end
     PMC_A = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
@@ -201,10 +224,9 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
+        'weights', WEIGHTS_MATRIX, ...
         'weights_avg', zeros(1,TRIALS) ...
     );
-
     PMC_B = struct( ...
         'W_OUT', 0, ...
         'out', zeros(1,n), ...
@@ -214,7 +236,7 @@ function automaticityModel()
         'u', zeros(1,n), ...
         'pos_volt', zeros(1,n), ...
         'v_stim', 0, ...
-        'weights', INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS), ...
+        'weights', WEIGHTS_MATRIX, ...
         'weights_avg', zeros(1,TRIALS) ...
     );
 
@@ -225,9 +247,9 @@ function automaticityModel()
         return
     end
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  ============================  %
 
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
@@ -264,7 +286,7 @@ function automaticityModel()
         PFC_B.out(:) = 0;        PMC_B.out(:) = 0;
         
         % Set PMC weights; if first trial, set to initial weights
-        if j==1
+        if strcmp(CONFIGURATION, FMRI) || j==1
             PMC_A_weights = PMC_A.weights(:,:,1);
             PMC_B_weights = PMC_B.weights(:,:,1);
         % Else, set weights to results of previous trial
@@ -362,6 +384,7 @@ function automaticityModel()
         %% Determine decision neuron and reaction time, and record accuracy
 %         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
 %         PMC.rx_matrix(j,3) = r_group;
+        rt_start_time = tic;
         if PARALLEL
             PFC_A.out_all(j,:) = PFC_A.out(:);
             PFC_B.out_all(j,:) = PFC_B.out(:);
@@ -376,8 +399,14 @@ function automaticityModel()
             PMC.rx_matrix(j,3) = r_group;
             accuracy(j) = neuron_id_PFC == neuron_id_PMC;
         end
+        rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
+        if strcmp(CONFIGURATION, FMRI)
+            k = 1;
+        else
+            k = j;
+        end
         if LEARNING(j)
             %% Calculation of Hebbian Weight for PMC_A
             % Visual input to PMC_A neuron (presynaptic)
@@ -390,11 +419,11 @@ function automaticityModel()
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A.weights(:,:,j) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
+            PMC_A.weights(:,:,k) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,j) = max(PMC_A.weights(:,:,j), 0);
-            PMC_A.weights(:,:,j) = min(PMC_A.weights(:,:,j), W_MAX);
+            PMC_A.weights(:,:,k) = max(PMC_A.weights(:,:,k), 0);
+            PMC_A.weights(:,:,k) = min(PMC_A.weights(:,:,k), W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
@@ -407,20 +436,20 @@ function automaticityModel()
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B.weights(:,:,j) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
+            PMC_B.weights(:,:,k) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,j) = max(PMC_B.weights(:,:,j), 0);
-            PMC_B.weights(:,:,j) = min(PMC_B.weights(:,:,j), W_MAX); 
+            PMC_B.weights(:,:,k) = max(PMC_B.weights(:,:,k), 0);
+            PMC_B.weights(:,:,k) = min(PMC_B.weights(:,:,k), W_MAX); 
         % Else, if not learning, set new weights to previous weights
         else
-            PMC_A.weights(:,:,j) = PMC_A_weights;
-            PMC_B.weights(:,:,j) = PMC_B_weights;
+            PMC_A.weights(:,:,k) = PMC_A_weights;
+            PMC_B.weights(:,:,k) = PMC_B_weights;
         end
         
         % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,j)));
-        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,j)));
+        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,k)));
+        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
         fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
@@ -460,10 +489,16 @@ function automaticityModel()
         PFC.rx_matrix(:,1:2) = PFC_rx_matrix;
         PMC.rx_matrix(:,1:2) = PMC_rx_matrix;
     end
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    %% ========================================= %%
+    %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
+    %  =========================================  %
+    % Return prematurely if we are optimizing (e.g., particle swarm optimization
+    % Calculate sum of squared deviations
+    
+    %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  ===============================  %
 
     %% Figure 1 - neuron information from last trial or throughout trials
     figure;
@@ -539,7 +574,7 @@ function automaticityModel()
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     % Only relevant if any learning trials were conducted
-    if LEARNING_TRIALS > 0
+    if not(strcmp(CONFIGURATION, FMRI)) && LEARNING_TRIALS > 0
         figure;
         title('Synaptic Heatmaps');
         rows = 1;
@@ -674,6 +709,8 @@ function automaticityModel()
         plot(loop_times, 'b');
         hold on;
         plot(trial_times, 'r');
+        hold on;
+        plot(rt_calc_times, 'g');
         title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
     end
     
@@ -681,9 +718,9 @@ function automaticityModel()
     keyboard;
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% =============================== %%
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  ===============================  %
 
 %% Return set of parameters based on argument?
 % https://www.mathworks.com/matlabcentral/answers/59686-strategies-to-store-load-configuration-data
@@ -692,8 +729,9 @@ function [param_map] = get_parameter_configurations()
     param_names = {'CONF_NAME', 'PRE_LEARNING_TRIALS', 'LEARNING_TRIALS', 'POST_LEARNING_TRIALS', ...
                    'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
     % Different configurations of parameters
-    configurations = {'MADDOX',   0, 100,   0, 0,   4,   4; ...
-                      'WALLIS',   0, 200, 100, 2, 400, 400; ...
+    configurations = {'MADDOX',   0,   100,   0, 0,   4,   4; ...
+                      'WALLIS',   0,   200, 100, 2, 400, 400; ...
+                      'FMRI',     0, 400,   0, 2, 400, 400; ...
                      };
     % Join parameter names and specified parameter configuration as structure
     param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
