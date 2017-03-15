@@ -20,22 +20,14 @@
 % If debugging, one can observe the workspace of the function by issuing the following
 % command before execution: "dbstop if error"
 
-function automaticityModel(heb_consts, pmc_dec_pt, varargin)
+function [sse_val] = automaticityModel(heb_consts, pmc_dec_pt, varargin)
     %% ============================= %%
     %%%%%%%%%% INPUT PARSING %%%%%%%%%%
     %  =============================  %
-    
     parser = inputParser;
     addOptional(parser, 'heb_consts', 1e-6);
     addOptional(parser, 'pmc_dec_pt', 400);
     parse(parser, varargin{:});
-    
-%     keyboard;
-%     if nargin == 0
-%         heb_consts = 1e-6;
-%         pmc_dec_pt = 400;
-%     end
-%     keyboard;
 
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
@@ -49,6 +41,12 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     CONFIGURATION = CONFIGURATIONS{3};
     PARAM_CONFS = get_parameter_configurations();
     PARAMS = PARAM_CONFS(CONFIGURATION);
+    
+    % Override parameter values if they were specified as inputs
+    if nargin ~= 0
+        PARAMS.HEB_CONSTS = heb_consts;
+        PARAMS.PMC_DECISION_PT = pmc_dec_pt;
+    end
     
     % Struct to contain meta-data of FMRI configuration
     FMRI_META = struct('NUM_TRIALS', 11520, 'SES_4', 1681:2160, ...
@@ -166,8 +164,8 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     % Strengthening occurs if integral_PMCAvoltage > Hebbian.NMDA
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
-        'heb_coef', 0.00000001, ...
-        'anti_heb', 0.00000001, ...
+        'heb_coef', PARAMS.HEB_CONSTS, ...
+        'anti_heb', PARAMS.HEB_CONSTS, ...
         'NMDA',     1500, ...
         'AMPA',     0 ...
     );
@@ -456,7 +454,9 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
+        if mod(trial_number,100) == 0
+            fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
+        end
 %         fprintf('r_y: %d\n', r_y);
 %         fprintf('r_x: %d\n', r_x);
 %         fprintf('PFC_A.v_stim: %d\n', PFC_A.v_stim);
@@ -499,16 +499,21 @@ function automaticityModel(heb_consts, pmc_dec_pt, varargin)
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    target = csvread('fmri_data/initial_particle_test.csv');
-    % Look into SSE (Neural Network toolbox?)
-    % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-    output_acc = [mean(accuracy(FMRI_META.SES_4)), ...
-                  mean(accuracy(FMRI_META.SES_10)), ...
-                  mean(accuracy(FMRI_META.SES_20))];
-    % Calculate Mean Median RT for trials from Session 4, 10, and 20
-    output_rt = [median(PMC.rx_matrix(2,FMRI_META.SES_4)), ...
-                 median(PMC.rx_matrix(2,FMRI_META.SES_10)), ...
-                 median(PMC.rx_matrix(2,FMRI_META.SES_20))];
+    if strcmp(CONFIGURATION,FMRI)
+        target = csvread('fmri_data/initial_particle_test.csv');
+        % Look into SSE (Neural Network toolbox?)
+        % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+        output_acc = [mean(accuracy(FMRI_META.SES_4)), ...
+                      mean(accuracy(FMRI_META.SES_10)), ...
+                      mean(accuracy(FMRI_META.SES_20))];
+        % Calculate Mean Median RT for trials from Session 4, 10, and 20
+        % Reaction times must be converted from ms to seconds
+        norm_output_rt = [median(PMC.rx_matrix(2,FMRI_META.SES_4)), ...
+                          median(PMC.rx_matrix(2,FMRI_META.SES_10)), ...
+                          median(PMC.rx_matrix(2,FMRI_META.SES_20))]./1000;
+        sse_val = sum(sum((target - [output_acc;norm_output_rt]).^2));
+        return
+    end
     
     %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
