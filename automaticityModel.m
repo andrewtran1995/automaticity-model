@@ -20,14 +20,22 @@
 % If debugging, one can observe the workspace of the function by issuing the following
 % command before execution: "dbstop if error"
 
-function [sse_val] = automaticityModel(heb_consts, pmc_dec_pt, varargin)
+function [sse_val] = automaticityModel(arg_vector)
     %% ============================= %%
     %%%%%%%%%% INPUT PARSING %%%%%%%%%%
     %  =============================  %
-    parser = inputParser;
-    addOptional(parser, 'heb_consts', 1e-6);
-    addOptional(parser, 'pmc_dec_pt', 400);
-    parse(parser, varargin{:});
+    
+%     parser = inputParser;
+%     addOptional(parser, 'heb_consts', 1e-6);
+%     addOptional(parser, 'pmc_dec_pt', 400);
+%     parse(parser, varargin{:});
+    if isempty(arg_vector)
+        heb_consts = 1e-6;
+        pmc_dec_pt = 400;
+    else
+        heb_consts = arg_vector(1);
+        pmc_dec_pt = arg_vector(2);
+    end
 
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
