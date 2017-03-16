@@ -121,7 +121,7 @@ function [sse_val] = automaticityModel(arg_vector)
     LAMBDA = 20;               % Lambda Value
     W_MAX = 10;                % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
-    NOISE = 0;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     % Performance parameters
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
@@ -268,15 +268,11 @@ function [sse_val] = automaticityModel(arg_vector)
     LAMBDA_PRECALC = (t/LAMBDA).*exp((LAMBDA-t)/LAMBDA);
     
     %% Learning trials
-    trial_number = 0;
-
     for j=1:TRIALS
         if PERF_TEST
             loopStart = tic;
         end
         %% Initialize appropriate variables for each loop
-        trial_number = trial_number + 1;    % track number of current trial
-
         % variables tracking spiking rate in each neuron
         PFC_A.spikes = 0;       PMC_A.spikes = 0;
         PFC_B.spikes = 0;       PMC_B.spikes = 0;
@@ -340,7 +336,6 @@ function [sse_val] = automaticityModel(arg_vector)
                 PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
             end
             if PFC_A.v(i) >= RSN.vpeak
-                PFC_A.spikes = PFC_A.spikes + 1;
                 PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
 
@@ -353,7 +348,6 @@ function [sse_val] = automaticityModel(arg_vector)
                 PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
             end
             if PFC_B.v(i) >= RSN.vpeak
-                PFC_B.spikes = PFC_B.spikes + 1;
                 PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
 
@@ -366,7 +360,6 @@ function [sse_val] = automaticityModel(arg_vector)
                 PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
             end
             if PMC_A.v(i) >= RSN.vpeak
-                PMC_A.spikes = PMC_A.spikes + 1;
                 PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
 
@@ -379,10 +372,14 @@ function [sse_val] = automaticityModel(arg_vector)
                 PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
             end
             if PMC_B.v(i) >= RSN.vpeak
-                PMC_B.spikes = PMC_B.spikes + 1;
                 PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
         end
+        % Count number of spikes
+        PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak);
+        PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
+        PMC_A.spikes = nnz(PMC_A.v >= RSN.vpeak);
+        PMC_B.spikes = nnz(PMC_B.v >= RSN.vpeak);
         % Record voltage value if positive. Else, do nothing.
         % For computation of integral
         PFC_A.pos_volt(PFC_A.v > 0) = PFC_A.v(PFC_A.v > 0);
@@ -462,8 +459,8 @@ function [sse_val] = automaticityModel(arg_vector)
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        if mod(trial_number,1) == 0
-            fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
+        if mod(j,1) == 0
+            fprintf('~~~ TRIAL #: %d ~~~\n', j);
         end
 %         fprintf('r_y: %d\n', r_y);
 %         fprintf('r_x: %d\n', r_x);
@@ -508,7 +505,7 @@ function [sse_val] = automaticityModel(arg_vector)
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    if CONFIGURATION == FMRI && OPTMIZATION_RUN
+    if CONFIGURATION == FMRI && OPTIMIZATION_RUN
         target = csvread('fmri_data/initial_particle_test.csv');
         % Look into SSE (Neural Network toolbox?)
         % Calculate Mean Accuracy for trials from Session 4, 10, and 20
