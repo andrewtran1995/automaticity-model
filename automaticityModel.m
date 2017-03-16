@@ -42,13 +42,13 @@ function [sse_val] = automaticityModel(arg_vector)
     %  =======================================  %
     
     % Load parameters
-    MADDOX = 'MADDOX';
-    WALLIS = 'WALLIS';
-    FMRI = 'FMRI';
-    CONFIGURATIONS = {MADDOX, WALLIS, FMRI};
-    CONFIGURATION = CONFIGURATIONS{3};
+    MADDOX = 1;
+    WALLIS = 2;
+    FMRI = 3;
+    CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
+    CONFIGURATION = WALLIS;
     PARAM_CONFS = get_parameter_configurations();
-    PARAMS = PARAM_CONFS(CONFIGURATION);
+    PARAMS = PARAM_CONFS(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
     if nargin ~= 0
@@ -64,6 +64,7 @@ function [sse_val] = automaticityModel(arg_vector)
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
+    OPTIMIZATION_RUN = 0;
     if PERF_TEST
         startTime = tic;
     end
@@ -74,25 +75,25 @@ function [sse_val] = automaticityModel(arg_vector)
         load('datasets/randomVisualInput.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
-    elseif strcmp(CONFIGURATION, MADDOX)
+    elseif CONFIGURATION == MADDOX
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
         load('datasets/maddoxVisualInput.mat');
         r_x_vals = maddoxVisualInput(:, 1);
         r_y_vals = maddoxVisualInput(:, 2);
         r_groups = maddoxVisualInput(:, 3);
-    elseif strcmp(CONFIGURATION, WALLIS)
+    elseif CONFIGURATION == WALLIS
     % %% Wallis Visual Input, 100 X 100 %%
         load('datasets/wallisVisualInput.mat');
         r_x_vals = wallisVisualInput5(:,1);
         r_y_vals = wallisVisualInput5(:,2);
-    elseif strcmp(CONFIGURATION, FMRI)
+    elseif CONFIGURATION == FMRI
         load('datasets/fMRI_data.mat');
         r_x_vals = r_x_mat;
         r_y_vals = r_y_mat;
     end
     
     % If input grouping not enabled, set r_groups to zeros
-    if not(strcmp(CONFIGURATION, MADDOX))
+    if CONFIGURATION ~= MADDOX
         r_groups = zeros(1, length(r_x_vals));
     end
 
@@ -120,7 +121,7 @@ function [sse_val] = automaticityModel(arg_vector)
     LAMBDA = 20;               % Lambda Value
     W_MAX = 10;                % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
-    NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
+    NOISE = 0;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     % Performance parameters
     loop_times = zeros(1, TRIALS); % Records how much time was needed for each loop
@@ -220,7 +221,7 @@ function [sse_val] = automaticityModel(arg_vector)
         'v_stim', 0 ...
     );
     % Use a simplified weights matrix for FMRI (due to large amount of trials)
-    if strcmp(CONFIGURATION, FMRI)
+    if CONFIGURATION == FMRI
         WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE);
     else
         WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
@@ -296,7 +297,7 @@ function [sse_val] = automaticityModel(arg_vector)
         PFC_B.out(:) = 0;        PMC_B.out(:) = 0;
         
         % Set PMC weights; if first trial, set to initial weights
-        if strcmp(CONFIGURATION, FMRI) || j==1
+        if CONFIGURATION == FMRI || j==1
             PMC_A_weights = PMC_A.weights(:,:,1);
             PMC_B_weights = PMC_B.weights(:,:,1);
         % Else, set weights to results of previous trial
@@ -333,12 +334,12 @@ function [sse_val] = automaticityModel(arg_vector)
             % PFC A Neuron
             PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
             PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
-            if PFC_A.v(i+1)>=RSN.vpeak;
+            if PFC_A.v(i+1)>=RSN.vpeak
                 PFC_A.v(i)= RSN.vpeak;
                 PFC_A.v(i+1)= RSN.c;
                 PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
             end
-            if (PFC_A.v(i) >= RSN.vpeak)
+            if PFC_A.v(i) >= RSN.vpeak
                 PFC_A.spikes = PFC_A.spikes + 1;
                 PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
@@ -346,12 +347,12 @@ function [sse_val] = automaticityModel(arg_vector)
             % PFC B Neuron
             PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
             PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
-            if PFC_B.v(i+1)>=RSN.vpeak;
+            if PFC_B.v(i+1)>=RSN.vpeak
                 PFC_B.v(i)= RSN.vpeak;
                 PFC_B.v(i+1)= RSN.c;
                 PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
             end
-            if (PFC_B.v(i) >= RSN.vpeak)
+            if PFC_B.v(i) >= RSN.vpeak
                 PFC_B.spikes = PFC_B.spikes + 1;
                 PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
@@ -359,12 +360,12 @@ function [sse_val] = automaticityModel(arg_vector)
             % PMC_A Neuron
             PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
             PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
-            if PMC_A.v(i+1)>=RSN.vpeak;
+            if PMC_A.v(i+1)>=RSN.vpeak
                 PMC_A.v(i)= RSN.vpeak;
                 PMC_A.v(i+1)= RSN.c;
                 PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
             end
-            if (PMC_A.v(i) >= RSN.vpeak)
+            if PMC_A.v(i) >= RSN.vpeak
                 PMC_A.spikes = PMC_A.spikes + 1;
                 PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
@@ -372,23 +373,22 @@ function [sse_val] = automaticityModel(arg_vector)
             % PMC_B Neuron
             PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
             PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
-            if PMC_B.v(i+1)>=RSN.vpeak;
+            if PMC_B.v(i+1)>=RSN.vpeak
                 PMC_B.v(i)= RSN.vpeak;
                 PMC_B.v(i+1)= RSN.c;
                 PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
             end
-            if (PMC_B.v(i) >= RSN.vpeak)
+            if PMC_B.v(i) >= RSN.vpeak
                 PMC_B.spikes = PMC_B.spikes + 1;
                 PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
             end
-
-            % Record voltage value if positive. Else, do nothing.
-            % For computation of integral
-            if PFC_A.v(i) > 0; PFC_A.pos_volt(i) = PFC_A.v(i); end
-            if PFC_B.v(i) > 0; PFC_B.pos_volt(i) = PFC_B.v(i); end
-            if PMC_A.v(i) > 0; PMC_A.pos_volt(i) = PMC_A.v(i); end
-            if PMC_B.v(i) > 0; PMC_B.pos_volt(i) = PMC_B.v(i); end
         end
+        % Record voltage value if positive. Else, do nothing.
+        % For computation of integral
+        PFC_A.pos_volt(PFC_A.v > 0) = PFC_A.v(PFC_A.v > 0);
+        PFC_B.pos_volt(PFC_B.v > 0) = PFC_B.v(PFC_B.v > 0);
+        PMC_A.pos_volt(PMC_A.v > 0) = PMC_A.v(PMC_A.v > 0);
+        PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
         trial_times(j) = toc(timeTrialStart);
 
         %% Determine decision neuron and reaction time, and record accuracy
@@ -412,7 +412,7 @@ function [sse_val] = automaticityModel(arg_vector)
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
-        if strcmp(CONFIGURATION, FMRI)
+        if CONFIGURATION == FMRI
             k = 1;
         else
             k = j;
@@ -462,7 +462,7 @@ function [sse_val] = automaticityModel(arg_vector)
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        if mod(trial_number,100) == 0
+        if mod(trial_number,1) == 0
             fprintf('~~~ TRIAL #: %d ~~~\n', trial_number);
         end
 %         fprintf('r_y: %d\n', r_y);
@@ -474,6 +474,7 @@ function [sse_val] = automaticityModel(arg_vector)
         if PERF_TEST
             loop_times(j) = toc(loopStart);
         end
+%         keyboard;
     end
     
     %% Post-calculations
@@ -507,7 +508,7 @@ function [sse_val] = automaticityModel(arg_vector)
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    if strcmp(CONFIGURATION,FMRI)
+    if CONFIGURATION == FMRI && OPTMIZATION_RUN
         target = csvread('fmri_data/initial_particle_test.csv');
         % Look into SSE (Neural Network toolbox?)
         % Calculate Mean Accuracy for trials from Session 4, 10, and 20
@@ -516,9 +517,9 @@ function [sse_val] = automaticityModel(arg_vector)
                       mean(accuracy(FMRI_META.SES_20))];
         % Calculate Mean Median RT for trials from Session 4, 10, and 20
         % Reaction times must be converted from ms to seconds
-        norm_output_rt = [median(PMC.rx_matrix(2,FMRI_META.SES_4)), ...
-                          median(PMC.rx_matrix(2,FMRI_META.SES_10)), ...
-                          median(PMC.rx_matrix(2,FMRI_META.SES_20))]./1000;
+        norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+                          median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
+                          median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
         sse_val = sum(sum((target - [output_acc;norm_output_rt]).^2));
         return
     end
@@ -601,7 +602,7 @@ function [sse_val] = automaticityModel(arg_vector)
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     % Only relevant if any learning trials were conducted
-    if not(strcmp(CONFIGURATION, FMRI)) && LEARNING_TRIALS > 0
+    if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
         figure;
         title('Synaptic Heatmaps');
         rows = 1;
@@ -641,7 +642,7 @@ function [sse_val] = automaticityModel(arg_vector)
         set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
     end
 
-    if strcmp(CONFIGURATION, MADDOX)
+    if CONFIGURATION == MADDOX
         %% Figure 3
         % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
@@ -757,7 +758,7 @@ function [param_map] = get_parameter_configurations()
                    'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
     % Different configurations of parameters
     configurations = {'MADDOX',   0,   100,   0, 0,   4,   4; ...
-                      'WALLIS',   0,   200, 100, 2, 400, 400; ...
+                      'WALLIS',   0,   200,   0, 2, 400, 400; ...
                       'FMRI',     0, 11520,   0, 2, 400, 400; ...
                      };
     % Join parameter names and specified parameter configuration as structure
