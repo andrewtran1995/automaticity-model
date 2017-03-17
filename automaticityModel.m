@@ -61,7 +61,7 @@ function [sse_val] = automaticityModel(arg_vector)
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Programming Parameters
-    PERF_TEST = 1;      % Enable/disable performance output
+    PERF_TEST = 0;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
     OPTIMIZATION_RUN = 1;
