@@ -464,7 +464,7 @@ function [sse_val] = automaticityModel(arg_vector)
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        if mod(j,200) == 0
+        if mod(j,1000) == 0
             fprintf('~~~ TRIAL #: %d ~~~\n', j);
         end
 %         fprintf('r_y: %d\n', r_y);
