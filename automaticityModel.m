@@ -1,34 +1,26 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% Model of Automaticity in Rule Based Learning %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%{
+In general, variables that are written in all capital letters are meant
+to be constant values -- set once in the beginning of the program
+(variable initialization) and nowhere else
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%% NOTES %%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Structures are used in the program by calling struct(...).
+These structures are meant to "bundle" or "group" together variables that
+have some kind of commonality, e.g., belonging to the same neuron, behavior,
+model, etc.
+The goal is to enforce readability by standardizing the names of grouped variables
+and making relationships between variables more apparent
 
-% In general, variables that are written in all capital letters are meant
-% to be constant values -- set once in the beginning of the program
-% (variable initialization) and nowhere else
+If debugging, one can observe the workspace of the function by issuing the following
+command before execution: "dbstop if error"
+%}
 
-% Structures are used in the program by calling struct(...).
-% These structures are meant to "bundle" or "group" together variables that
-% have some kind of commonality, e.g., belonging to the same neuron, behavior,
-% model, etc.
-% The goal is to enforce readability by standardizing the names of grouped variables
-% and making relationships between variables more apparent
-
-% If debugging, one can observe the workspace of the function by issuing the following
-% command before execution: "dbstop if error"
-
-function [sse_val] = automaticityModel(arg_vector)
+function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% ============================= %%
     %%%%%%%%%% INPUT PARSING %%%%%%%%%%
     %  =============================  %
-    
-%     parser = inputParser;
-%     addOptional(parser, 'heb_consts', 1e-6);
-%     addOptional(parser, 'pmc_dec_pt', 400);
-%     parse(parser, varargin{:});
     if isempty(arg_vector)
         heb_consts = 1e-6;
         pmc_dec_pt = 400;
@@ -41,7 +33,7 @@ function [sse_val] = automaticityModel(arg_vector)
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
     
-    % Load parameters
+    % Load configuration and config parameters
     MADDOX = 1;
     WALLIS = 2;
     FMRI = 3;
@@ -78,19 +70,19 @@ function [sse_val] = automaticityModel(arg_vector)
         r_y_vals = r_y_mat;
     elseif CONFIGURATION == MADDOX
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
-        load('datasets/maddoxVisualInput.mat');
-        r_x_vals = maddoxVisualInput(:, 1);
-        r_y_vals = maddoxVisualInput(:, 2);
-        r_groups = maddoxVisualInput(:, 3);
+        loaded_input = load('datasets/maddoxVisualInput.mat');
+        r_x_vals = loaded_input.maddoxVisualInput(:, 1);
+        r_y_vals = loaded_input.maddoxVisualInput(:, 2);
+        r_groups = loaded_input.maddoxVisualInput(:, 3);
     elseif CONFIGURATION == WALLIS
     % %% Wallis Visual Input, 100 X 100 %%
-        load('datasets/wallisVisualInput.mat');
-        r_x_vals = wallisVisualInput5(:,1);
-        r_y_vals = wallisVisualInput5(:,2);
+        loaded_input = load('datasets/wallisVisualInput.mat');
+        r_x_vals = loaded_input.wallisVisualInput5(:,1);
+        r_y_vals = loaded_input.wallisVisualInput5(:,2);
     elseif CONFIGURATION == FMRI
-        load('datasets/fMRI_data.mat');
-        r_x_vals = r_x_mat;
-        r_y_vals = r_y_mat;
+        loaded_input = load('datasets/fMRI_data.mat');
+        r_x_vals = loaded_input.r_x_mat;
+        r_y_vals = loaded_input.r_y_mat;
     end
     
     % If input grouping not enabled, set r_groups to zeros
@@ -265,7 +257,7 @@ function [sse_val] = automaticityModel(arg_vector)
 
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
-    t = [0:n]';
+    t = (0:n)';
     LAMBDA_PRECALC = (t/LAMBDA).*exp((LAMBDA-t)/LAMBDA);
     
     %% Learning trials
@@ -327,7 +319,7 @@ function [sse_val] = automaticityModel(arg_vector)
         %% Individual Time Trial
         timeTrialStart = tic;
         if CODEGEN_USAGE
-            run_trials_mex(PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, NOISE, LAMBDA_PRECALC, TAU, n);
+            run_trials_mex(PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, RSN, NOISE, LAMBDA_PRECALC, TAU, n);
         else
             for i=1:n-1
                 % Neuron Equations
@@ -464,7 +456,7 @@ function [sse_val] = automaticityModel(arg_vector)
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        if mod(j,1000) == 0
+        if mod(j,1) == 0
             fprintf('~~~ TRIAL #: %d ~~~\n', j);
         end
 %         fprintf('r_y: %d\n', r_y);
@@ -508,7 +500,7 @@ function [sse_val] = automaticityModel(arg_vector)
     %% ========================================= %%
     %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
     %  =========================================  %
-    % Return prematurely if we are optimizing (e.g., particle swarm optimization
+    % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if CONFIGURATION == FMRI && OPTIMIZATION_RUN
         target = csvread('fmri_data/initial_particle_test.csv');

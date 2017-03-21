@@ -1,6 +1,6 @@
 % RUN_TRIALS_SCRIPT   Generate MEX-function run_trials_mex from run_trials.
 % 
-% Script generated from project 'run_trials.prj' on 16-Mar-2017.
+% Script generated from project 'run_trials.prj' on 19-Mar-2017.
 % 
 % See also CODER, CODER.CONFIG, CODER.TYPEOF, CODEGEN.
 
@@ -8,12 +8,12 @@
 cfg = coder.config('mex');
 cfg.MATLABSourceComments = true;
 cfg.GenerateReport = true;
-cfg.ReportPotentialDifferences = false;
 cfg.EnableDebugging = true;
+cfg.EnableJIT = true;
 
 %% Define argument types for entry-point 'run_trials'.
 ARGS = cell(1,1);
-ARGS{1} = cell(10,1);
+ARGS{1} = cell(11,1);
 ARGS{1}{1} = struct;
 ARGS{1}{1}.V_SCALE = coder.typeof(0);
 ARGS{1}{1}.W_LI = coder.typeof(0);
@@ -44,7 +44,7 @@ ARGS{1}{4}.W_OUT = coder.typeof(0);
 ARGS{1}{4}.out = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{4}.out_all = coder.typeof(0,[Inf Inf],[1 1]);
 ARGS{1}{4}.spikes = coder.typeof(0);
-ARGS{1}{4}.v = coder.typeof(0);
+ARGS{1}{4}.v = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{4}.u = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{4}.pos_volt = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{4}.v_stim = coder.typeof(0);
@@ -76,10 +76,23 @@ ARGS{1}{6}.weights = coder.typeof(0,[Inf Inf],[1 1]);
 ARGS{1}{6}.weights_avg = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{6} = coder.typeof(ARGS{1}{6});
 ARGS{1}{6} = coder.cstructname(ARGS{1}{6},'PMC_B');
-ARGS{1}{7} = coder.typeof(0);
-ARGS{1}{8} = coder.typeof(0,[Inf  1],[1 0]);
-ARGS{1}{9} = coder.typeof(0);
+ARGS{1}{7} = struct;
+ARGS{1}{7}.C = coder.typeof(0);
+ARGS{1}{7}.rv = coder.typeof(0);
+ARGS{1}{7}.vt = coder.typeof(0);
+ARGS{1}{7}.k = coder.typeof(0);
+ARGS{1}{7}.a = coder.typeof(0);
+ARGS{1}{7}.b = coder.typeof(0);
+ARGS{1}{7}.c = coder.typeof(0);
+ARGS{1}{7}.d = coder.typeof(0);
+ARGS{1}{7}.vpeak = coder.typeof(0);
+ARGS{1}{7}.E = coder.typeof(0);
+ARGS{1}{7} = coder.typeof(ARGS{1}{7});
+ARGS{1}{7} = coder.cstructname(ARGS{1}{7},'RSN');
+ARGS{1}{8} = coder.typeof(0);
+ARGS{1}{9} = coder.typeof(0,[Inf  1],[1 0]);
 ARGS{1}{10} = coder.typeof(0);
+ARGS{1}{11} = coder.typeof(0);
 
 %% Invoke MATLAB Coder.
 codegen -config cfg run_trials -args ARGS{1}
