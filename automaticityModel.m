@@ -38,7 +38,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     WALLIS = 2;
     FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = FMRI;
+    CONFIGURATION = WALLIS;
     PARAM_CONFS = get_parameter_configurations();
     PARAMS = PARAM_CONFS(CONFIGURATIONS{CONFIGURATION});
     
@@ -53,10 +53,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Programming Parameters
-    PERF_TEST = 0;      % Enable/disable performance output
+    PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
-    OPTIMIZATION_RUN = 1;
+    OPTIMIZATION_RUN = 0;
     CODEGEN_USAGE = 0;
     if PERF_TEST
         startTime = tic;
@@ -65,9 +65,9 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
     if 0
-        load('datasets/randomVisualInput.mat');
-        r_x_vals = r_x_mat;
-        r_y_vals = r_y_mat;
+        loaded_input = load('datasets/randomVisualInput.mat');
+        r_x_vals = loaded_input.r_x_mat;
+        r_y_vals = loaded_input.r_y_mat;
     elseif CONFIGURATION == MADDOX
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
         loaded_input = load('datasets/maddoxVisualInput.mat');
@@ -751,8 +751,8 @@ function [param_map] = get_parameter_configurations()
     param_names = {'CONF_NAME', 'PRE_LEARNING_TRIALS', 'LEARNING_TRIALS', 'POST_LEARNING_TRIALS', ...
                    'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
     % Different configurations of parameters
-    configurations = {'MADDOX',   0,   100,   0, 0,   4,   4; ...
-                      'WALLIS',   0,   200,   0, 2, 400, 400; ...
+    configurations = {'MADDOX',   0,   500,   0, 0,   4,   4; ...
+                      'WALLIS', 100,   400, 100, 2, 400, 400; ...
                       'FMRI',     0, 11520,   0, 2, 400, 400; ...
                      };
     % Join parameter names and specified parameter configuration as structure
