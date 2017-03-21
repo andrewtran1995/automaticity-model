@@ -553,7 +553,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     subplot(rows,columns,5);
     plot(TAU*(1:n),PFC_A.out);
     axis([0 n -1 10]);
-    title('PFC_A Neuron Output');    % PMC_B.out
+    title('PFC_A Neuron Output');
 
     subplot(rows,columns,6);
     plot(TAU*(1:n),PFC_B.out);
@@ -744,7 +744,7 @@ end
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
 
-%% Return set of parameters based on argument?
+% Return set of parameters based on argument
 % https://www.mathworks.com/matlabcentral/answers/59686-strategies-to-store-load-configuration-data
 function [param_map] = get_parameter_configurations()
     % Field names of parameters (used in returned structure)
@@ -762,9 +762,8 @@ function [param_map] = get_parameter_configurations()
     param_map = containers.Map(configurations(:,1), param_struct_in_cells);
 end
 
-%% Return what neuron reacts to the stimuli, and the latency
+% Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
-% Not currently used -- potentially slower, and inaccurate results
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
@@ -786,7 +785,7 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     end
 end
 
-%% Handles the slider functionality for the synaptic weight heatmaps
+% Handles the slider functionality for the synaptic weight heatmaps
 function synaptic_slider_callback(src, ~, position, data, neuron_name)
     subplot(1, 2, position, 'replace');
     trial_num = round(get(src, 'value'));
@@ -797,7 +796,7 @@ function synaptic_slider_callback(src, ~, position, data, neuron_name)
     title(sprintf('%s Synaptic Heatmap, Trial %d\n', neuron_name, trial_num'));
 end
 
-%% Find the hazard function as defined by Hazard = f(t)/S(t),
+% Find the hazard function as defined by Hazard = f(t)/S(t),
 % where f(t) is the PDF and S(t) is the survivor function
 function [f] = get_hazard_estimate(x, pts)
     [f_pdf, ~] = ksdensity(x, pts, 'function', 'pdf');
