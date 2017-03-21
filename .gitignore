@@ -13,3 +13,7 @@ Reference\ Papers/
 
 # Ignore data directory
 data
+
+# Ignore codegen directory and files
+codegen
+*.mexw64
