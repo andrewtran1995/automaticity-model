@@ -49,7 +49,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     end
     
     % Struct to contain meta-data of FMRI configuration
-    FMRI_META = struct('NUM_TRIALS', 11520, 'SES_4', 1681:2160, ...
+    FMRI_META = struct('NUM_TRIALS', 11520, ...
+                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Programming Parameters
