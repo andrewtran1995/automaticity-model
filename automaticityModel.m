@@ -21,6 +21,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% ============================= %%
     %%%%%%%%%% INPUT PARSING %%%%%%%%%%
     %  =============================  %
+    % Use default arguments if arg_vector empty
     if isempty(arg_vector)
         heb_consts = 1e-6;
         pmc_dec_pt = 400;
@@ -56,7 +57,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
-    PARALLEL = 0;       % Enable for parallel computing -- NOT YET SUPPORTED
     OPTIMIZATION_RUN = 0;
     CODEGEN_USAGE = 0;
     if PERF_TEST
@@ -197,7 +197,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     PFC_A = struct( ...
         'W_OUT', 9, ...
         'out', zeros(n,1), ...
-        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
         'u', zeros(n,1), ...
@@ -207,7 +206,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     PFC_B = struct( ...
         'W_OUT', 9, ...
         'out', zeros(n,1), ...
-        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
         'u', zeros(n,1), ...
@@ -223,7 +221,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     PMC_A = struct( ...
         'W_OUT', 0, ...
         'out', zeros(n,1), ...
-        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
         'u', zeros(n,1), ...
@@ -235,7 +232,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     PMC_B = struct( ...
         'W_OUT', 0, ...
         'out', zeros(n,1), ...
-        'out_all', zeros(TRIALS,n), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
         'u', zeros(n,1), ...
@@ -390,20 +386,13 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 %         PMC.rx_matrix(j,1:2) = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
 %         PMC.rx_matrix(j,3) = r_group;
         rt_start_time = tic;
-        if PARALLEL
-            PFC_A.out_all(j,:) = PFC_A.out(:);
-            PFC_B.out_all(j,:) = PFC_B.out(:);
-            PMC_A.out_all(j,:) = PMC_A.out(:);
-            PMC_B.out_all(j,:) = PMC_B.out(:);
-        else
-            [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
-            PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
-            PFC.rx_matrix(j,3) = r_group;
-            [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
-            PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
-            PMC.rx_matrix(j,3) = r_group;
-            accuracy(j) = neuron_id_PFC == neuron_id_PMC;
-        end
+        [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
+        PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
+        PFC.rx_matrix(j,3) = r_group;
+        [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
+        PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
+        PMC.rx_matrix(j,3) = r_group;
+        accuracy(j) = neuron_id_PFC == neuron_id_PMC;
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
@@ -472,49 +461,25 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 %         keyboard;
     end
     
-    %% Post-calculations
-    if PARALLEL
-        % Copy variables over to temporary vars for parallel computation
-        PFC_rx_matrix = PFC.rx_matrix(:,1:2);
-        PMC_rx_matrix = PMC.rx_matrix(:,1:2);
-        PFC_A_out_all = PFC_A.out_all(:,:);
-        PFC_B_out_all = PFC_B.out_all(:,:);
-        PMC_A_out_all = PMC_A.out_all(:,:);
-        PMC_B_out_all = PMC_B.out_all(:,:);
-        PFC_DECISION_PT = PFC.DECISION_PT;
-        PMC_DECISION_PT = PMC.DECISION_PT;
-        neuron_id = 0;
-        latency = 0;
-        keyboard;
-        % Run parallel for loop to determine reaction times
-        parfor j = 1:TRIALS
-            [neuron_id, latency] = determine_reacting_neuron(PFC_A_out_all(j), PFC_B_out_all(j), PFC_DECISION_PT);
-            PFC_rx_matrix(j,:) = [neuron_id, latency];
-            [neuron_id, latency] = determine_reacting_neuron(PMC_A_out_all(j), PMC_B_out_all(j), PMC_DECISION_PT);
-            PMC_rx_matrix(j,:) = [neuron_id, latency];
-        end
-        % Copy results into rx_matrix
-        PFC.rx_matrix(:,1:2) = PFC_rx_matrix;
-        PMC.rx_matrix(:,1:2) = PMC_rx_matrix;
-    end
-    
     %% ========================================= %%
     %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if CONFIGURATION == FMRI && OPTIMIZATION_RUN
-        target = csvread('fmri_data/initial_particle_test.csv');
+        target = load('fmri_data/means1dCondition.mat');
         % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-        output_acc = [mean(accuracy(FMRI_META.SES_4)), ...
+        output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                      mean(accuracy(FMRI_META.SES_4)), ...
                       mean(accuracy(FMRI_META.SES_10)), ...
                       mean(accuracy(FMRI_META.SES_20))];
         % Calculate Mean Median RT for trials from Session 4, 10, and 20
         % Reaction times must be converted from ms to seconds
-        norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+        norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
+                          median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-        sse_val = sum(sum((target - [output_acc;norm_output_rt]).^2));
+        sse_val = sum(sum((target.means1dCondition - [output_acc;norm_output_rt]).^2));
         return
     end
     
