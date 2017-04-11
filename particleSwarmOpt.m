@@ -1,6 +1,6 @@
 % Particle swarm stuff goes here!
 % Declare particleswarm arguments, starting with function and num variables
-fun = @automaticityModel;
+fun = @automaticityModelFast_mex;
 nvars = 2;
 % Lower and upper bounds of Hebbian coefficient(s) and PMC decision point
 lb = [0 + eps,  200];
