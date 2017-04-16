@@ -25,9 +25,11 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     if isempty(arg_vector)
         heb_consts = 1e-6;
         pmc_dec_pt = 400;
+        noise_param = 4;
     else
         heb_consts = arg_vector(1);
         pmc_dec_pt = arg_vector(2);
+        noise_param = arg_vector(3);
     end
 
     %% ======================================= %%
@@ -52,6 +54,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     if nargin ~= 0
         PARAMS.HEB_CONSTS = heb_consts;
         PARAMS.PMC_DECISION_PT = pmc_dec_pt;
+        PARAMS.NOISE = noise_param;
     end
     
     % Struct to contain meta-data of FMRI configuration
@@ -420,9 +423,9 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
 
         %% Print data to console
-        if mod(j,1) == 0
-            fprintf('~~~ TRIAL #: %d ~~~\n', int32(j));
-        end
+%         if mod(j,1) == 0
+%             fprintf('~~~ TRIAL #: %d ~~~\n', int32(j));
+%         end
     end
     
     %% ========================================= %%
@@ -443,6 +446,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
                           median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+        disp([output_acc; norm_output_rt]);
         sse_val = sum(sum((target.means1dCondition - [output_acc;norm_output_rt]).^2));
         return
     end

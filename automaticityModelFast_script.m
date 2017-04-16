@@ -12,7 +12,7 @@ cfg.GenerateReport = true;
 %% Define argument types for entry-point 'automaticityModelFast'.
 ARGS = cell(1,1);
 ARGS{1} = cell(1,1);
-ARGS{1}{1} = coder.typeof(0,[1 2]);
+ARGS{1}{1} = coder.typeof(0,[1 3]);
 
 %% Invoke MATLAB Coder.
 codegen -config cfg automaticityModelFast -args ARGS{1}
