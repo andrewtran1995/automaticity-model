@@ -3,8 +3,8 @@
 fun = @automaticityModelFast_mex;
 nvars = 3;
 % Lower and upper bounds of Hebbian coefficient(s) and PMC decision point
-lb = [0 + eps,   10, 0 + eps];
-ub = [   1e-6, 2000,       5];
+lb = [ 1e-10,   10, 0 + eps];
+ub = [  1e-6, 2000,       5];
 % Declare optimization options
 % options = optimoptions(@particleswarm, 'HybridFcn', @fmincon, 'UseParallel', true, 'Display', 'iter', 'MaxStallIterations', 4, 'FunctionTolerance', 1e-8, 'SwarmSize', 12);
 options = optimoptions(@particleswarm, 'UseParallel', true, 'Display', 'iter', 'MaxStallIterations', 4, 'FunctionTolerance', 1e-8, 'SwarmSize', 12);

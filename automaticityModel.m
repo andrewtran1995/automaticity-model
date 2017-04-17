@@ -470,7 +470,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                           median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-        sse_val = sum(sum((target.means1dCondition - [output_acc;norm_output_rt]).^2));
+        % Weight reaction time greater than accuracy
+        target_diff = [target.means1dCondition(1,:) - output_acc;
+                       (target.means1dCondition(2,:) - norm_output_rt)*20];
+        sse_val = sum(sum(target_diff.^2));
         return
     end
     
