@@ -24,12 +24,18 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     % Use default arguments if arg_vector empty
     if isempty(arg_vector)
         heb_consts = 1e-6;
+        anti_heb_consts = 1e-6;
         pmc_dec_pt = 400;
         noise_param = 4;
+        nmda = 1500;
+        ampa = 750;
     else
         heb_consts = arg_vector(1);
-        pmc_dec_pt = arg_vector(2);
-        noise_param = arg_vector(3);
+        anti_heb_consts = arg_vector(2);
+        pmc_dec_pt = arg_vector(3);
+        noise_param = arg_vector(4);
+        nmda = arg_vector(5);
+        ampa = arg_vector(6);
     end
 
     %% ======================================= %%
@@ -53,8 +59,11 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     % Override parameter values if they were specified as inputs
     if nargin ~= 0
         PARAMS.HEB_CONSTS = heb_consts;
+        PARAMS.ANTI_HEB_CONSTS = anti_heb_consts;
         PARAMS.PMC_DECISION_PT = pmc_dec_pt;
         PARAMS.NOISE = noise_param;
+        PARAMS.NMDA = nmda;
+        PARAMS.AMPA = ampa;
     end
     
     % Struct to contain meta-data of FMRI configuration
@@ -165,9 +174,9 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', PARAMS.HEB_CONSTS, ...
-        'anti_heb', PARAMS.HEB_CONSTS, ...
-        'NMDA',     1500, ...
-        'AMPA',     750 ...
+        'anti_heb', PARAMS.ANTI_HEB_CONSTS, ...
+        'NMDA',     PARAMS.NMDA, ...
+        'AMPA',     PARAMS.AMPA ...
     );
 
     %% Neuron constants (RSN: Regular Spiking Neuron), set for a cortical regular spiking neuron
@@ -449,7 +458,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         disp([output_acc; norm_output_rt]);
         % Weight reaction time greater than accuracy
         target_diff = [target.means1dCondition(1,:) - output_acc;
-                       (target.means1dCondition(2,:) - norm_output_rt)*20];
+                       (target.means1dCondition(2,:) - norm_output_rt)*5];
         sse_val = sum(sum(target_diff.^2));
         return
     end
