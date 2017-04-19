@@ -25,9 +25,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     if isempty(arg_vector)
         heb_consts = 1e-6;
         pmc_dec_pt = 400;
+        noise_param = 4;
     else
         heb_consts = arg_vector(1);
         pmc_dec_pt = arg_vector(2);
+        noise_param = arg_vector(3);
     end
 
     %% ======================================= %%
@@ -47,6 +49,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     if nargin ~= 0
         PARAMS.HEB_CONSTS = heb_consts;
         PARAMS.PMC_DECISION_PT = pmc_dec_pt;
+        PARAMS.NOISE = noise_param;
     end
     
     % Struct to contain meta-data of FMRI configuration
@@ -467,7 +470,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                           median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
                           median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-        sse_val = sum(sum((target.means1dCondition - [output_acc;norm_output_rt]).^2));
+        % Weight reaction time greater than accuracy
+        target_diff = [target.means1dCondition(1,:) - output_acc;
+                       (target.means1dCondition(2,:) - norm_output_rt)*20];
+        sse_val = sum(sum(target_diff.^2));
         return
     end
     
