@@ -8,7 +8,7 @@ import re
 
 # Directories
 SOURCE_DIR = 'D:\\Users\\Andrew\\Google Drive\\UCSB\\Computational Cognitive Neuroscience Research\\fMRI Behavioral Data Folder\\rb_automaticity_no_study_folders'
-TARGET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri_data')
+TARGET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri_data/vectors')
 
 
 def tr_lines(f):
@@ -54,6 +54,9 @@ def get_tr_dict():
                 else:
                     subjects[subject][session][i] = 0
     print("Done!")
+    for subject in subjects.keys():
+        for session in subjects[subject].keys():
+            np.savetxt(os.path.join(TARGET_DIR, "subject{}_session{}".format(subject, session)), subjects[subject][session])
 
 if __name__ == '__main__':
     get_tr_dict()
