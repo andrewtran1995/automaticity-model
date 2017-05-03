@@ -18,26 +18,6 @@ command before execution: "dbstop if error"
 %}
 
 function [sse_val] = automaticityModel(arg_vector) %#codegen
-    %% ============================= %%
-    %%%%%%%%%% INPUT PARSING %%%%%%%%%%
-    %  =============================  %
-    % Use default arguments if arg_vector empty
-    if isempty(arg_vector)
-        heb_consts = 1e-6;
-        anti_heb_consts = 1e-6;
-        pmc_dec_pt = 400;
-        noise_param = 4;
-        ndma = 1500;
-        ampa = 750;
-    else
-        heb_consts = arg_vector(1);
-        anti_heb_consts = arg_vector(2);
-        pmc_dec_pt = arg_vector(3);
-        noise_param = arg_vector(4);
-        nmda = arg_vector(5);
-        ampa = arg_vector(6);
-    end
-
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -48,34 +28,23 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
-    PARAM_CONFS = get_parameter_configurations();
-    PARAMS = PARAM_CONFS(CONFIGURATIONS{CONFIGURATION});
-    
-    PARAMS.HEB_CONSTS = heb_consts;
-	PARAMS.ANTI_HEB_CONSTS = anti_heb_consts;
-    PARAMS.NMDA = nmda;
-    PARAMS.AMPA = ampa;
+    PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
-    if nargin ~= 0
-        PARAMS.HEB_CONSTS = heb_consts;
-        PARAMS.ANTI_HEB_CONSTS = anti_heb_consts;
-        PARAMS.PMC_DECISION_PT = pmc_dec_pt;
-        PARAMS.NOISE = noise_param;
-        PARAMS.NMDA = nmda;
-        PARAMS.AMPA = ampa;
+    if nargin ~= 0 && ~isempty(arg_vector)
+        PARAMS.HEB_CONSTS      = arg_vector(1);
+        PARAMS.ANTI_HEB_CONSTS = arg_vector(2);
+        PARAMS.PMC_DECISION_PT = arg_vector(3);
+        PARAMS.NOISE           = arg_vector(4);
+        PARAMS.NMDA            = arg_vector(5);
+        PARAMS.AMPA            = arg_vector(6);
+        PARAMS.W_MAX           = arg_vector(7);
     end
-    
-    % Struct to contain meta-data of FMRI configuration
-    FMRI_META = struct('NUM_TRIALS', 11520, ...
-                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
-                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     OPTIMIZATION_RUN = 0;
-    CODEGEN_USAGE = 0;
     if PERF_TEST
         startTime = tic;
     end
@@ -97,27 +66,29 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         loaded_input = load('datasets/wallisVisualInput.mat');
         r_x_vals = loaded_input.wallisVisualInput5(:,1);
         r_y_vals = loaded_input.wallisVisualInput5(:,2);
+        r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
-    end
-    
-    % If input grouping not enabled, set r_groups to zeros
-    if CONFIGURATION ~= MADDOX
         r_groups = zeros(1, length(r_x_vals));
     end
+    
+    % Struct to contain meta-data of FMRI configuration
+    FMRI_META = struct('NUM_TRIALS', 11520, ...
+                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
+                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
-    PRE_LEARNING_TRIALS = PARAMS.PRE_LEARNING_TRIALS;   % Number of control trials run before learning trials
-    LEARNING_TRIALS = PARAMS.LEARNING_TRIALS;           % Number of learning trials in automaticity experiment
-    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS; % Number of trials where no learning is involved after learning trials
-    TRIALS = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
+    PRE_LEARNING_TRIALS =  PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
+    LEARNING_TRIALS =      PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
+    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
+    TRIALS =               PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
     LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
-                ones(1,LEARNING_TRIALS), ...
-                zeros(1,POST_LEARNING_TRIALS)]; 
+                ones( 1, LEARNING_TRIALS), ...
+                zeros(1, POST_LEARNING_TRIALS)]; 
     % Convenience variables
     LEARNING_IDX = PRE_LEARNING_TRIALS+1:PRE_LEARNING_TRIALS+LEARNING_TRIALS;
 
@@ -130,7 +101,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     n = 1000;                  % Time period for one trial (in milliseconds)
     TAU = 1;
     LAMBDA = 20;               % Lambda Value
-    W_MAX = 10;                % maximum possible weight for Hebbian Synapses
+    W_MAX = PARAMS.W_MAX;      % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;    % Initial weight for PMC neurons
     NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
@@ -319,11 +290,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(reshape(    RBF.rbv(:, 1:GRID_SIZE/2), [1 RBF.HALF_NUM_WEIGHTS]));
-        PFC_B.v_stim = sum(reshape(RBF.rbv(:, GRID_SIZE/2+1:end), [1 RBF.HALF_NUM_WEIGHTS]));
+        PFC_A.v_stim = sum(reshape(    RBF.rbv(:, 1:GRID_SIZE/2), [RBF.HALF_NUM_WEIGHTS 1]));
+        PFC_B.v_stim = sum(reshape(RBF.rbv(:, GRID_SIZE/2+1:end), [RBF.HALF_NUM_WEIGHTS 1]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
-        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [1 RBF.NUM_WEIGHTS]));
-        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [1 RBF.NUM_WEIGHTS]));
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [RBF.NUM_WEIGHTS 1]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [RBF.NUM_WEIGHTS 1]));
         % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
@@ -718,21 +689,29 @@ end
 %  ===============================  %
 
 % Return set of parameters based on argument
-% https://www.mathworks.com/matlabcentral/answers/59686-strategies-to-store-load-configuration-data
-function [param_map] = get_parameter_configurations()
-    % Field names of parameters (used in returned structure)
-    param_names = {'CONF_NAME', 'PRE_LEARNING_TRIALS', 'LEARNING_TRIALS', 'POST_LEARNING_TRIALS', ...
-                   'NOISE', 'PFC_DECISION_PT', 'PMC_DECISION_PT'};
-    % Different configurations of parameters
-    configurations = {'MADDOX',   0,   500,   0, 0,   4,   4; ...
-                      'WALLIS', 100,   200, 100, 2, 400, 400; ...
-                      'FMRI',     0, 11520,   0, 2, 400, 400; ...
-                     };
-    % Join parameter names and specified parameter configuration as structure
-    param_struct = cell2struct(configurations(:,2:end), param_names(:,2:end), 2);
-    param_struct_in_cells = arrayfun(@(x) x, param_struct', 'UniformOutput', false);
-    % Create mapping from strings to parameter configurations
-    param_map = containers.Map(configurations(:,1), param_struct_in_cells);
+function [param_struct] = get_parameters(configuration)
+    % Initialize parameters that depend on configuration
+    param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
+    MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
+    WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400};
+    FMRI_CONFIG   = {                    0;             11520;                      0;       2;               400;               400};
+    if strcmp(configuration,'MADDOX')
+        params = MADDOX_CONFIG;
+    elseif strcmp(configuration,'WALLIS')
+        params = WALLIS_CONFIG;
+    elseif strcmp(configuration,'FMRI')
+        params = FMRI_CONFIG;
+    else
+        error('Improper configuration requested in get_parameters(configuration)!');
+    end
+    % Initialize parameters used in optimization
+    % Note that PMC_DECISION_PT & NOISE are used in optimization as well, but their default value is dependent on configuration
+    % Therefore, we do not re-initialize it here
+    optim_param_names    = {'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
+    optim_param_defaults = {        1e-6;             1e-6;  1500;   750;     10};
+    param_struct = cell2struct(vertcat(params, optim_param_defaults), ...   % Parameter values
+                               vertcat(param_names, optim_param_names), ... % Parameter names
+                               1);
 end
 
 % Return what neuron reacts to the stimuli, and the latency
