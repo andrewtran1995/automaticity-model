@@ -408,7 +408,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if CONFIGURATION == FMRI && OPTIMIZATION_RUN
-        target = load('fmri_data/means1dCondition.mat');
+        target = load('fmri/means1dCondition.mat');
         % Calculate Mean Accuracy for trials from Session 4, 10, and 20
         output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
                       mean(accuracy(FMRI_META.SES_4)), ...
