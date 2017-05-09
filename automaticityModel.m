@@ -540,7 +540,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     % Only relevant if any learning trials were conducted
-    if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
+    if LEARNING_TRIALS > 0
         figure;
         title('Synaptic Heatmaps');
         rows = 1;
