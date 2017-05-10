@@ -540,7 +540,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     % Only relevant if any learning trials were conducted
-    if LEARNING_TRIALS > 0
+    if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
         figure;
         title('Synaptic Heatmaps');
         rows = 1;
@@ -682,6 +682,31 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
+    %% Following code can be run (copy-paste in terminal should work) to generate heat maps
+    % Without border
+    figure;
+    title('Synaptic Heatmaps');
+    rows = 1; columns = 2;
+    subplot(rows,columns,1);
+    colormap('hot');
+    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    colorbar;
+    subplot(rows,columns,2);
+    colormap('hot');
+    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    colorbar;
+    % With border
+    figure;
+    title('Synaptic Heatmaps');
+    rows = 1; columns = 2;
+    subplot(rows,columns,1);
+    colormap('hot');
+    imagesc(PMC_A.weights(:,:));
+    colorbar;
+    subplot(rows,columns,2);
+    colormap('hot');
+    imagesc(PMC_B.weights(:,:));
+    colorbar;
 end
 
 %% =============================== %%
