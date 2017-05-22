@@ -25,7 +25,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = MADDOX;
+    CONFIGURATION = FMRI;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
@@ -142,7 +142,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PMC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
+        'alpha', zeros(TRIALS,n) ...
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -356,6 +357,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PFC_B.pos_volt(PFC_B.v > 0) = PFC_B.v(PFC_B.v > 0);
         PMC_A.pos_volt(PMC_A.v > 0) = PMC_A.v(PMC_A.v > 0);
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
+        % Record "alpha" function, summing PMC A and PMC B output
+        PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
         trial_times(j) = toc(timeTrialStart);
 
         %% Determine decision neuron and reaction time, and record accuracy
