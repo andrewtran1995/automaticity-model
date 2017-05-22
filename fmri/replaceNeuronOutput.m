@@ -11,9 +11,9 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, stimVectorMap)
         % Initialize subject cell array
         newSubject = cell(20,1);
         % Get handle on subject
-        subject = stimVectorMap(stimKeys(i));
-        for j = find(~cellfun(@isempty,subject))
-            arr = subject{j};
+        subject = stimVectorMap(stimKeys{i});
+        for j = find(~cellfun(@isempty,subject))'
+            arr = (subject{j})';
             % Find indices of start of runs, prepending 1 (since there
             % is always a run at the start)
             idx = find([1,diff(arr)] ~= 0);
@@ -21,8 +21,9 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, stimVectorMap)
             % between elements, appending one more for length of last run
             len = [diff(idx), length(arr) - idx(end) + 1];
             % Only look at runs of 1
-            idx = idx(arr(idx) == 1);
-            len = len(arr(idx) == 1);
+            stimulusOn = arr(idx) == 1;
+            idx = idx(stimulusOn);
+            len = len(stimulusOn);
             % Determine session
             switch j
                 case 1
@@ -35,9 +36,13 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, stimVectorMap)
                     session = FMRI_META.SES_20;
             end
             % Replace runs with output
-            output = outputVectors(session,1:length(idx));
+            output = outputVectors(session,:);
+            newSubject{j} = arr;
             for k = 1:length(idx)
-                newSubject{j,idx(k):len(k)} = output(k,1:len(k));
+                % Discrepancy where outputVectors only has output for
+                % 1000 time units max, whereas stimVectors has TRs of
+                % 2000 time units
+                newSubject{j,idx(k):len(k)} = output(k,1:len(k))';
             end
         end
         outputVectorMap(stimKeys(i)) = newSubject;
