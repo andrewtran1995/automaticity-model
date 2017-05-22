@@ -23,11 +23,9 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %  =======================================  %
     
     % Load configuration and config parameters
-    MADDOX = 1;
-    WALLIS = 2;
-    FMRI = 3;
+    MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = FMRI;
+    CONFIGURATION = MADDOX;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
@@ -45,9 +43,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
     OPTIMIZATION_RUN = 0;
-    if PERF_TEST
-        startTime = tic;
-    end
+    if PERF_TEST; startTime = tic; end;
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
@@ -81,10 +77,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
-    PRE_LEARNING_TRIALS =  PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
-    LEARNING_TRIALS =      PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
+    PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
+    LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
     POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
-    TRIALS =               PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
+    TRIALS               = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
     LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
                 ones( 1, LEARNING_TRIALS), ...
@@ -232,9 +228,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %% Sandbox area
     % Placed after all values are initalized, and serves as an area where code can be prototyped and tested
     % (for validity or performance reasons) before being implemented into the main body of the function
-    if PERF_TEST && SANDBOX
-        return
-    end
+    if PERF_TEST && SANDBOX; return; end;
 
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
@@ -247,9 +241,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% Learning trials
     for j=1:TRIALS
-        if PERF_TEST
-            loopStart = tic;
-        end
+        if PERF_TEST; loopStart = tic; end;
         %% Initialize appropriate variables for each loop
         % variables tracking spiking rate in each neuron
         PFC_A.spikes = 0;       PMC_A.spikes = 0;
@@ -431,10 +423,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         if mod(j,1) == 0
             fprintf('~~~ TRIAL #: %d ~~~\n', j);
         end
-        if PERF_TEST
-            loop_times(j) = toc(loopStart);
-        end
-%         keyboard;
+        if PERF_TEST; loop_times(j) = toc(loopStart); end;
     end
     
     %% ========================================= %%
@@ -467,52 +456,32 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %  ===============================  %
 
     %% Figure 1 - neuron information from last trial or throughout trials
-    figure;
-    title('Neuron Information from Last Trial, Rx Times, Etc.');
+    figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+    rows = 3; columns = 4;
 
-    % Plot items
-    rows = 3;
-    columns = 4;
+    subplot(rows,columns,1); plot(TAU*(1:n),PFC_A.v);
+    axis([0 n -100 100]); title('PFC_A Neuron Voltage');
 
-    subplot(rows,columns,1);
-    plot(TAU*(1:n),PFC_A.v);
-    axis([0 n -100 100]);
-    title('PFC_A Neuron Voltage');
+    subplot(rows,columns,2); plot(TAU*(1:n),PFC_B.v);
+    axis([0 n -100 100]); title('PFC_B Neuron Voltage');
 
-    subplot(rows,columns,2);
-    plot(TAU*(1:n),PFC_B.v);
-    axis([0 n -100 100]);
-    title('PFC_B Neuron Voltage');
+    subplot(rows,columns,3); plot(TAU*(1:n),PMC_A.v);
+    axis([0 n -100 100]); title('PMC_A Neuron Voltage');
 
-    subplot(rows,columns,3);
-    plot(TAU*(1:n),PMC_A.v);
-    axis([0 n -100 100]);
-    title('PMC_A Neuron Voltage');
+    subplot(rows,columns,4); plot(TAU*(1:n),PMC_B.v);
+    axis([0 n -100 100]); title('PMC_B Neuron Voltage');
 
-    subplot(rows,columns,4);
-    plot(TAU*(1:n),PMC_B.v);
-    axis([0 n -100 100]);
-    title('PMC_B Neuron Voltage');
+    subplot(rows,columns,5); plot(TAU*(1:n),PFC_A.out);
+    axis([0 n -1 10]); title('PFC_A Neuron Output');
 
-    subplot(rows,columns,5);
-    plot(TAU*(1:n),PFC_A.out);
-    axis([0 n -1 10]);
-    title('PFC_A Neuron Output');
+    subplot(rows,columns,6); plot(TAU*(1:n),PFC_B.out);
+    axis([0 n -1 10]); title('PFC_B Neuron Output');
 
-    subplot(rows,columns,6);
-    plot(TAU*(1:n),PFC_B.out);
-    axis([0 n -1 10]);
-    title('PFC_B Neuron Output');
+    subplot(rows,columns,7); plot(TAU*(1:n),PMC_A.out);
+    axis([0 n -1 10]); title('PMC_A Neuron Output');
 
-    subplot(rows,columns,7);
-    plot(TAU*(1:n),PMC_A.out);
-    axis([0 n -1 10]);
-    title('PMC_A Neuron Output');
-
-    subplot(rows,columns,8);
-    plot(TAU*(1:n),PMC_B.out);
-    axis([0 n -1 10]);
-    title('PMC_B Neuron Output');
+    subplot(rows,columns,8); plot(TAU*(1:n),PMC_B.out);
+    axis([0 n -1 10]); title('PMC_B Neuron Output');
 
     subplot(rows,columns,9);
     colormap('hot');
@@ -541,10 +510,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
     % Only relevant if any learning trials were conducted
     if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
-        figure;
-        title('Synaptic Heatmaps');
-        rows = 1;
-        columns = 2;
+        figure; title('Synaptic Heatmaps');
+        rows = 1; columns = 2;
         % Force slider to integer/discrete value:
         % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
         PMC_A_trial_num = 1;
@@ -588,8 +555,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
         PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
         PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';        
-        figure;
-        title('CDFs of PMC Rx Times (Grouped by Distance)');
+        figure; title('CDFs of PMC Rx Times (Grouped by Distance)');
 
         p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
         set(p1, 'Color', 'r');
@@ -605,8 +571,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         %% Figure 4 - Hazard Functions
         % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
         % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
-        figure;
-        title('PMC Rx Times Hazard Functions');
+        figure; title('PMC Rx Times Hazard Functions');
 
         % Reuse vars from CDF plot
         pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
@@ -624,8 +589,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % TODO: factor out x/y labeling
     f = figure;
     title('Reaction Latency Histograms');
-    rows = 3;
-    columns = 2;
+    rows = 3; columns = 2;
     numBins = 20;
     
     % Pre-Learning
@@ -671,17 +635,39 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Information regarding the performance, or run-time, of this program
     if PERF_TEST
         elapsedTime = toc(startTime);
-        figure;
-        plot(loop_times, 'b');
-        hold on;
-        plot(trial_times, 'r');
-        hold on;
+        figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
+        plot(loop_times, 'b'); hold on;
+        plot(trial_times, 'r'); hold on;
         plot(rt_calc_times, 'g');
-        title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
     end
     
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
+    %% Following code can be run (copy-paste in terminal should work) to generate heat maps
+    % Without border
+    figure;
+    title('Synaptic Heatmaps');
+    rows = 1; columns = 2;
+    subplot(rows,columns,1);
+    colormap('hot');
+    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    colorbar;
+    subplot(rows,columns,2);
+    colormap('hot');
+    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    colorbar;
+    % With border
+    figure;
+    title('Synaptic Heatmaps');
+    rows = 1; columns = 2;
+    subplot(rows,columns,1);
+    colormap('hot');
+    imagesc(PMC_A.weights(:,:));
+    colorbar;
+    subplot(rows,columns,2);
+    colormap('hot');
+    imagesc(PMC_B.weights(:,:));
+    colorbar;
 end
 
 %% =============================== %%
