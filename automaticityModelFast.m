@@ -23,9 +23,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     %  =======================================  %
     
     % Load configuration and config parameters
-    MADDOX = 1;
-    WALLIS = 2;
-    FMRI = 3;
+    MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
@@ -46,27 +44,13 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
-    if 0
-        loaded_input = load('datasets/randomVisualInput.mat');
-        r_x_vals = loaded_input.r_x_mat;
-        r_y_vals = loaded_input.r_y_mat;
-    elseif CONFIGURATION == MADDOX
-    % %% Random Visual Input to Maddox Grid, 100 X 100 %%
-        loaded_input = load('datasets/maddoxVisualInput.mat');
-        r_x_vals = loaded_input.maddoxVisualInput(:, 1);
-        r_y_vals = loaded_input.maddoxVisualInput(:, 2);
-        r_groups = loaded_input.maddoxVisualInput(:, 3);
-    elseif CONFIGURATION == WALLIS
-    % %% Wallis Visual Input, 100 X 100 %%
-        loaded_input = load('datasets/wallisVisualInput.mat');
-        r_x_vals = loaded_input.wallisVisualInput5(:,1);
-        r_y_vals = loaded_input.wallisVisualInput5(:,2);
-        r_groups = zeros(1, length(r_x_vals));
-    elseif CONFIGURATION == FMRI
+    if CONFIGURATION == FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
         r_groups = zeros(1, length(r_x_vals));
+    else
+        error('Only FMRI configuration allowed!');
     end
     
     % Struct to contain meta-data of FMRI configuration
@@ -91,7 +75,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
     % Other parameters
-    n = 1000;                  % Time period for one trial (in milliseconds)
+    n = 2000;                  % Time period for one trial (in milliseconds)
     TAU = 1;
     LAMBDA = 20;               % Lambda Value
     W_MAX = PARAMS.W_MAX;      % maximum possible weight for Hebbian Synapses
