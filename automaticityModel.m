@@ -94,7 +94,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
     % Other parameters
-    n = 1000;                  % Time period for one trial (in milliseconds)
+    n = 2000;                  % Time period for one trial (in milliseconds)
     TAU = 1;
     LAMBDA = 20;               % Lambda Value
     W_MAX = PARAMS.W_MAX;      % maximum possible weight for Hebbian Synapses
