@@ -111,6 +111,9 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         'stim', 50 ...
     );
 
+    % Stimulus Rules
+    RULE_1D = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE);
+
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
     RBF = struct( ...
@@ -283,11 +286,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(reshape(    RBF.rbv(:, 1:GRID_SIZE/2), [RBF.HALF_NUM_WEIGHTS 1]));
-        PFC_B.v_stim = sum(reshape(RBF.rbv(:, GRID_SIZE/2+1:end), [RBF.HALF_NUM_WEIGHTS 1]));
+        PFC_A.v_stim = sum(reshape(RBF.rbv(:, RULE_1D.A), [RBF.HALF_NUM_WEIGHTS 1]));
+        PFC_B.v_stim = sum(reshape(RBF.rbv(:, RULE_1D.B), [RBF.HALF_NUM_WEIGHTS 1]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
-        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights,      [RBF.NUM_WEIGHTS 1]));
-        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights,      [RBF.NUM_WEIGHTS 1]));
+        PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights, [RBF.NUM_WEIGHTS 1]));
+        PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights, [RBF.NUM_WEIGHTS 1]));
         % Scale v_stim values to prevent them from becoming too large
         PFC_A.v_stim = PFC_A.v_stim * PFC.V_SCALE;
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
@@ -363,13 +366,15 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
         %% Determine decision neuron and reaction time, and record accuracy
         rt_start_time = tic;
+        % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
         PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
         PFC.rx_matrix(j,3) = r_group;
         [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
-        accuracy(j) = neuron_id_PFC == neuron_id_PMC;
+        % Determine accuracy
+        accuracy(j) = any(r_x == RULE_1D.B) + 1 == neuron_id_PMC;
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
@@ -631,7 +636,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% Figure 6 - Accuracy
     figure;
-    plot(smooth(accuracy, 10), 'b');
+    plot(smooth(accuracy, 11), 'b');
     title('Accuracy');
     
     %% Figure 7 - Performance Tests
@@ -679,6 +684,11 @@ end
 
 % Return set of parameters based on argument
 function [param_struct] = get_parameters(configuration)
+    % Necessary for codegen
+    % coder.extrinsic('cell2struct');
+    % Preinitialize param_struct to allow codegen to infer type
+    % param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    
     % Initialize parameters that depend on configuration
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
     MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
@@ -720,9 +730,14 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     if n2_latency < n1_latency
         neuron_id = 2;
         latency = n2_latency;
-    else
+    elseif n1_latency < n2_latency
         neuron_id = 1;
         latency = n1_latency;
+    % If latencies are equal (decision point never reached), take the
+    % higher integral as the reacting neuron
+    else
+        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
+        latency = length(n1);
     end
 end
 
