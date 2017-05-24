@@ -684,6 +684,11 @@ end
 
 % Return set of parameters based on argument
 function [param_struct] = get_parameters(configuration)
+    % Necessary for codegen
+    % coder.extrinsic('cell2struct');
+    % Preinitialize param_struct to allow codegen to infer type
+    % param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    
     % Initialize parameters that depend on configuration
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
     MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
@@ -731,7 +736,7 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = trapz(n1) < trapz(n2) + 1;
+        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
         latency = length(n1);
     end
 end
