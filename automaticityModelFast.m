@@ -43,14 +43,13 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     OPTIMIZATION_RUN = 1;
     
     %% Load visual stimulus matrix
-    % %% Random Visual Input, 100 x 100 %%
     if CONFIGURATION == FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
         r_groups = zeros(1, length(r_x_vals));
     else
-        error('Only FMRI configuration allowed!');
+        error('Only FMRI dataset allowed!');
     end
     
     % Struct to contain meta-data of FMRI configuration
@@ -60,14 +59,16 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
-    PRE_LEARNING_TRIALS =  PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
-    LEARNING_TRIALS =      PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
+    PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
+    LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
     POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
-    TRIALS =               PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
+    TRIALS               = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
     LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
                 ones( 1, LEARNING_TRIALS), ...
-                zeros(1, POST_LEARNING_TRIALS)];
+                zeros(1, POST_LEARNING_TRIALS)]; 
+    % Convenience variables
+    LEARNING_IDX = PRE_LEARNING_TRIALS+1:PRE_LEARNING_TRIALS+LEARNING_TRIALS;
 
     % Set properties of grid
     STIM_GRID_SIZE = 100;      % Length of side of square grid used for visual input; shoudl be an even number
@@ -86,6 +87,9 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     Visual = struct( ...
         'stim', 50 ...
     );
+
+    % Stimulus Rules
+    RULE_1D = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE);
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
@@ -118,7 +122,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PMC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
+        'alpha', zeros(TRIALS,n) ...
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -252,8 +257,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(sum(    RBF.rbv(:, 1:GRID_SIZE/2)));
-        PFC_B.v_stim = sum(sum(RBF.rbv(:, GRID_SIZE/2+1:end)));
+        PFC_A.v_stim = sum(sum(RBF.rbv(:, RULE_1D.A)));
+        PFC_B.v_stim = sum(sum(RBF.rbv(:, RULE_1D.B)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights));
         PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights));
@@ -325,15 +330,19 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PFC_B.pos_volt(PFC_B.v > 0) = PFC_B.v(PFC_B.v > 0);
         PMC_A.pos_volt(PMC_A.v > 0) = PMC_A.v(PMC_A.v > 0);
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
+        % Record "alpha" function, summing PMC A and PMC B output
+        PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
 
         %% Determine decision neuron and reaction time, and record accuracy
+        % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
         PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
         PFC.rx_matrix(j,3) = r_group;
         [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
-        accuracy(j) = neuron_id_PFC == neuron_id_PMC;
+        % Determine accuracy
+        accuracy(j) = double(any(r_x == RULE_1D.B) + 1) == neuron_id_PMC;
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
@@ -406,7 +415,7 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
                           median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
         % Weight reaction time greater than accuracy
         target_diff = [target.means1dCondition(1,:) - output_acc;
-                       (target.means1dCondition(2,:) - norm_output_rt)*3];
+                       (target.means1dCondition(2,:) - norm_output_rt)*20];
         sse_val = sum(sum(target_diff.^2));
         return
     end
@@ -421,7 +430,7 @@ function [param_struct] = get_parameters(configuration)
     % Necessary for codegen
     coder.extrinsic('cell2struct');
     % Preinitialize param_struct to allow codegen to infer type
-    param_struct = struct('PRE_LEARNING_TRIALS', [0], 'LEARNING_TRIALS', [0], 'POST_LEARNING_TRIALS', [0], 'NOISE', [0], 'PFC_DECISION_PT', [0], 'PMC_DECISION_PT', [0],'HEB_CONSTS', [0],'ANTI_HEB_CONSTS', [0],'NMDA', [0],'AMPA', [0],'W_MAX', [0]);
+    param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
     
     % Initialize parameters that depend on configuration
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT';'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
@@ -459,8 +468,13 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     if n2_latency < n1_latency
         neuron_id = 2;
         latency = n2_latency;
-    else
+    elseif n1_latency < n2_latency
         neuron_id = 1;
         latency = n1_latency;
+    % If latencies are equal (decision point never reached), take the
+    % higher integral as the reacting neuron
+    else
+        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
+        latency = length(n1);
     end
 end

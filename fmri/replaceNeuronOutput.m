@@ -6,7 +6,7 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, stimVectorMap)
                        'SES_1',      1:480, 'SES_4',    1681:2160, ...
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     stimKeys = keys(stimVectorMap);
-    outputVectorMap = containers.Map();
+    outputVectorMap = containers.Map('KeyType', 'double', 'ValueType', 'any');
     for i = 1:length(stimVectorMap)
         % Initialize subject cell array
         newSubject = cell(20,1);
@@ -37,15 +37,16 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, stimVectorMap)
             end
             % Replace runs with output
             output = outputVectors(session,:);
-            newSubject{j} = arr;
+            newSession = zeros(length(arr),1);
             for k = 1:length(idx)
                 % Discrepancy where outputVectors only has output for
                 % 1000 time units max, whereas stimVectors has TRs of
                 % 2000 time units
-                newSubject{j,idx(k):len(k)} = output(k,1:len(k))';
+                newSession(idx(k):idx(k)+len(k)-1) = output(k,1:len(k));
             end
+            newSubject{j} = newSession;
         end
-        outputVectorMap(stimKeys(i)) = newSubject;
+        outputVectorMap(stimKeys{i}) = newSubject;
     end
 end
 
