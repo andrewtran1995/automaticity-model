@@ -1,4 +1,4 @@
-function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, latency, stimVectorMap)
+function [ modelAlphaVectorMap ] = replaceNeuronOutput(outputVectors, latency, stimVectorMap)
 %REPLACENEURONOUTPUT Replace stimulus vectors w/ summed neural output
 %   Replace stimulus vectors (binary vector) with summed PMC A and PMC B 
 %   output from model, such that trials are aligned between data
@@ -8,7 +8,7 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, latency, stimV
     % Assuming there will be no more than 2000 TRs for a session
     MAX_OUTPUT_LENGTH = 4000000;
     stimKeys = keys(stimVectorMap);
-    outputVectorMap = containers.Map('KeyType', 'double', 'ValueType', 'any');
+    modelAlphaVectorMap = containers.Map('KeyType', 'double', 'ValueType', 'any');
     for i = 1:length(stimVectorMap)
         % Initialize subject cell array
         newSubject = cell(20,1);
@@ -60,7 +60,7 @@ function [ outputVectorMap ] = replaceNeuronOutput(outputVectors, latency, stimV
             % Assign newSession to appropriate cell of newSubject
             newSubject{j} = newSession;
         end
-        outputVectorMap(stimKeys{i}) = newSubject;
+        modelAlphaVectorMap(stimKeys{i}) = newSubject;
     end
 end
 
