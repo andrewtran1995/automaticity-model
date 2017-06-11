@@ -22,10 +22,6 @@ function [ modelAlphaVectorMap ] = replaceNeuronOutput(outputVectors, latency, s
             % Find the length of each run by taking the difference
             % between elements, appending one more for length of last run
             len = [diff(idx), length(arr) - idx(end) + 1];
-            % Only look at runs of 0
-%             stimulusOff = arr(idx) == 0;
-%             idx = idx(stimulusOff);
-%             len = len(stimulusOff);
             % Determine session
             switch j
                 case 1
