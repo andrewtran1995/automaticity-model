@@ -9,7 +9,7 @@ CROSSHAIRS = 'crosshairs';
 STIMULUS = 'vectors';
 RESPONSE = 'response';
 
-VECTOR_TYPE = RESPONSE;
+VECTOR_TYPE = CROSSHAIRS;
 
 files = dir(strcat(VECTOR_TYPE, '/subject*'));
 for file = files'
