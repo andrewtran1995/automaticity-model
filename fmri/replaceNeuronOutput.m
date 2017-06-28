@@ -7,6 +7,7 @@ function [ modelAlphaVectorMap ] = replaceNeuronOutput(outputVectors, latency, s
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     % Assuming there will be no more than 2000 TRs for a session
     MAX_OUTPUT_LENGTH = 4000000;
+    TR_LENGTH = 2000;
     stimKeys = keys(stimVectorMap);
     modelAlphaVectorMap = containers.Map('KeyType', 'double', 'ValueType', 'any');
     for i = 1:length(stimVectorMap)
@@ -15,39 +16,25 @@ function [ modelAlphaVectorMap ] = replaceNeuronOutput(outputVectors, latency, s
         % Get handle on subject
         subject = stimVectorMap(stimKeys{i});
         for j = find(~cellfun(@isempty,subject))'
-            arr = (subject{j})';
-            % Find indices of start of runs, prepending 1 (since there
-            % is always a run at the start)
-            idx = find([1,diff(arr)] ~= 0);
-            % Find the length of each run by taking the difference
-            % between elements, appending one more for length of last run
-            len = [diff(idx), length(arr) - idx(end) + 1];
-            % Determine session
+            session = subject{j};
             switch j
                 case 1
-                    session = FMRI_META.SES_1;
+                    outputRegion = outputVectors(FMRI_META.SES_1,:);
                 case 4
-                    session = FMRI_META.SES_4;
+                    outputRegion = outputVectors(FMRI_META.SES_4,:);
                 case 10
-                    session = FMRI_META.SES_10;
+                    outputRegion = outputVectors(FMRI_META.SES_10,:);
                 case 20
-                    session = FMRI_META.SES_20;
+                    outputRegion = outputVectors(FMRI_META.SES_20,:);
             end
-            % Fill in runs of no stimulus (0s), and replace runs of
-            % stimulus (1s) with outputVectors' data
-            % Use value of -1 to indicate uninitialized value
-            output = outputVectors(session,:);
             newSession = ones(MAX_OUTPUT_LENGTH,1)*-1;
-            lastIdx = 1;
             sessionNum = 1;
-            for k = 1:length(idx)
-                if arr(idx(k)) == 0
-                    newSession(lastIdx:lastIdx+len(k)) = 0;
-                    lastIdx = lastIdx + len(k);
-                else
-                    newSession(lastIdx:lastIdx+latency(sessionNum)) = output(sessionNum, latency(sessionNum));
-                    lastIdx = lastIdx + latency(sessionNum);
+            for k = 1:TR_LENGTH:length(session)
+                if session(k) == 1
+                    newSession(k:k+TR_LENGTH-1) = [outputRegion(sessionNum, 1:latency(sessionNum))'; zeros(TR_LENGTH - latency(sessionNum), 1)];
                     sessionNum = sessionNum + 1;
+                else
+                    newSession(k:k+TR_LENGTH-1) = 0;
                 end
             end
             % Verify newSession's buffer did not fill up, then trim it
