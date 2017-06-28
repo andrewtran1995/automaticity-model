@@ -7,6 +7,7 @@ function [ modelAlphaVectorMap ] = replaceNeuronOutput(outputVectors, latency, s
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     % Assuming there will be no more than 2000 TRs for a session
     MAX_OUTPUT_LENGTH = 4000000;
+    TR_LENGTH = 2000;
     stimKeys = keys(stimVectorMap);
     modelAlphaVectorMap = containers.Map('KeyType', 'double', 'ValueType', 'any');
     for i = 1:length(stimVectorMap)
