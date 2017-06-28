@@ -11,10 +11,8 @@ function [ TRBoldMap ] = generateTRBoldForMap( vectorsMap )
         newSubj = cell(20,1);
         for sessionNum = find(~cellfun(@isempty,subj))'
             stimVector = subj{sessionNum};
-            numTRs = length(stimVector)/TR_LENGTH;
-            disp(numTRs);
             BOLD = generatebold(stimVector);
-            newSubj{sessionNum} = BOLD(1:BOLD_STEP:numTRs);
+            newSubj{sessionNum} = BOLD(1:BOLD_STEP:length(stimVector)/10);
         end
         TRBoldMap(subjNum{1}) = newSubj;
     end
