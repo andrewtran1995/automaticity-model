@@ -6,10 +6,10 @@ formatSpec = '%f';
 
 
 CROSSHAIRS = 'crosshairs';
-STIMULUS = 'vectors';
+STIMULUS = 'stimulus';
 RESPONSE = 'response';
 
-VECTOR_TYPE = CROSSHAIRS;
+VECTOR_TYPE = STIMULUS;
 
 files = dir(strcat(VECTOR_TYPE, '/subject*'));
 for file = files'
