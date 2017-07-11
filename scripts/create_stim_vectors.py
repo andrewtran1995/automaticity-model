@@ -7,8 +7,11 @@ import re
 
 
 # Directories
-SOURCE_DIR = 'D:\\Users\\Andrew\\Google Drive\\UCSB\\Computational Cognitive Neuroscience Research\\fMRI Behavioral Data Folder\\rb_automaticity_no_study_folders'
-TARGET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri/crosshairs')
+SOURCE_DIR_PARENT = 'D:\\Users\\Andrew\\Google Drive\\UCSB\\Computational Cognitive Neuroscience Research\\fMRI Behavioral Data Folder\\rb_automaticity_no_study_folders'
+RULE = '1D'
+# RULE = 'Disjunctive'
+SOURCE_DIR = os.path.join(SOURCE_DIR_PARENT, RULE)
+TARGET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri/response')
 
 # Regular expressions
 STIMULUS = 'Stimulus'
@@ -90,4 +93,4 @@ def get_tr_dict(event_type, save_results):
     return subjects
 
 if __name__ == '__main__':
-    get_tr_dict(CROSSHAIRS, True)
+    get_tr_dict(RESPONSE, True)
