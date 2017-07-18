@@ -8,10 +8,17 @@ import re
 
 # Directories
 SOURCE_DIR_PARENT = 'D:\\Users\\Andrew\\Google Drive\\UCSB\\Computational Cognitive Neuroscience Research\\fMRI Behavioral Data Folder\\rb_automaticity_no_study_folders'
-RULE = '1D'
-# RULE = 'Disjunctive'
+TARGET_DIR_PARENT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri')
+RULE_1D = '1D'
+RULE_DISJ = 'Disjunctive'
+STIMULUS_DIR = 'stimulus'
+CROSSHAIRS_DIR = 'crosshairs'
+RESPONSE_DIR = 'response'
+
+RULE = RULE_DISJ
 SOURCE_DIR = os.path.join(SOURCE_DIR_PARENT, RULE)
-TARGET_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fmri/response')
+TARGET_DIR = os.path.join(TARGET_DIR_PARENT, 'response')
+
 
 # Regular expressions
 STIMULUS = 'Stimulus'
@@ -45,7 +52,7 @@ def save_response_vectors_for_analysis(subjects_dict):
             np.savetxt(os.path.join(TARGET_DIR, "subject{}_session{}".format(subject, session)), vector)
 
 
-def get_tr_dict(event_type, save_results):
+def get_tr_dict(event_type, target_dir=None):
     subjects = dict()
     for dirname in (filepath for filepath in os.listdir(SOURCE_DIR) if
                     re.fullmatch('Sub[0-9]+_Ses[0-9]+', filepath) is not None):
@@ -86,11 +93,13 @@ def get_tr_dict(event_type, save_results):
                 else:
                     subjects[subject][session][i] = 0
     print("Done!")
-    if save_results:
+    if target_dir is not None:
         for subject in subjects.keys():
             for session in subjects[subject].keys():
-                np.savetxt(os.path.join(TARGET_DIR, "subject{}_session{}".format(subject, session)), subjects[subject][session])
+                np.savetxt(os.path.join(target_dir, "subject{}_session{}".format(subject, session)), subjects[subject][session])
     return subjects
 
 if __name__ == '__main__':
-    get_tr_dict(RESPONSE, True)
+    get_tr_dict(STIMULUS, os.path.join(TARGET_DIR_PARENT, STIMULUS_DIR))
+    get_tr_dict(CROSSHAIRS, os.path.join(TARGET_DIR_PARENT, CROSSHAIRS_DIR))
+    get_tr_dict(RESPONSE, os.path.join(TARGET_DIR_PARENT, RESPONSE_DIR))

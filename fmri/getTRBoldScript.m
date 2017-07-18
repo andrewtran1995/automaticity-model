@@ -1,5 +1,8 @@
-LOADED_PMC = load('pmcAlphaVectors_17_6_2.mat');
-LOADED_STIM = load('stimulus/stimulusVectorsMap1D.mat');
+% LOADED_PMC = load('pmcAlphaVectors1D_17_6_2.mat');
+LOADED_PMC = load('pmcAlphaVectorsDisj_17_18_7.mat');
+
+% LOADED_STIM = load('stimulus/stimulusVectorsMap1D.mat');
+LOADED_STIM = load('stimulus/stimulusVectorsMapDisj.mat');
 
 % modelAlphaVectorMap is ridiculously huge (120+ MB), so don't bother
 % saving it to a .mat file, but use it to calculate TRBoldMap instead
