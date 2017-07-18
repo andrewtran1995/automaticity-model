@@ -112,7 +112,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     );
 
     % Stimulus Rules
-    RULE_1D = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE);
+    RULE_1D   = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE, ...
+                       'A_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, 'B_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE);
+    RULE_DISJ = struct('A', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], 'B', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
+                       'A_NUM_WEIGHTS', (STIM_GRID_SIZE/2+BORDER_SIZE*2) * GRID_SIZE, 'B_NUM_WEIGHTS', STIM_GRID_SIZE/2 * GRID_SIZE);
+    RULE = RULE_DISJ;
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
@@ -286,8 +290,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(reshape(RBF.rbv(:, RULE_1D.A), [RBF.HALF_NUM_WEIGHTS 1]));
-        PFC_B.v_stim = sum(reshape(RBF.rbv(:, RULE_1D.B), [RBF.HALF_NUM_WEIGHTS 1]));
+        PFC_A.v_stim = sum(reshape(RBF.rbv(:, RULE.A), [RULE.A_NUM_WEIGHTS 1]));
+        PFC_B.v_stim = sum(reshape(RBF.rbv(:, RULE.B), [RULE.B_NUM_WEIGHTS 1]));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_A_weights, [RBF.NUM_WEIGHTS 1]));
         PMC_B.v_stim = sum(reshape(RBF.rbv(:,:).*PMC_B_weights, [RBF.NUM_WEIGHTS 1]));
@@ -374,7 +378,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
         % Determine accuracy
-        accuracy(j) = any(r_x == RULE_1D.B) + 1 == neuron_id_PMC;
+        accuracy(j) = any(r_x == RULE.B) + 1 == neuron_id_PMC;
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
