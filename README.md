@@ -22,15 +22,9 @@ Automaticity model for the Ashby lab.
 * MATLAB R2016B
 * MATLAB 9.1
 * Curve Fitting Toolbox
-* Embedded Coder
 * Global Optimization Toolbox
-* Image Processing Toolbox
 * MATLAB Coder
 * MATLAB Compiler
-* MATLAB Compiler SDK
-* Neural Network Toolbox
 * Optimization Toolbox
 * Parallel Computing Toolbox
-* Signal Processing Toolbox
 * Statistics and Machine Learning Toolbox
-* System Identification Toolbox
