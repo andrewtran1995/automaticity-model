@@ -42,8 +42,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
+
+    % Model Parameters
     OPTIMIZATION_RUN = 1;
-    if PERF_TEST; startTime = tic; end;
+    FROST_ENABLED = 0;
+    COVIS_ENABLED = 0;
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
@@ -99,12 +102,19 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
     
     % Performance parameters
-    loop_times = zeros(1, TRIALS);    % Time needed for each loop (outer loop)
-    trial_times = zeros(1, TRIALS);   % Time required to run each time loop (inner loop)
+    loop_times    = zeros(1, TRIALS);    % Time needed for each loop (outer loop)
+    trial_times   = zeros(1, TRIALS);   % Time required to run each time loop (inner loop)
     rt_calc_times = zeros(1, TRIALS); % Time required to run reaction time calculation
 
     % Quantity of Visual Stimulus
-    Visual = struct('stim', 50);
+    Visual = struct('stim', 50, ...
+    				'AREA', struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
+    							   'OUTER', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
+    							   'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE,
+    							   'ALL', 1:GRID_SIZE ...
+    				);
+    RULE_1D = struct('1', struct('A', [Visual.AREA.LOWER_HALF, Visual.AREA.ALL], 'B' [Visual.AREA.UPPER_HALF, Visual.AREA.ALL]), ...
+    				 '2', struct('A', 0, 'B', 0));
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
@@ -122,7 +132,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Each element is a boolean indicating if the correct neuron reacted that trial
     accuracy = zeros(TRIALS, 1);
 
-    %% COVIS Model
     % Stimulus Rules
     RULE_1D   = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE, ...
                        'A_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, 'B_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE);
@@ -130,7 +139,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                        'A_NUM_WEIGHTS', (STIM_GRID_SIZE/2+BORDER_SIZE*2) * GRID_SIZE, 'B_NUM_WEIGHTS', STIM_GRID_SIZE/2 * GRID_SIZE);
     RULE = RULE_DISJ;
     
-    % TODO: COVIS rule variables, parameters, rule log, modified rules
+    %% COVIS Model
     COVIS_VARS = struct('correct_rule', 3,         'rules', [1 2 3 4],     'saliences', ones(1,4), ...
     					'rule_weights', ones(1,4), 'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
     					'rule_log', ones(1,TRIALS));
@@ -319,10 +328,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         'rule_stim', 0.1 ...
     );
 
-    %% Sandbox area
-    % Placed after all values are initalized, and serves as an area where code can be prototyped and tested
-    % (for validity or performance reasons) before being implemented into the main body of the function
-    if PERF_TEST && SANDBOX; return; end;
+    %% Sandbox Area
+    % Area where code can be prototyped/tested (e.g., for performance/validity)
+    if PERF_TEST; startTime = tic; end;
+    if SANDBOX; return; end;
 
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
@@ -364,6 +373,36 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         else
             PMC_A_weights = PMC_A.weights(:,:,j-1);
             PMC_B_weights = PMC_B.weights(:,:,j-1);
+        end
+
+        %% Initialize FROST components
+        if FROST_ENABLED:
+        	Driv_PFC.spikes = 0;
+	        CN.spikes = 0;
+	        GP.spikes = 0;
+	        MDN_A.spikes = 0;
+	        MDN_B.spikes = 0;
+	        AC_A.spikes = 0;
+	        AC_B.spikes = 0;
+
+	        Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0;
+	        CN.v(:) = RSN.rv;        CN.u(:) = 0;
+	        GP.v(:) = RSN.rv;
+	        MDN_A.v(:) = RSN.rv;     MDN_A.u(:) = 0;
+	        MDN_B.v(:) = RSN.rv;     MDN_B.u(:) = 0;
+	        AC_A.v(:) = RSN.rv;      AC_A.u(:) = 0;
+	        AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;
+
+	        Driv_PFC.out(:) = 0;
+	        CN.out(:) = 0;
+	        GP.out(:) = 0;
+	        MDN_A.out(:) = 0;
+	        MDN_B.out(:) = 0;
+	        AC_A.out(:) = 0;
+	        AC_B.out(:) = 0;
+        end
+        %% Initialize COVIS components
+        if COVIS_ENABLED:
         end
 
         % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
@@ -602,7 +641,53 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     legend('PMC_A', 'PMC_B');
     title('PMC_A & PMC_B Reaction Time');
     
+    %% Figure 1B - neuron information from last trial or throughout trials
+    if FROST_ENABLED:
+	    figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+	    rows = 7; columns = 2;
+	    
+	    subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
+	    axis([0 n -100 100]); title('Driv_PFC Voltage');
 
+	    subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
+	    axis([0 n -100 100]); title('CN Voltage');
+
+	    subplot(rows,columns,5); plot(TAU*(1:n),GP.v);
+	    axis([0 n -100 100]); title('GP Voltage');
+
+	    subplot(rows,columns,7); plot(TAU*(1:n),MDN_A.v);
+	    axis([0 n -100 100]); title('MDN_A Voltage');
+
+	    subplot(rows,columns,9); plot(TAU*(1:n),MDN_B.v);
+	    axis([0 n -100 100]); title('MDN_B Voltage');
+
+	    subplot(rows,columns,11); plot(TAU*(1:n),AC_A.v);
+	    axis([0 n -100 100]); title('AC_A Voltage');
+
+	    subplot(rows,columns,13); plot(TAU*(1:n),AC_B.v);
+	    axis([0 n -100 100]); title('AC_B Voltage');
+	    
+	    subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
+	    axis([0 n 0 30]); title('Driv_PFC Output');
+
+	    subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
+	    axis([0 n 0 30]); title('CN Output');
+
+	    subplot(rows,columns,6); plot(TAU*(1:n),GP.out);
+	    axis([0 n 0 30]); title('GP Output');
+
+	    subplot(rows,columns,8); plot(TAU*(1:n),MDN_A.out);
+	    axis([0 n 0 30]); title('MDN_A Output');
+
+	    subplot(rows,columns,10); plot(TAU*(1:n),MDN_B.out);
+	    axis([0 n 0 30]); title('MDN_B Output');
+
+	    subplot(rows,columns,12); plot(TAU*(1:n),AC_A.out);
+	    axis([0 n 0 30]); title('AC_A Output');
+
+	    subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
+	    axis([0 n 0 30]); title('AC_B Output');
+	end
     
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
