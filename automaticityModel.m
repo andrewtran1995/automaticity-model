@@ -112,7 +112,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     rt_calc_times = zeros(1, TRIALS); % Time required to run reaction time calculation
 
     % Quantity of Visual Stimulus
-    Visual = struct('STIM', 50, ...
+    VISUAL = struct('STIM', 50, ...
     				'AREA', struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
     							   'OUTER', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
     							   'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
@@ -121,16 +121,17 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     				);
     
     % Rules available for COVIS: 1D & Disj
-    RULE_1D_ARR = struct('r1', struct('A_X', Visual.AREA.LOWER_HALF, 'A_Y', Visual.AREA.ALL, 'B_X', Visual.AREA.UPPER_HALF, 'B_Y', Visual.AREA.ALL), ...
-                         'r2', struct('A_X', Visual.AREA.UPPER_HALF, 'A_Y', Visual.AREA.ALL, 'B_X', Visual.AREA.LOWER_HALF, 'B_Y', Visual.AREA.ALL), ...
-                         'r3', struct('A_X', Visual.AREA.ALL, 'A_Y', Visual.AREA.LOWER_HALF, 'B_X', Visual.AREA.ALL, 'B_Y', Visual.AREA.UPPER_HALF), ...
-                         'r4', struct('A_X', Visual.AREA.ALL, 'A_Y', Visual.AREA.UPPER_HALF, 'B_X', Visual.AREA.ALL, 'B_Y', Visual.AREA.LOWER_HALF) ...
+    RULE_1D_ARR = struct('r1', struct('A_X', VISUAL.AREA.LOWER_HALF, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.UPPER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                         'r2', struct('A_X', VISUAL.AREA.UPPER_HALF, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.LOWER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                         'r3', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.LOWER_HALF, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.UPPER_HALF), ...
+                         'r4', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.UPPER_HALF, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.LOWER_HALF) ...
                          );
-    RULE_DISJ_ARR = struct('r1', struct('A_X', Visual.AREA.OUTER, 'A_Y', Visual.AREA.ALL, 'B_X', Visual.AREA.INNER, 'B_Y', Visual.AREA.ALL), ...
-                           'r2', struct('A_X', Visual.AREA.INNER, 'A_Y', Visual.AREA.ALL, 'B_X', Visual.AREA.OUTER, 'B_Y', Visual.AREA.ALL), ...
-                           'r3', struct('A_X', Visual.AREA.ALL, 'A_Y', Visual.AREA.OUTER, 'B_X', Visual.AREA.ALL, 'B_Y', Visual.AREA.INNER), ...
-                           'r4', struct('A_X', Visual.AREA.ALL, 'A_Y', Visual.AREA.INNER, 'B_X', Visual.AREA.ALL, 'B_Y', Visual.AREA.OUTER) ...
+    RULE_DISJ_ARR = struct('r1', struct('A_X', VISUAL.AREA.OUTER, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.INNER, 'B_Y', VISUAL.AREA.ALL), ...
+                           'r2', struct('A_X', VISUAL.AREA.INNER, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.OUTER, 'B_Y', VISUAL.AREA.ALL), ...
+                           'r3', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.OUTER, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.INNER), ...
+                           'r4', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.INNER, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.OUTER) ...
                            );
+    RULE = RULE_1D_ARR.r1;
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
@@ -143,15 +144,9 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
 
-    % Accuracy matrix, where first dimension has two rows (1 = PFC; 2 = PMC)
-    % and second dimension is trial number
-    % Each element is a boolean indicating if the correct neuron reacted that trial
+    % Accuracy matrix, where each element indicates whether correct PMC
+    % neuron reacted
     accuracy = zeros(TRIALS, 1);
-
-    % Stimulus Rules
-    RULE_1D   = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE);
-    RULE_DISJ = struct('A', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], 'B', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE);
-    RULE = RULE_1D;
     
     %% COVIS Model
     COVIS_VARS = struct('correct_rule', 3,         'rules', [1 2 3 4],     'saliences', ones(1,4), ...
@@ -431,10 +426,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
         %% Radial Basis Function (RBF) Implementation
         % Calculate RBF grid
-        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.STIM;
+        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(sum(RBF.rbv(:, RULE.A)));
-        PFC_B.v_stim = sum(sum(RBF.rbv(:, RULE.B)));
+        PFC_A.v_stim = sum(sum(RBF.rbv(RULE.A_Y, RULE.A_X)));
+        PFC_B.v_stim = sum(sum(RBF.rbv(RULE.B_Y, RULE.B_X)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights));
         PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights));
@@ -443,7 +438,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PFC_B.v_stim = PFC_B.v_stim * PFC.V_SCALE;
         PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
-        keyboard;
 
         %% Individual Time Trial
         timeTrialStart = tic;
@@ -522,7 +516,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
         % Determine accuracy
-        accuracy(j) = any(r_x == RULE.B) + 1 == neuron_id_PMC;
+        accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_PMC;
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
@@ -587,24 +581,28 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    if CONFIGURATION == FMRI && OPTIMIZATION_RUN
-        target = load('fmri/means1dCondition.mat');
-        % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-        output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
-                      mean(accuracy(FMRI_META.SES_4)), ...
-                      mean(accuracy(FMRI_META.SES_10)), ...
-                      mean(accuracy(FMRI_META.SES_20))];
-        % Calculate Mean Median RT for trials from Session 4, 10, and 20
-        % Reaction times must be converted from ms to seconds
-        norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-        % Weight reaction time greater than accuracy
-        target_diff = [target.means1dCondition(1,:) - output_acc;
-                       (target.means1dCondition(2,:) - norm_output_rt)*20];
-        sse_val = sum(sum(target_diff.^2));
-        return
+    if OPTIMIZATION_RUN
+        if CONFIGURATION == MADDOX
+        elseif CONFIGURATION == WALLIS
+        elseif CONFIGURATION == FMRI
+            target = load('fmri/means1dCondition.mat');
+            % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+            output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                          mean(accuracy(FMRI_META.SES_4)), ...
+                          mean(accuracy(FMRI_META.SES_10)), ...
+                          mean(accuracy(FMRI_META.SES_20))];
+            % Calculate Mean Median RT for trials from Session 4, 10, and 20
+            % Reaction times must be converted from ms to seconds
+            norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
+                              median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+                              median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
+                              median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+            % Weight reaction time greater than accuracy
+            target_diff = [target.means1dCondition(1,:) - output_acc;
+                           (target.means1dCondition(2,:) - norm_output_rt)*20];
+            sse_val = sum(sum(target_diff.^2));
+            return
+        end
     end
     
     %% =============================== %%
@@ -642,7 +640,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, Visual.STIM));
+    title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, VISUAL.STIM));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
