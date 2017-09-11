@@ -121,18 +121,18 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     				);
     
     % Rules available for COVIS: 1D & Disj
-    % TODO: move struct-in-struct to array-of-structs
-    RULE_1D_ARR = struct('r1', struct('A_X', VISUAL.AREA.LOWER_HALF, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.UPPER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
-                         'r2', struct('A_X', VISUAL.AREA.UPPER_HALF, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.LOWER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
-                         'r3', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.LOWER_HALF, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.UPPER_HALF), ...
-                         'r4', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.UPPER_HALF, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.LOWER_HALF) ...
-                         );
-    RULE_DISJ_ARR = struct('r1', struct('A_X', VISUAL.AREA.OUTER, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.INNER, 'B_Y', VISUAL.AREA.ALL), ...
-                           'r2', struct('A_X', VISUAL.AREA.INNER, 'A_Y', VISUAL.AREA.ALL, 'B_X', VISUAL.AREA.OUTER, 'B_Y', VISUAL.AREA.ALL), ...
-                           'r3', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.OUTER, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.INNER), ...
-                           'r4', struct('A_X', VISUAL.AREA.ALL, 'A_Y', VISUAL.AREA.INNER, 'B_X', VISUAL.AREA.ALL, 'B_Y', VISUAL.AREA.OUTER) ...
-                           );
-    RULE = RULE_1D_ARR.r1;
+    VISUAL_RULES = [ ...
+                        struct('A_X', VISUAL.AREA.LOWER_HALF, 'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.UPPER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.UPPER_HALF, 'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.LOWER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.LOWER_HALF, 'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.UPPER_HALF), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.UPPER_HALF, 'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.LOWER_HALF), ...
+                        struct('A_X', VISUAL.AREA.OUTER,      'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.INNER,      'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.INNER,      'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.OUTER,      'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.OUTER,      'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.INNER), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.INNER,      'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.OUTER) ...
+                   ];
+    chosen_rule = 1;
+    RULE = VISUAL_RULES(chosen_rule);
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
@@ -150,11 +150,12 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     accuracy = zeros(TRIALS, 1);
     
     %% COVIS Model
-    COVIS_VARS = struct('correct_rule', 3,         'rules', [1 2 3 4],     'saliences', ones(1,4), ...
-    					'rule_weights', ones(1,4), 'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
-    					'rule_log', ones(1,TRIALS));
-    COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
-    
+    if COVIS_ENABLED
+        COVIS_VARS = struct('correct_rule', 3,         'rules', [1 2 3 4],     'saliences', ones(1,4), ...
+        					'rule_weights', ones(1,4), 'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
+        					'rule_log', ones(1,TRIALS));
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
+    end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC scaling information
@@ -391,47 +392,31 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
         %% Initialize FROST components
         if FROST_ENABLED
-        	Driv_PFC.spikes = 0;
-	        CN.spikes = 0;
-	        GP.spikes = 0;
-	        MDN_A.spikes = 0;
-	        MDN_B.spikes = 0;
-	        AC_A.spikes = 0;
-	        AC_B.spikes = 0;
-
-	        Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0;
-	        CN.v(:) = RSN.rv;        CN.u(:) = 0;
-	        GP.v(:) = RSN.rv;
-	        MDN_A.v(:) = RSN.rv;     MDN_A.u(:) = 0;
-	        MDN_B.v(:) = RSN.rv;     MDN_B.u(:) = 0;
-	        AC_A.v(:) = RSN.rv;      AC_A.u(:) = 0;
-	        AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;
-
-	        Driv_PFC.out(:) = 0;
-	        CN.out(:) = 0;
-	        GP.out(:) = 0;
-	        MDN_A.out(:) = 0;
-	        MDN_B.out(:) = 0;
-	        AC_A.out(:) = 0;
-	        AC_B.out(:) = 0;
+        	Driv_PFC.spikes = 0; Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0; Driv_PFC.out(:) = 0;
+	        CN.spikes = 0;       CN.v(:) = RSN.rv;        CN.u(:) = 0;       CN.out(:) = 0;
+	        GP.spikes = 0;       GP.v(:) = RSN.rv;                           GP.out(:) = 0;
+	        MDN_A.spikes = 0;    MDN_A.v(:) = RSN.rv;     MDN_A.u(:) = 0;    MDN_A.out(:) = 0;
+	        MDN_B.spikes = 0;    MDN_B.v(:) = RSN.rv;     MDN_B.u(:) = 0;    MDN_B.out(:) = 0;
+	        AC_A.spikes = 0;     AC_A.v(:) = RSN.rv;      AC_A.u(:) = 0;     AC_A.out(:) = 0;
+	        AC_B.spikes = 0;     AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;     AC_B.out(:) = 0;
+	        
         end
         %% Initialize COVIS components (choose a rule randomly)
         if COVIS_ENABLED
-            %TODO: choose rule
+            chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
+            RULE = VISUAL_RULES(chosen_rule);
         end
 
-        % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
+        %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
 
-        %% Radial Basis Function (RBF) Implementation
+        %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
-        % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        % TODO: if COVIS_ENABLED, use randomly chosen rule for PFC stim
-        % determination
+        % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE.A_Y, RULE.A_X)));
         PFC_B.v_stim = sum(sum(RBF.rbv(RULE.B_Y, RULE.B_X)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
@@ -733,19 +718,22 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         
         %% COVIS Calculations - readjusting saliences, weights
         if COVIS_ENABLED
-            % TODO: rule is just a placeholder; need actual var
             % Step 1: Readjust saliences & weights
             if accuracy(j) == 1
-                COVIS_VARS.saliences(rule) = COVIS_VARS.saliences(rule) + COVIS_PARAMS.DELTA_C;
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_C;
             else
-                COVIS_VARS.saliences(rule) = COVIS_VARS.saliences(rule) + COVIS_PARAMS.DELTA_E;
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_E;
             end
             COVIS_VARS.rule_weights = COVIS_VARS.rule_weights + COVIS_PARAMS.PERSEV;
             
             % Step 2: updating of randomly chosen rule
-            
+            random_rule = randi(4);
+            COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARAMS.LAMBDA);
 
-        %% COVIS - calculate rule probabilities for next trial
+            % Step 3 (???): calculate rule probabilities for next trial
+            COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
+
+            COVIS_VARS.rule_log(j) = chosen_rule;
         end
 
         %% Print data to console
@@ -1133,4 +1121,10 @@ function [f] = get_hazard_estimate(x, pts)
     [f_pdf, ~] = ksdensity(x, pts, 'function', 'pdf');
     [f_sur, ~] = ksdensity(x, pts, 'function', 'survivor');
     f = f_pdf./f_sur;
+end
+
+% Given discrete distribution, return index of chosen index
+function [idx] = rand_discrete(distr)
+    cum_distr = cumsum(distr);
+    idx = find(rand<cum_distr, 1);
 end
