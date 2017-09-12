@@ -46,12 +46,12 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     % Programming Parameters
     PERF_TEST = 1;      % Enable/disable performance output
-    SANDBOX = 0;        % Controls whether "sandbox" area executes, or main func
+    SANDBOX   = 0;      % Controls whether "sandbox" area executes, or main func
 
     % Model Parameters
-    OPTIMIZATION_RUN = 1;
-    FROST_ENABLED = 0;
-    COVIS_ENABLED = 0;
+    OPTIMIZATION_RUN = 0;
+    FROST_ENABLED    = 1;
+    COVIS_ENABLED    = 1;
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
@@ -90,13 +90,13 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
     TRIALS               = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
-    LEARNING = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
+    LEARNING     = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
     LEARNING_IDX = PRE_LEARNING_TRIALS+1:PRE_LEARNING_TRIALS+LEARNING_TRIALS;
 
     % Set properties of grid
-    STIM_GRID_SIZE = 100;      % Length of side of square grid used for visual input; shoudl be an even number
-    BORDER_SIZE = 20;          % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
-    GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
+    STIM_GRID_SIZE = 100;                          % Length of side of square grid used for visual input; shoudl be an even number
+    BORDER_SIZE    = 20;                           % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    GRID_SIZE      = STIM_GRID_SIZE+2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
     % Other parameters
     n = 1000;                  % Time period for one trial (in milliseconds)
@@ -151,9 +151,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% COVIS Model
     if COVIS_ENABLED
-        COVIS_VARS = struct('correct_rule', VISUAL_RULES(3), 'rules', [1 2 3 4],     'saliences', ones(1,4), ...
-        					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
-        					'rule_log', ones(1,TRIALS));
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(3), 'rules', 1:4,           'saliences', ones(1,4), ...
+        					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
         COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
@@ -235,6 +234,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Neuron.u: voltage matrix (negative)
     PFC_A = struct( ...
         'W_OUT', 9, ...
+        'W_OUT_MDN', 1, ...
+        'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
@@ -244,6 +245,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     );
     PFC_B = struct( ...
         'W_OUT', 9, ...
+        'W_OUT_MDN', 1, ...
+        'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
@@ -401,9 +404,15 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 	        AC_B.spikes = 0;     AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;     AC_B.out(:) = 0;
 	        
         end
-        %% Initialize COVIS components (choose a rule randomly)
+        %% Initialize COVIS components (choose a rule)
         if COVIS_ENABLED
-            chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
+            if j <= COVIS_PARAMS.NUM_GUESS
+                chosen_rule = randi(4);
+            elseif accuracy(j-1) == 1
+                chosen_rule = COVIS_VARS.rule_log(j-1);
+            else
+                chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
+            end
             RULE = VISUAL_RULES(chosen_rule);
         end
 
@@ -432,7 +441,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         %% Individual Time Trial Loop (iterating through n)
         timeTrialStart = tic;
         if FROST_ENABLED
-            %% FROST Calcualtions
+            %% FROST Calculations
             for i=1:n-1
                 % PFC A Neuron
                 PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + MDN_A.W_OUT*MDN_A.out(i) + AC_A.W_OUT*AC_A.out(i) + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
@@ -530,7 +539,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     % Input from GP Neuron
                     % Input from pFC_A Neuron
                     % Output to pFC_A Neuron
-                MDN_A.v(i+1)=((MDN_A.v(i) + TAU*(RSN.k*(MDN_A.v(i)-RSN.rv)*(MDN_A.v(i)-RSN.vt)-MDN_A.u(i)+ 10 + PFC_A.W_OUT2MDN*PFC_A.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
+                MDN_A.v(i+1)=((MDN_A.v(i) + TAU*(RSN.k*(MDN_A.v(i)-RSN.rv)*(MDN_A.v(i)-RSN.vt)-MDN_A.u(i)+ 10 + PFC_A.W_OUT_MDN*PFC_A.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
                 MDN_A.u(i+1)=MDN_A.u(i)+TAU*RSN.a*(RSN.b*(MDN_A.v(i)-RSN.rv)-MDN_A.u(i));
                 if MDN_A.v(i+1)>=RSN.vpeak
                     MDN_A.v(i)= RSN.vpeak;
@@ -545,7 +554,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     % Input from GP Neuron
                     % Input from pFC_A Neuron
                     % Output to pFC_A Neuron
-                MDN_B.v(i+1)=((MDN_B.v(i) + TAU*(RSN.k*(MDN_B.v(i)-RSN.rv)*(MDN_B.v(i)-RSN.vt)-MDN_B.u(i)+ 10 + PFC_B.W_OUT2MDN*PFC_B.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
+                MDN_B.v(i+1)=((MDN_B.v(i) + TAU*(RSN.k*(MDN_B.v(i)-RSN.rv)*(MDN_B.v(i)-RSN.vt)-MDN_B.u(i)+ 10 + PFC_B.W_OUT_MDN*PFC_B.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
                 MDN_B.u(i+1)=MDN_B.u(i)+TAU*RSN.a*(RSN.b*(MDN_B.v(i)-RSN.rv)-MDN_B.u(i));
                 if MDN_B.v(i+1)>=RSN.vpeak
                     MDN_B.v(i)= RSN.vpeak;
@@ -561,7 +570,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                 	% Input from Rule Stimulus (arbitrary value - constant)
                 	% Input from PFC_A Neuron
                     % Output to PFC_A
-                AC_A.v(i+1)=((AC_A.v(i) + TAU*(RSN.k*(AC_A.v(i)-RSN.rv)*(AC_A.v(i)-RSN.vt)-AC_A.u(i)+ 10 + PFC_A.W_OUT2AC*PFC_A.out(i) + AC_A.rule_stim))/RSN.C); % + normrnd(0,NOISE);
+                AC_A.v(i+1)=((AC_A.v(i) + TAU*(RSN.k*(AC_A.v(i)-RSN.rv)*(AC_A.v(i)-RSN.vt)-AC_A.u(i)+ 10 + PFC_A.W_OUT_AC*PFC_A.out(i) + AC_A.rule_stim))/RSN.C); % + normrnd(0,NOISE);
                 AC_A.u(i+1)=AC_A.u(i)+TAU*RSN.a*(RSN.b*(AC_A.v(i)-RSN.rv)-AC_A.u(i));
                 if AC_A.v(i+1)>=RSN.vpeak
                     AC_A.v(i)= RSN.vpeak;
@@ -576,7 +585,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     % Input from Rule Stimulus (arbitrary value - constant)
                     % Input from PFC_B Neuron
                     % Output to PFC_B
-                AC_B.v(i+1)=((AC_B.v(i) + TAU*(RSN.k*(AC_B.v(i)-RSN.rv)*(AC_B.v(i)-RSN.vt)-AC_B.u(i)+ 10 + PFC_B.W_OUT2AC*PFC_B.out(i) + AC_B.rule_stim))/RSN.C); % + normrnd(0,NOISE);
+                AC_B.v(i+1)=((AC_B.v(i) + TAU*(RSN.k*(AC_B.v(i)-RSN.rv)*(AC_B.v(i)-RSN.vt)-AC_B.u(i)+ 10 + PFC_B.W_OUT_AC*PFC_B.out(i) + AC_B.rule_stim))/RSN.C); % + normrnd(0,NOISE);
                 AC_B.u(i+1)=AC_B.u(i)+TAU*RSN.a*(RSN.b*(AC_B.v(i)-RSN.rv)-AC_B.u(i));
                 if AC_B.v(i+1)>=RSN.vpeak
                     AC_B.v(i)= RSN.vpeak;
@@ -664,7 +673,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
         % Determine accuracy
-        accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_PMC;
+        if COVIS_ENABLED
+            accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_PMC;
+        else
+            accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_PMC;
+        end
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
@@ -729,7 +742,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
             
             % Step 2: updating of randomly chosen rule
             random_rule = randi(4);
-            COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARAMS.LAMBDA);
+            COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARAMS.LAMBDA);
 
             % Step 3 (???): calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
@@ -1007,7 +1020,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Information regarding the performance, or run-time, of this program
     if PERF_TEST
         elapsedTime = toc(startTime);
-        figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times)));
+        figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
         plot(loop_times, 'b'); hold on;
         plot(trial_times, 'r'); hold on;
         plot(rt_calc_times, 'g');
