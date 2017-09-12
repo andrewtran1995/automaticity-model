@@ -151,8 +151,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% COVIS Model
     if COVIS_ENABLED
-        COVIS_VARS = struct('correct_rule', 3,         'rules', [1 2 3 4],     'saliences', ones(1,4), ...
-        					'rule_weights', ones(1,4), 'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(3), 'rules', [1 2 3 4],     'saliences', ones(1,4), ...
+        					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'prob_space', ones(1,3), ...
         					'rule_log', ones(1,TRIALS));
         COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
@@ -417,6 +417,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         % Calculate RBF grid
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
+        % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE.A_Y, RULE.A_X)));
         PFC_B.v_stim = sum(sum(RBF.rbv(RULE.B_Y, RULE.B_X)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
@@ -663,7 +664,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
         % Determine accuracy
-        accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_PMC;
+        accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_PMC;
         rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
