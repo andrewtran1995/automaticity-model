@@ -30,7 +30,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = MADDOX;
+    CONFIGURATION = WALLIS;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
@@ -450,8 +450,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PFC_A.v(i)= RSN.vpeak;
                     PFC_A.v(i+1)= RSN.c;
                     PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
-                end
-                if PFC_A.v(i) >= RSN.vpeak
                     PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -462,8 +460,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PFC_B.v(i)= RSN.vpeak;
                     PFC_B.v(i+1)= RSN.c;
                     PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
-                end
-                if PFC_B.v(i) >= RSN.vpeak
                     PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -474,8 +470,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PMC_A.v(i)= RSN.vpeak;
                     PMC_A.v(i+1)= RSN.c;
                     PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
-                end
-                if PMC_A.v(i) >= RSN.vpeak
                     PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -486,8 +480,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PMC_B.v(i)= RSN.vpeak;
                     PMC_B.v(i+1)= RSN.c;
                     PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
-                end
-                if PMC_B.v(i) >= RSN.vpeak
                     PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -500,8 +492,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     Driv_PFC.v(i)= RSN.vpeak;
                     Driv_PFC.v(i+1)= RSN.c;
                     Driv_PFC.u(i+1)= Driv_PFC.u(i+1)+ RSN.d;
-                end
-                if Driv_PFC.v(i) >= RSN.vpeak
                     Driv_PFC.out(i:n) = Driv_PFC.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -514,8 +504,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     CN.v(i)= MSN.vpeak;
                     CN.v(i+1)= MSN.c;
                     CN.u(i+1)= CN.u(i+1)+ MSN.d;
-                end
-                if CN.v(i) >= MSN.vpeak
                     CN.out(i:n) = CN.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
                 
@@ -524,16 +512,12 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     % Output to MDN_A and MDN_B Neurons
                     % This part is less straightforward
                 dGP = (-1)*CN.W_OUT*CN.out(i) + QIAF.beta + QIAF.gamma*(GP.v(i)- QIAF.rv)*(GP.v(i)-QIAF.vt);               
-                GP.v(i+1) = GP.v(i) + dGP; % + normrnd(0,NOISE);
-
+                GP.v(i+1) = GP.v(i) + dGP;
                 if (GP.v(i+1) >= QIAF.vpeak)
                     GP.v(i) = QIAF.vpeak;
                     GP.v(i+1) = QIAF.vreset;
-                end;
-
-                if GP.v(i) >= QIAF.vpeak
                     GP.out(i:n) = GP.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
-                end
+                end;
 
                 % MDN_A Neuron
                     % Input from GP Neuron
@@ -545,8 +529,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     MDN_A.v(i)= RSN.vpeak;
                     MDN_A.v(i+1)= RSN.c;
                     MDN_A.u(i+1)= MDN_A.u(i+1)+ RSN.d;
-                end
-                if MDN_A.v(i) >= RSN.vpeak
                     MDN_A.out(i:n) = MDN_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -560,9 +542,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     MDN_B.v(i)= RSN.vpeak;
                     MDN_B.v(i+1)= RSN.c;
                     MDN_B.u(i+1)= MDN_A.u(i+1)+ RSN.d;
-                end
-
-                if MDN_B.v(i) >= RSN.vpeak
                     MDN_B.out(i:n) = MDN_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -576,8 +555,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     AC_A.v(i)= RSN.vpeak;
                     AC_A.v(i+1)= RSN.c;
                     AC_A.u(i+1)= AC_A.u(i+1)+ RSN.d;
-                end
-                if AC_A.v(i) >= RSN.vpeak
                     AC_A.out(i:n) = AC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -591,8 +568,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     AC_B.v(i)= RSN.vpeak;
                     AC_B.v(i+1)= RSN.c;
                     AC_B.u(i+1)= AC_B.u(i+1)+ RSN.d;
-                end
-                if AC_B.v(i) >= RSN.vpeak
                     AC_B.out(i:n) = AC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
             end
@@ -606,8 +581,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PFC_A.v(i)= RSN.vpeak;
                     PFC_A.v(i+1)= RSN.c;
                     PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
-                end
-                if PFC_A.v(i) >= RSN.vpeak
                     PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -618,8 +591,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PFC_B.v(i)= RSN.vpeak;
                     PFC_B.v(i+1)= RSN.c;
                     PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
-                end
-                if PFC_B.v(i) >= RSN.vpeak
                     PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -630,8 +601,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PMC_A.v(i)= RSN.vpeak;
                     PMC_A.v(i+1)= RSN.c;
                     PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
-                end
-                if PMC_A.v(i) >= RSN.vpeak
                     PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
 
@@ -642,8 +611,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                     PMC_B.v(i)= RSN.vpeak;
                     PMC_B.v(i+1)= RSN.c;
                     PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
-                end
-                if PMC_B.v(i) >= RSN.vpeak
                     PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
             end
