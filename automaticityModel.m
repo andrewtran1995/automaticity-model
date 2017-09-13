@@ -30,7 +30,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = WALLIS;
+    CONFIGURATION = MADDOX;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
@@ -50,8 +50,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
     % Model Parameters
     OPTIMIZATION_RUN = 0;
-    FROST_ENABLED    = 1;
-    COVIS_ENABLED    = 1;
+    FROST_ENABLED    = 0;
+    COVIS_ENABLED    = 0;
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
