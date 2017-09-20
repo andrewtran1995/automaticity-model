@@ -30,7 +30,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = WALLIS;
+    CONFIGURATION = MADDOX;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
     
     % Override parameter values if they were specified as inputs
@@ -51,7 +51,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Model Parameters
     OPTIMIZATION_RUN = 0;
     FROST_ENABLED    = 0;
-    COVIS_ENABLED    = 0;
+    COVIS_ENABLED    = 1;
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
@@ -151,7 +151,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     
     %% COVIS Model
     if COVIS_ENABLED
-        COVIS_VARS = struct('correct_rule', VISUAL_RULES(3), 'rules', 1:4,           'saliences', ones(1,4), ...
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
         					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
         COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
@@ -705,7 +705,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
             else
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_E;
             end
-            COVIS_VARS.rule_weights = COVIS_VARS.rule_weights + COVIS_PARAMS.PERSEV;
+            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.rule_weights(chosen_rule) + COVIS_PARAMS.PERSEV;
             
             % Step 2: updating of randomly chosen rule
             random_rule = randi(4);
@@ -856,7 +856,13 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
 
 	    subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
 	    axis([0 n 0 30]); title('AC_B Output');
-	end
+    end
+    
+    %% Figure 1C - COVIS
+    if COVIS_ENABLED
+        figure; title('COVIS Information');
+        scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
+    end
     
     %% Figure 2
     % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
@@ -1051,7 +1057,7 @@ function [param_struct] = get_parameters(configuration)
     % Note that PMC_DECISION_PT & NOISE are used in optimization as well, but their default value is dependent on configuration
     % Therefore, we do not re-initialize it here
     optim_param_names    = {'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
-    optim_param_defaults = {        1e-6;             1e-6;  1500;   750;     10};
+    optim_param_defaults = {        1e-8;             1e-8;  600;   500;     10};
     param_struct = cell2struct(vertcat(params, optim_param_defaults), ...   % Parameter values
                                vertcat(param_names, optim_param_names), ... % Parameter names
                                1);
