@@ -22,7 +22,15 @@ Note that the grid is set up column-major order, with points accessed as
  increasing right and down for x and y, respectively.
 %}
 
-function [sse_val] = automaticityModel(arg_vector) %#codegen
+% opt_val        - return value signifying value of some cost function, used
+%                  for global optimization
+% arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
+%                  exposed in global optimization; if not specified in
+%                  non-codegen version, will be given default values based
+%                  on configuration
+% optional_parms - (optional) struct that may contain additional parameters
+%                  for the model; not allowed in codegen version
+function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -32,6 +40,11 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
     PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
+    
+    % Struct to contain meta-data of FMRI configuration
+    FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
+                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
+                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Override parameter values if they were specified as inputs
     if nargin ~= 0 && ~isempty(arg_vector)
@@ -49,9 +62,20 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     SANDBOX   = 0;      % Controls whether "sandbox" area executes, or main func
 
     % Model Parameters
-    OPTIMIZATION_RUN = 0;
+    VISUAL_INPUT_FROM_PARM = 0;
+    OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
+    
+    % Override values with optional_parms if it was passed as an argument
+    if nargin == 2
+        if isfield(optional_parms, 'FMRI_META_GROUP_RUN')
+            FMRI_META.GROUP_RUN = optional_parms.FMRI_META_GROUP_RUN;
+        end
+        if isfield(optional_parms, 'visualinput')
+            VISUAL_INPUT_FROM_PARM = 1;
+        end
+    end
     
     %% Load visual stimulus matrix
     % %% Random Visual Input, 100 x 100 %%
@@ -59,6 +83,10 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         loaded_input = load('datasets/randomVisualInput.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
+    elseif VISUAL_INPUT_FROM_PARM
+        r_x_vals = optional_parms.visualinput(:,1);
+        r_y_vals = optional_parms.visualinput(:,2);
+        r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == MADDOX
     % %% Random Visual Input to Maddox Grid, 100 X 100 %%
         loaded_input = load('datasets/maddoxVisualInput.mat');
@@ -77,11 +105,6 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         r_y_vals = loaded_input.r_y_mat;
         r_groups = zeros(1, length(r_x_vals));
     end
-    
-    % Struct to contain meta-data of FMRI configuration
-    FMRI_META = struct('NUM_TRIALS', 11520, ...
-                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
-                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
@@ -171,7 +194,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
         'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
-        'alpha', zeros(TRIALS,n) ...
+        'alpha', zeros(TRIALS,n), ...
+        'activations', zeros(TRIALS,1) ...
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -615,6 +639,7 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
                 end
             end
         end
+        %% Record post-time-loop numbers
         % Count number of spikes
         PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak);
         PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
@@ -628,6 +653,8 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
+        % Record total PMC activations
+        PMC.activations(j) = trapz(PMC_A.out) + trapz(PMC_B.out);
         trial_times(j) = toc(timeTrialStart);
 
         %% Determine decision neuron and reaction time, and record accuracy
@@ -731,29 +758,41 @@ function [sse_val] = automaticityModel(arg_vector) %#codegen
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if OPTIMIZATION_RUN
         if CONFIGURATION == MADDOX
-            sse_val = 0;
+            opt_val = 0;
             return
         elseif CONFIGURATION == WALLIS
-            sse_val = 0;
+            opt_val = 0;
             return
         elseif CONFIGURATION == FMRI
-            target = load('fmri/means1dCondition.mat');
-            % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-            output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+            if FMRI_META.SINGLE_RUN
+                target = load('fmri/means1dCondition.mat');
+                % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+                output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                              mean(accuracy(FMRI_META.SES_4)), ...
+                              mean(accuracy(FMRI_META.SES_10)), ...
+                              mean(accuracy(FMRI_META.SES_20))];
+                % Calculate Mean Median RT for trials from Session 4, 10, and 20
+                % Reaction times must be converted from ms to seconds
+                norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+                % Weight reaction time greater than accuracy
+                target_diff = [target.means1dCondition(1,:) - output_acc;
+                               (target.means1dCondition(2,:) - norm_output_rt)*20];
+                opt_val = sum(sum(target_diff.^2));
+                return
+            else
+                boldPMC = generatebold(PMC.activations);
+                opt_val = [mean(boldPMC(FMRI_META.SES_1)), ...
+                          mean(boldPMC(FMRI_META.SES_4)), ...
+                          mean(boldPMC(FMRI_META.SES_10)), ...
+                          mean(boldPMC(FMRI_META.SES_20)), ...
+                          mean(accuracy(FMRI_META.SES_1)), ...
                           mean(accuracy(FMRI_META.SES_4)), ...
                           mean(accuracy(FMRI_META.SES_10)), ...
                           mean(accuracy(FMRI_META.SES_20))];
-            % Calculate Mean Median RT for trials from Session 4, 10, and 20
-            % Reaction times must be converted from ms to seconds
-            norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-            % Weight reaction time greater than accuracy
-            target_diff = [target.means1dCondition(1,:) - output_acc;
-                           (target.means1dCondition(2,:) - norm_output_rt)*20];
-            sse_val = sum(sum(target_diff.^2));
-            return
+            end
         end
     end
     
