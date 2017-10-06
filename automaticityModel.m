@@ -30,7 +30,7 @@ Note that the grid is set up column-major order, with points accessed as
 %                  on configuration
 % optional_parms - (optional) struct that may contain additional parameters
 %                  for the model; not allowed in codegen version
-function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
+function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -39,7 +39,12 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
-    PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
+
+    % Declare automaticity param struct
+    coder.extrinsic('getAutomaticityParams');
+    coder.varsize('chosen_rule');
+    PARAMS = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
     FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
@@ -61,8 +66,8 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX   = 0;      % Controls whether "sandbox" area executes, or main func
 
-    % Model Parameters
-    VISUAL_INPUT_FROM_PARM = 0;
+    % Model paramters (default values)
+    VIS_INPUT_FROM_PARM = 0;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
@@ -72,8 +77,8 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
         if isfield(optional_parms, 'FMRI_META_GROUP_RUN')
             FMRI_META.GROUP_RUN = optional_parms.FMRI_META_GROUP_RUN;
         end
-        if isfield(optional_parms, 'visualinput')
-            VISUAL_INPUT_FROM_PARM = 1;
+        if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
+            VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
         end
     end
     
@@ -83,7 +88,8 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
         loaded_input = load('datasets/randomVisualInput.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
-    elseif VISUAL_INPUT_FROM_PARM
+    % %% Visual Input Matrix from optional_parms struct %%
+    elseif VIS_INPUT_FROM_PARM
         r_x_vals = optional_parms.visualinput(:,1);
         r_y_vals = optional_parms.visualinput(:,2);
         r_groups = zeros(1, length(r_x_vals));
@@ -431,7 +437,7 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
         %% Initialize COVIS components (choose a rule)
         if COVIS_ENABLED
             if j <= COVIS_PARAMS.NUM_GUESS
-                chosen_rule = randi(4);
+                chosen_rule = randi(length(COVIS_VARS.rules));
             elseif accuracy(j-1) == 1
                 chosen_rule = COVIS_VARS.rule_log(j-1);
             else
@@ -451,8 +457,8 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
         RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
-        PFC_A.v_stim = sum(sum(RBF.rbv(RULE.A_Y, RULE.A_X)));
-        PFC_B.v_stim = sum(sum(RBF.rbv(RULE.B_Y, RULE.B_X)));
+        PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
+        PFC_B.v_stim = sum(sum(RBF.rbv(RULE(1).B_Y, RULE(1).B_X)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights));
         PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights));
@@ -746,7 +752,7 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
 
         %% Print data to console
         if mod(j,1) == 0
-            fprintf('~~~ TRIAL #: %d ~~~\n', j);
+            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
         end
         if PERF_TEST; loop_times(j) = toc(loopStart); end;
     end
@@ -757,14 +763,14 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
     % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if OPTIMIZATION_RUN
+        opt_val_1 = 0;
+        opt_val_2 = zeros(8,1);
         if CONFIGURATION == MADDOX
-            opt_val = 0;
             return
         elseif CONFIGURATION == WALLIS
-            opt_val = 0;
             return
         elseif CONFIGURATION == FMRI
-            if FMRI_META.SINGLE_RUN
+            if ~FMRI_META.GROUP_RUN
                 target = load('fmri/means1dCondition.mat');
                 % Calculate Mean Accuracy for trials from Session 4, 10, and 20
                 output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
@@ -780,18 +786,25 @@ function [opt_val] = automaticityModel(arg_vector, optional_parms) %#codegen
                 % Weight reaction time greater than accuracy
                 target_diff = [target.means1dCondition(1,:) - output_acc;
                                (target.means1dCondition(2,:) - norm_output_rt)*20];
-                opt_val = sum(sum(target_diff.^2));
+                opt_val_1 = sum(sum(target_diff.^2));
                 return
             else
-                boldPMC = generatebold(PMC.activations);
-                opt_val = [mean(boldPMC(FMRI_META.SES_1)), ...
-                          mean(boldPMC(FMRI_META.SES_4)), ...
-                          mean(boldPMC(FMRI_META.SES_10)), ...
-                          mean(boldPMC(FMRI_META.SES_20)), ...
-                          mean(accuracy(FMRI_META.SES_1)), ...
-                          mean(accuracy(FMRI_META.SES_4)), ...
-                          mean(accuracy(FMRI_META.SES_10)), ...
-                          mean(accuracy(FMRI_META.SES_20))];
+                % Set parameter values of hrf
+                t1 = 1; n = 4; lamda = 2;
+                % Define time axis
+                t = 1:LEARNING_TRIALS;
+                % Create hrf
+                hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+                % Compute convolution for each trial
+                boldPMC = conv(PMC.activations, hrf');
+                opt_val_2 = [mean(boldPMC(FMRI_META.SES_1)), ...
+                             mean(boldPMC(FMRI_META.SES_4)), ...
+                             mean(boldPMC(FMRI_META.SES_10)), ...
+                             mean(boldPMC(FMRI_META.SES_20)), ...
+                             mean(accuracy(FMRI_META.SES_1)), ...
+                             mean(accuracy(FMRI_META.SES_4)), ...
+                             mean(accuracy(FMRI_META.SES_10)), ...
+                             mean(accuracy(FMRI_META.SES_20))];
             end
         end
     end
@@ -1070,38 +1083,6 @@ end
 %% =============================== %%
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
-
-% Return set of parameters based on argument
-function [param_struct] = get_parameters(configuration)
-    % Necessary for codegen
-    % coder.extrinsic('cell2struct');
-    % Preinitialize param_struct to allow codegen to infer type
-    % param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
-    
-    % Initialize parameters that depend on configuration
-    param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
-    MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
-    WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400};
-    FMRI_CONFIG   = {                    0;             10000;                      0;       2;               400;               400};
-    if strcmp(configuration,'MADDOX')
-        params = MADDOX_CONFIG;
-    elseif strcmp(configuration,'WALLIS')
-        params = WALLIS_CONFIG;
-    elseif strcmp(configuration,'FMRI')
-        params = FMRI_CONFIG;
-    else
-        error('Improper configuration requested in get_parameters(configuration)!');
-    end
-    % Initialize parameters used in optimization
-    % Note that PMC_DECISION_PT & NOISE are used in optimization as well, but their default value is dependent on configuration
-    % Therefore, we do not re-initialize it here
-    optim_param_names    = {'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
-    optim_param_defaults = {        1e-8;             1e-8;  600;      0;     10};
-    param_struct = cell2struct(vertcat(params, optim_param_defaults), ...   % Parameter values
-                               vertcat(param_names, optim_param_names), ... % Parameter names
-                               1);
-end
-
 % Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
