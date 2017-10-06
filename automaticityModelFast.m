@@ -1,23 +1,36 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%% Model of Automaticity in Rule Based Learning %%%%%%%%%%
+%%%        Model of Automaticity in Rule Based Learning        %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
 In general, variables that are written in all capital letters are meant
-to be constant values -- set once in the beginning of the program
-(variable initialization) and nowhere else
+ to be constant values -- set once in the beginning of the program
+ (variable initialization) and nowhere else.
 
 Structures are used in the program by calling struct(...).
-These structures are meant to "bundle" or "group" together variables that
-have some kind of commonality, e.g., belonging to the same neuron, behavior,
-model, etc.
+ These structures are meant to "bundle" or "group" together variables that
+ have some kind of commonality, e.g., belonging to the same neuron, behavior,
+ model, etc.
 The goal is to enforce readability by standardizing the names of grouped variables
-and making relationships between variables more apparent
+ and making relationships between variables more apparent. Note that this
+ has an effect on performance, but it should be negligible.
 
 If debugging, one can observe the workspace of the function by issuing the following
-command before execution: "dbstop if error"
+ command before execution: "dbstop if error".
+
+Note that the grid is set up column-major order, with points accessed as
+ grid(y,x), with the origin situated at the top-left corner and axes
+ increasing right and down for x and y, respectively.
 %}
 
-function [sse_val] = automaticityModelFast(arg_vector) %#codegen
+% opt_val        - return value signifying value of some cost function, used
+%                  for global optimization
+% arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
+%                  exposed in global optimization; if not specified in
+%                  non-codegen version, will be given default values based
+%                  on configuration
+% optional_parms - (optional) struct that may contain additional parameters
+%                  for the model; not allowed in codegen version
+function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -26,7 +39,17 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
-    PARAMS = get_parameters(CONFIGURATIONS{CONFIGURATION});
+    
+    % Declare automaticity param struct
+    coder.extrinsic('getAutomaticityParams');
+    coder.varsize('chosen_rule');
+    PARAMS = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
+    
+    % Struct to contain meta-data of FMRI configuration
+    FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
+                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
+                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Override parameter values if they were specified as inputs
     if nargin ~= 0 && ~isempty(arg_vector)
@@ -38,24 +61,52 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PARAMS.AMPA            = arg_vector(6);
         PARAMS.W_MAX           = arg_vector(7);
     end
-    
-    % Programming Parameters
+
+    % Model paramters (default values)
+    VIS_INPUT_FROM_PARM = 0;
     OPTIMIZATION_RUN = 1;
+    FROST_ENABLED    = 1;
+    COVIS_ENABLED    = 1;
+    
+    % Override values with optional_parms if it was passed as an argument
+    if nargin == 2
+        if isfield(optional_parms, 'FMRI_META_GROUP_RUN')
+            FMRI_META.GROUP_RUN = optional_parms.FMRI_META_GROUP_RUN;
+        end
+        if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
+            VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
+        end
+    end
     
     %% Load visual stimulus matrix
-    if CONFIGURATION == FMRI
+    % %% Random Visual Input, 100 x 100 %%
+    if 0
+        loaded_input = load('datasets/randomVisualInput.mat');
+        r_x_vals = loaded_input.r_x_mat;
+        r_y_vals = loaded_input.r_y_mat;
+    % %% Visual Input Matrix from optional_parms struct %%
+    elseif VIS_INPUT_FROM_PARM
+        r_x_vals = optional_parms.visualinput(:,1);
+        r_y_vals = optional_parms.visualinput(:,2);
+        r_groups = zeros(1, length(r_x_vals));
+    elseif CONFIGURATION == MADDOX
+    % %% Random Visual Input to Maddox Grid, 100 X 100 %%
+        loaded_input = load('datasets/maddoxVisualInput.mat');
+        r_x_vals = loaded_input.maddoxVisualInput(:, 1);
+        r_y_vals = loaded_input.maddoxVisualInput(:, 2);
+        r_groups = loaded_input.maddoxVisualInput(:, 3);
+    elseif CONFIGURATION == WALLIS
+    % %% Wallis Visual Input, 100 X 100 %%
+        loaded_input = load('datasets/wallisVisualInput.mat');
+        r_x_vals = loaded_input.wallisVisualInput5(:,1);
+        r_y_vals = loaded_input.wallisVisualInput5(:,2);
+        r_groups = zeros(1, length(r_x_vals));
+    elseif CONFIGURATION == FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
         r_groups = zeros(1, length(r_x_vals));
-    else
-        error('Only FMRI dataset allowed!');
     end
-    
-    % Struct to contain meta-data of FMRI configuration
-    FMRI_META = struct('NUM_TRIALS', 11520, ...
-                       'SES_1',      1:480, 'SES_4',    1681:2160, ...
-                       'SES_10', 5161:5640, 'SES_20', 11041:11520);
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set behavior and number of trials
@@ -64,16 +115,13 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
     TRIALS               = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
     % Create matrix to store information on when learning should occur
-    LEARNING = [zeros(1, PRE_LEARNING_TRIALS), ...
-                ones( 1, LEARNING_TRIALS), ...
-                zeros(1, POST_LEARNING_TRIALS)]; 
-    % Convenience variables
+    LEARNING     = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
     LEARNING_IDX = PRE_LEARNING_TRIALS+1:PRE_LEARNING_TRIALS+LEARNING_TRIALS;
 
     % Set properties of grid
-    STIM_GRID_SIZE = 100;      % Length of side of square grid used for visual input; shoudl be an even number
-    BORDER_SIZE = 20;          % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
-    GRID_SIZE = STIM_GRID_SIZE + 2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
+    STIM_GRID_SIZE = 100;                          % Length of side of square grid used for visual input; shoudl be an even number
+    BORDER_SIZE    = 20;                           % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    GRID_SIZE      = STIM_GRID_SIZE+2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
     % Other parameters
     n = 1000;                  % Time period for one trial (in milliseconds)
@@ -84,17 +132,32 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     NOISE = PARAMS.NOISE;      % Std. dev. of noise given to PFC/PMC v; set to 0 for no noise
 
     % Quantity of Visual Stimulus
-    Visual = struct( ...
-        'stim', 50 ...
-    );
-
-    % Stimulus Rules
-    RULE_1D = struct('A', 1:GRID_SIZE/2, 'B', GRID_SIZE/2+1:GRID_SIZE);
+    VISUAL = struct('STIM', 50, ...
+    				'AREA', struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
+    							   'OUTER', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
+    							   'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
+    							   'ALL', 1:GRID_SIZE ...
+                                  )...
+    				);
+    
+    % Rules available for COVIS: 1D & Disj
+    VISUAL_RULES = [ ...
+                        struct('A_X', VISUAL.AREA.LOWER_HALF, 'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.UPPER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.UPPER_HALF, 'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.LOWER_HALF, 'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.LOWER_HALF, 'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.UPPER_HALF), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.UPPER_HALF, 'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.LOWER_HALF), ...
+                        struct('A_X', VISUAL.AREA.OUTER,      'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.INNER,      'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.INNER,      'A_Y', VISUAL.AREA.ALL,        'B_X', VISUAL.AREA.OUTER,      'B_Y', VISUAL.AREA.ALL), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.OUTER,      'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.INNER), ...
+                        struct('A_X', VISUAL.AREA.ALL,        'A_Y', VISUAL.AREA.INNER,      'B_X', VISUAL.AREA.ALL,        'B_Y', VISUAL.AREA.OUTER) ...
+                   ];
+    chosen_rule = 1;
+    RULE = VISUAL_RULES(chosen_rule);
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
     RBF = struct( ...
-        'RADIUS', 2, ...
+        'RADIUS', 0.8, ...
         'rbv', zeros(GRID_SIZE), ...
         'X', X, ...
         'Y', Y, ...
@@ -102,11 +165,16 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
     );
 
-    % Accuracy matrix, where first dimension has two rows (1 = PFC; 2 = PMC)
-    % and second dimension is trial number
-    % Each element is a boolean indicating if the correct neuron reacted that trial
+    % Accuracy matrix, where each element indicates whether correct PMC
+    % neuron reacted
     accuracy = zeros(TRIALS, 1);
-
+    
+    %% COVIS Model
+    if COVIS_ENABLED
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
+        					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
+    end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC scaling information
@@ -123,7 +191,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
         'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
-        'alpha', zeros(TRIALS,n) ...
+        'alpha', zeros(TRIALS,n), ...
+        'activations', zeros(TRIALS,1) ...
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -138,7 +207,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'AMPA',     PARAMS.AMPA ...
     );
 
-    %% Neuron constants (RSN: Regular Spiking Neuron), set for a cortical regular spiking neuron
+    %% Neuron constants
+    % RSN (Regular Spiking Neuron): cortical regular spiking neuron
     RSN = struct( ...
         'C', 100, ...
         'rv', -60, ...
@@ -152,7 +222,31 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'E', 60 ...
     );
 
-    %% Neuron-related variables and matrices contained in structures, such as output matrix, output weight, etc.
+    % MSN (Regular Spiking Neuron): medium spiny neuron in caudate nucleus
+    MSN = struct( ...
+        'C', 50, ...
+        'rv', -80, ...
+        'vt', -25, ...
+        'k', 1, ...
+        'a', 0.01, ...
+        'b', -20, ...
+        'c', -55, ...
+        'd', 150, ...
+        'vpeak', 40, ...
+        'E', 100 ...
+    );
+
+    % QIAF (Quadratic Integrate and Fire Neuron): stimualte neurons in Globus Pallidus
+    QIAF = struct( ...
+        'beta', 11.83, ...
+        'gamma', 0.117, ...
+        'vt', -40, ...
+        'rv', -60, ...
+        'vpeak', 35, ...
+        'vreset', -50 ...
+    );
+
+    %% Neuron Set-Up
     % Certain variables are also initialized here and nowhere else in the program (W_OUT)
     % Neuron.W_OUT: weight of output from one neuron to another (PFC to PMC or PMC to PFC)
     % Neuron.out: output array
@@ -161,6 +255,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     % Neuron.u: voltage matrix (negative)
     PFC_A = struct( ...
         'W_OUT', 9, ...
+        'W_OUT_MDN', 1, ...
+        'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
@@ -170,6 +266,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     );
     PFC_B = struct( ...
         'W_OUT', 9, ...
+        'W_OUT_MDN', 1, ...
+        'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
         'v', RSN.rv*ones(n,1), ...
@@ -205,6 +303,67 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         'weights', WEIGHTS_MATRIX, ...
         'weights_avg', zeros(TRIALS,1) ...
     );
+
+    %% FROST Model Neurons
+    if FROST_ENABLED
+        Driv_PFC = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', RSN.rv*ones(n,1), ...
+            'u', zeros(n,1), ...
+            'rule_stim', 0 ...
+        );
+
+        CN = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', MSN.rv*ones(n,1), ...
+            'u', zeros(n,1) ...
+        );
+
+        GP = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', QIAF.rv*ones(n,1)...
+        );
+
+        MDN_A = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', RSN.rv*ones(n,1), ...
+            'u', zeros(n,1) ...
+        );
+
+        MDN_B = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', RSN.rv*ones(n,1), ...
+            'u', zeros(n,1) ...
+        );
+
+        AC_A = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', RSN.rv*ones(n,1), ...
+            'u', zeros(n,1), ...
+            'rule_stim', 0.1 ...
+        );
+
+        AC_B = struct( ...
+            'W_OUT', 1, ...
+            'out', zeros(n,1), ...
+            'spikes', 0, ...
+            'v', RSN.rv*ones(n,1), ...
+            'u', zeros(n,1), ...
+            'rule_stim', 0.1 ...
+        );
+    end
 
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
@@ -247,18 +406,42 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
             PMC_B_weights = PMC_B.weights(:,:,j-1);
         end
 
-        % Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
+        %% Initialize FROST components
+        if FROST_ENABLED
+        	Driv_PFC.spikes = 0; Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0; Driv_PFC.out(:) = 0;
+	        CN.spikes = 0;       CN.v(:) = RSN.rv;        CN.u(:) = 0;       CN.out(:) = 0;
+	        GP.spikes = 0;       GP.v(:) = RSN.rv;                           GP.out(:) = 0;
+	        MDN_A.spikes = 0;    MDN_A.v(:) = RSN.rv;     MDN_A.u(:) = 0;    MDN_A.out(:) = 0;
+	        MDN_B.spikes = 0;    MDN_B.v(:) = RSN.rv;     MDN_B.u(:) = 0;    MDN_B.out(:) = 0;
+	        AC_A.spikes = 0;     AC_A.v(:) = RSN.rv;      AC_A.u(:) = 0;     AC_A.out(:) = 0;
+	        AC_B.spikes = 0;     AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;     AC_B.out(:) = 0;
+	        
+        end
+        %% Initialize COVIS components (choose a rule)
+        if COVIS_ENABLED
+            if j <= COVIS_PARAMS.NUM_GUESS
+                chosen_rule = randi(length(COVIS_VARS.rules));
+            elseif accuracy(j-1) == 1
+                chosen_rule = COVIS_VARS.rule_log(j-1);
+            else
+                chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
+            end
+            RULE = VISUAL_RULES(chosen_rule);
+        end
+
+        %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         r_y = r_y_vals(j) + BORDER_SIZE;
         r_x = r_x_vals(j) + BORDER_SIZE;
         r_group = r_groups(j);
 
-        %% Radial Basis Function (RBF) Implementation
+        %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * Visual.stim;
-        % Sum appropriate RBF values to find PFC_A and PFC_B v_stim values
-        PFC_A.v_stim = sum(sum(RBF.rbv(:, RULE_1D.A)));
-        PFC_B.v_stim = sum(sum(RBF.rbv(:, RULE_1D.B)));
+        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
+        % Note that stim matrices are row-major order (e.g., indexed by y, then x)
+        PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
+        PFC_B.v_stim = sum(sum(RBF.rbv(RULE(1).B_Y, RULE(1).B_X)));
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
         PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights));
         PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights));
@@ -268,57 +451,183 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PMC_A.v_stim = PMC_A.v_stim * PMC.V_SCALE;
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
-        %% Individual Time Trial
-        for i=1:n-1
-            % Neuron Equations
-            % PFC A Neuron
-            PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
-            PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
-            if PFC_A.v(i+1)>=RSN.vpeak
-                PFC_A.v(i)= RSN.vpeak;
-                PFC_A.v(i+1)= RSN.c;
-                PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
-            end
-            if PFC_A.v(i) >= RSN.vpeak
-                PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
-            end
+        %% Individual Time Trial Loop (iterating through n)
+        if FROST_ENABLED
+            %% FROST Calculations
+            for i=1:n-1
+                % PFC A Neuron
+                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + MDN_A.W_OUT*MDN_A.out(i) + AC_A.W_OUT*AC_A.out(i) + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
+                PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
+                if PFC_A.v(i+1)>=RSN.vpeak
+                    PFC_A.v(i)= RSN.vpeak;
+                    PFC_A.v(i+1)= RSN.c;
+                    PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
+                    PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
 
-            % PFC B Neuron
-            PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
-            PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
-            if PFC_B.v(i+1)>=RSN.vpeak
-                PFC_B.v(i)= RSN.vpeak;
-                PFC_B.v(i+1)= RSN.c;
-                PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
-            end
-            if PFC_B.v(i) >= RSN.vpeak
-                PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
-            end
+                % PFC B Neuron
+                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + MDN_B.W_OUT*MDN_A.out(i) + AC_B.W_OUT*AC_A.out(i) + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
+                PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
+                if PFC_B.v(i+1)>=RSN.vpeak
+                    PFC_B.v(i)= RSN.vpeak;
+                    PFC_B.v(i+1)= RSN.c;
+                    PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
+                    PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
 
-            % PMC_A Neuron
-            PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
-            PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
-            if PMC_A.v(i+1)>=RSN.vpeak
-                PMC_A.v(i)= RSN.vpeak;
-                PMC_A.v(i+1)= RSN.c;
-                PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
-            end
-            if PMC_A.v(i) >= RSN.vpeak
-                PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
-            end
+                % PMC_A Neuron
+                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
+                PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
+                if PMC_A.v(i+1)>=RSN.vpeak
+                    PMC_A.v(i)= RSN.vpeak;
+                    PMC_A.v(i+1)= RSN.c;
+                    PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
+                    PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
 
-            % PMC_B Neuron
-            PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
-            PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
-            if PMC_B.v(i+1)>=RSN.vpeak
-                PMC_B.v(i)= RSN.vpeak;
-                PMC_B.v(i+1)= RSN.c;
-                PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
+                % PMC_B Neuron
+                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
+                PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
+                if PMC_B.v(i+1)>=RSN.vpeak
+                    PMC_B.v(i)= RSN.vpeak;
+                    PMC_B.v(i+1)= RSN.c;
+                    PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
+                    PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % Driv_PFC Neuron
+                    % Input from Rule Stimulus (arbitrary value - constant)
+                    % Output to CN Neuron
+                Driv_PFC.v(i+1)=((Driv_PFC.v(i) + TAU*(RSN.k*(Driv_PFC.v(i)-RSN.rv)*(Driv_PFC.v(i)-RSN.vt)-Driv_PFC.u(i) + RSN.E + Driv_PFC.rule_stim))/RSN.C);
+                Driv_PFC.u(i+1)=Driv_PFC.u(i)+TAU*RSN.a*(RSN.b*(Driv_PFC.v(i)-RSN.rv)-Driv_PFC.u(i));
+                if Driv_PFC.v(i+1)>=RSN.vpeak
+                    Driv_PFC.v(i)= RSN.vpeak;
+                    Driv_PFC.v(i+1)= RSN.c;
+                    Driv_PFC.u(i+1)= Driv_PFC.u(i+1)+ RSN.d;
+                    Driv_PFC.out(i:n) = Driv_PFC.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % CN Neuron
+                    % Input from Driv_PFC Neuron
+                    % Output to GP Neuron
+                CN.v(i+1)=((CN.v(i) + TAU*(MSN.k*(CN.v(i)-MSN.rv)*(CN.v(i)-MSN.vt)- CN.u(i) + Driv_PFC.W_OUT*Driv_PFC.out(i) + MSN.E ))/MSN.C); % + normrnd(0,NOISE);
+                CN.u(i+1)= CN.u(i)+TAU*MSN.a*(MSN.b*(CN.v(i)-MSN.rv)-CN.u(i));
+                if CN.v(i+1)>=MSN.vpeak
+                    CN.v(i)= MSN.vpeak;
+                    CN.v(i+1)= MSN.c;
+                    CN.u(i+1)= CN.u(i+1)+ MSN.d;
+                    CN.out(i:n) = CN.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+                
+                % GP Neuron
+                    % Input from CN Neuron
+                    % Output to MDN_A and MDN_B Neurons
+                    % This part is less straightforward
+                dGP = (-1)*CN.W_OUT*CN.out(i) + QIAF.beta + QIAF.gamma*(GP.v(i)- QIAF.rv)*(GP.v(i)-QIAF.vt);               
+                GP.v(i+1) = GP.v(i) + dGP;
+                if (GP.v(i+1) >= QIAF.vpeak)
+                    GP.v(i) = QIAF.vpeak;
+                    GP.v(i+1) = QIAF.vreset;
+                    GP.out(i:n) = GP.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end;
+
+                % MDN_A Neuron
+                    % Input from GP Neuron
+                    % Input from pFC_A Neuron
+                    % Output to pFC_A Neuron
+                MDN_A.v(i+1)=((MDN_A.v(i) + TAU*(RSN.k*(MDN_A.v(i)-RSN.rv)*(MDN_A.v(i)-RSN.vt)-MDN_A.u(i)+ 10 + PFC_A.W_OUT_MDN*PFC_A.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
+                MDN_A.u(i+1)=MDN_A.u(i)+TAU*RSN.a*(RSN.b*(MDN_A.v(i)-RSN.rv)-MDN_A.u(i));
+                if MDN_A.v(i+1)>=RSN.vpeak
+                    MDN_A.v(i)= RSN.vpeak;
+                    MDN_A.v(i+1)= RSN.c;
+                    MDN_A.u(i+1)= MDN_A.u(i+1)+ RSN.d;
+                    MDN_A.out(i:n) = MDN_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % MDN_B Neuron
+                    % Input from GP Neuron
+                    % Input from pFC_A Neuron
+                    % Output to pFC_A Neuron
+                MDN_B.v(i+1)=((MDN_B.v(i) + TAU*(RSN.k*(MDN_B.v(i)-RSN.rv)*(MDN_B.v(i)-RSN.vt)-MDN_B.u(i)+ 10 + PFC_B.W_OUT_MDN*PFC_B.out(i) - GP.W_OUT*GP.out(i)))/RSN.C); % + normrnd(0,NOISE);
+                MDN_B.u(i+1)=MDN_B.u(i)+TAU*RSN.a*(RSN.b*(MDN_B.v(i)-RSN.rv)-MDN_B.u(i));
+                if MDN_B.v(i+1)>=RSN.vpeak
+                    MDN_B.v(i)= RSN.vpeak;
+                    MDN_B.v(i+1)= RSN.c;
+                    MDN_B.u(i+1)= MDN_A.u(i+1)+ RSN.d;
+                    MDN_B.out(i:n) = MDN_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % AC_A Neuron
+                	% Input from Rule Stimulus (arbitrary value - constant)
+                	% Input from PFC_A Neuron
+                    % Output to PFC_A
+                AC_A.v(i+1)=((AC_A.v(i) + TAU*(RSN.k*(AC_A.v(i)-RSN.rv)*(AC_A.v(i)-RSN.vt)-AC_A.u(i)+ 10 + PFC_A.W_OUT_AC*PFC_A.out(i) + AC_A.rule_stim))/RSN.C); % + normrnd(0,NOISE);
+                AC_A.u(i+1)=AC_A.u(i)+TAU*RSN.a*(RSN.b*(AC_A.v(i)-RSN.rv)-AC_A.u(i));
+                if AC_A.v(i+1)>=RSN.vpeak
+                    AC_A.v(i)= RSN.vpeak;
+                    AC_A.v(i+1)= RSN.c;
+                    AC_A.u(i+1)= AC_A.u(i+1)+ RSN.d;
+                    AC_A.out(i:n) = AC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % AC_B Neuron
+                    % Input from Rule Stimulus (arbitrary value - constant)
+                    % Input from PFC_B Neuron
+                    % Output to PFC_B
+                AC_B.v(i+1)=((AC_B.v(i) + TAU*(RSN.k*(AC_B.v(i)-RSN.rv)*(AC_B.v(i)-RSN.vt)-AC_B.u(i)+ 10 + PFC_B.W_OUT_AC*PFC_B.out(i) + AC_B.rule_stim))/RSN.C); % + normrnd(0,NOISE);
+                AC_B.u(i+1)=AC_B.u(i)+TAU*RSN.a*(RSN.b*(AC_B.v(i)-RSN.rv)-AC_B.u(i));
+                if AC_B.v(i+1)>=RSN.vpeak
+                    AC_B.v(i)= RSN.vpeak;
+                    AC_B.v(i+1)= RSN.c;
+                    AC_B.u(i+1)= AC_B.u(i+1)+ RSN.d;
+                    AC_B.out(i:n) = AC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
             end
-            if PMC_B.v(i) >= RSN.vpeak
-                PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+        else
+            %% Non-FROST Calculation
+            for i=1:n-1
+                % PFC A Neuron
+                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE);
+                PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
+                if PFC_A.v(i+1)>=RSN.vpeak
+                    PFC_A.v(i)= RSN.vpeak;
+                    PFC_A.v(i+1)= RSN.c;
+                    PFC_A.u(i+1)= PFC_A.u(i+1)+ RSN.d;
+                    PFC_A.out(i:n) = PFC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % PFC B Neuron
+                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE);
+                PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
+                if PFC_B.v(i+1)>=RSN.vpeak
+                    PFC_B.v(i)= RSN.vpeak;
+                    PFC_B.v(i+1)= RSN.c;
+                    PFC_B.u(i+1)= PFC_B.u(i+1)+ RSN.d;
+                    PFC_B.out(i:n) = PFC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % PMC_A Neuron
+                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE);
+                PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
+                if PMC_A.v(i+1)>=RSN.vpeak
+                    PMC_A.v(i)= RSN.vpeak;
+                    PMC_A.v(i+1)= RSN.c;
+                    PMC_A.u(i+1)= PMC_A.u(i+1)+ RSN.d;
+                    PMC_A.out(i:n) = PMC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+
+                % PMC_B Neuron
+                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE);
+                PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
+                if PMC_B.v(i+1)>=RSN.vpeak
+                    PMC_B.v(i)= RSN.vpeak;
+                    PMC_B.v(i+1)= RSN.c;
+                    PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
+                    PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
             end
         end
+        %% Record post-time-loop numbers
         % Count number of spikes
         PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak);
         PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
@@ -332,6 +641,8 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
+        % Record total PMC activations
+        PMC.activations(j) = trapz(PMC_A.out) + trapz(PMC_B.out);
 
         %% Determine decision neuron and reaction time, and record accuracy
         % Determine reacting neuron and latency
@@ -342,7 +653,11 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
         PMC.rx_matrix(j,3) = r_group;
         % Determine accuracy
-        accuracy(j) = double(any(r_x == RULE_1D.B) + 1) == neuron_id_PMC;
+        if COVIS_ENABLED
+            accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_PMC;
+        else
+            accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_PMC;
+        end
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
@@ -393,6 +708,31 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
         % Record average weight for PMC_A and PMC_B
         PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,k)));
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
+        
+        %% COVIS Calculations - readjusting saliences, weights
+        if COVIS_ENABLED
+            % Step 1: Readjust saliences & weights
+            if accuracy(j) == 1
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_C;
+            else
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_E;
+            end
+            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.rule_weights(chosen_rule) + COVIS_PARAMS.PERSEV;
+            
+            % Step 2: updating of randomly chosen rule
+            random_rule = randi(4);
+            COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARAMS.LAMBDA);
+
+            % Step 3 (???): calculate rule probabilities for next trial
+            COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
+
+            COVIS_VARS.rule_log(j) = chosen_rule;
+        end
+
+        %% Print data to console
+        if mod(j,1000) == 0
+            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
+        end
     end
     
     %% ========================================= %%
@@ -400,57 +740,57 @@ function [sse_val] = automaticityModelFast(arg_vector) %#codegen
     %  =========================================  %
     % Return prematurely if we are optimizing (e.g., particle swarm optimization)
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    if CONFIGURATION == FMRI && OPTIMIZATION_RUN
-        target = load('fmri/means1dCondition.mat');
-        % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-        output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
-                      mean(accuracy(FMRI_META.SES_4)), ...
-                      mean(accuracy(FMRI_META.SES_10)), ...
-                      mean(accuracy(FMRI_META.SES_20))];
-        % Calculate Mean Median RT for trials from Session 4, 10, and 20
-        % Reaction times must be converted from ms to seconds
-        norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
-                          median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-        % Weight reaction time greater than accuracy
-        target_diff = [target.means1dCondition(1,:) - output_acc;
-                       (target.means1dCondition(2,:) - norm_output_rt)*20];
-        sse_val = sum(sum(target_diff.^2));
-        return
+    if OPTIMIZATION_RUN
+        opt_val_1 = 0;
+        opt_val_2 = zeros(8,1);
+        if CONFIGURATION == MADDOX
+            return
+        elseif CONFIGURATION == WALLIS
+            return
+        elseif CONFIGURATION == FMRI
+            if ~FMRI_META.GROUP_RUN
+                target = load('fmri/means1dCondition.mat');
+                % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+                output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                              mean(accuracy(FMRI_META.SES_4)), ...
+                              mean(accuracy(FMRI_META.SES_10)), ...
+                              mean(accuracy(FMRI_META.SES_20))];
+                % Calculate Mean Median RT for trials from Session 4, 10, and 20
+                % Reaction times must be converted from ms to seconds
+                norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+                % Weight reaction time greater than accuracy
+                target_diff = [target.means1dCondition(1,:) - output_acc;
+                               (target.means1dCondition(2,:) - norm_output_rt)*20];
+                opt_val_1 = sum(sum(target_diff.^2));
+                return
+            else
+                % Set parameter values of hrf
+                t1 = 1; n = 4; lamda = 2;
+                % Define time axis
+                t = 1:LEARNING_TRIALS;
+                % Create hrf
+                hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+                % Compute convolution for each trial
+                boldPMC = conv(PMC.activations, hrf');
+                opt_val_2 = [mean(boldPMC(FMRI_META.SES_1)), ...
+                             mean(boldPMC(FMRI_META.SES_4)), ...
+                             mean(boldPMC(FMRI_META.SES_10)), ...
+                             mean(boldPMC(FMRI_META.SES_20)), ...
+                             mean(accuracy(FMRI_META.SES_1)), ...
+                             mean(accuracy(FMRI_META.SES_4)), ...
+                             mean(accuracy(FMRI_META.SES_10)), ...
+                             mean(accuracy(FMRI_META.SES_20))];
+            end
+        end
     end
 end
 
 %% =============================== %%
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
-
-% Return set of parameters based on argument
-function [param_struct] = get_parameters(configuration)
-    % Necessary for codegen
-    coder.extrinsic('cell2struct');
-    % Preinitialize param_struct to allow codegen to infer type
-    param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
-    
-    % Initialize parameters that depend on configuration
-    param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT';'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
-    MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4;        1e-6;             1e-6;  1500;   750;     10};
-    WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400;        1e-6;             1e-6;  1500;   750;     10};
-    FMRI_CONFIG   = {                    0;             11520;                      0;       2;               400;               400;        1e-6;             1e-6;  1500;   750;     10};
-    if strcmp(configuration,'MADDOX')
-        params = MADDOX_CONFIG;
-    elseif strcmp(configuration,'WALLIS')
-        params = WALLIS_CONFIG;
-    elseif strcmp(configuration,'FMRI')
-        params = FMRI_CONFIG;
-    else
-        error('Improper configuration requested in get_parameters(configuration)!');
-    end
-    param_struct = cell2struct(params, ...   % Parameter values
-                               param_names, ... % Parameter names
-                               1);
-end
-
 % Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
@@ -477,4 +817,10 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
         neuron_id = double(trapz(n1) < trapz(n2)) + 1;
         latency = length(n1);
     end
+end
+
+% Given discrete distribution, return index of chosen index
+function [idx] = rand_discrete(distr)
+    cum_distr = cumsum(distr);
+    idx = find(rand<cum_distr, 1);
 end
