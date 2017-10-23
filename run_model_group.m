@@ -11,14 +11,17 @@ Accuracy_S20 = zeros(RUNS,1);
 loaded_value = load('fmri/particleSwarmX_17_6_2.mat');
 arg_vector = loaded_value.x;
 
+new_vals = zeros(RUNS,3);
+
 gcp;
 parfor i=1:RUNS
     [r_x_vals, r_y_vals] = createFMRIInput(11520);
     visualinput = [r_x_vals, r_y_vals];
     optional_parms = struct('FMRI_META_GROUP_RUN', 1, ...
                             'VIS_INPUT_FROM_PARM', 1, ...
-                            'visualinput', visualinput);
-    [unused_val,results] = automaticityModelFast_mex(arg_vector, optional_parms);
+                            'visualinput', visualinput, ...
+                            'COVIS_PERSEV_PARAM', 5);
+    [~,results, new_vals(i,:)] = automaticityModelRandom(arg_vector, optional_parms);
     PMC_BOLD_S1(i)  = results(1);
     PMC_BOLD_S4(i)  = results(2);
     PMC_BOLD_S10(i) = results(3);
