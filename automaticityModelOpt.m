@@ -4,7 +4,8 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
 %   global optimization function requirements
     optional_parms = struct('FMRI_META_GROUP_RUN', 0, ...
                             'VIS_INPUT_FROM_PARM', 0, ...
-                            'visualinput', zeros(2));
+                            'visualinput', zeros(2), ...
+                            'COVIS_PERSEV_PARAM', 5);
     [opt_val, ~] = automaticityModelFast_mex(arg_vector, optional_parms);
 end
 

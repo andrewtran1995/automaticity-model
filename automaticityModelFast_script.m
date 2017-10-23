@@ -20,6 +20,7 @@ ARGS{1}{2} = struct;
 ARGS{1}{2}.FMRI_META_GROUP_RUN = coder.typeof(0);
 ARGS{1}{2}.VIS_INPUT_FROM_PARM = coder.typeof(0);
 ARGS{1}{2}.visualinput = coder.typeof(0,[Inf  2],[1 0]);
+ARGS{1}{2}.COVIS_PERSEV_PARAM = coder.typeof(0);
 ARGS{1}{2} = coder.typeof(ARGS{1}{2});
 
 %% Invoke MATLAB Coder.
