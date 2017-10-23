@@ -1,7 +1,15 @@
+%AUTOMATICITYMODEL automaticity model for PMC neurons
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%        Model of Automaticity in Rule Based Learning        %%%
+%%%        Model of Automaticity in Rule-Based Learning        %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
+# Description
+Run an automaticity model based upon a set of possible configurations:
+ 1. WALLIS
+ 2. MADDOX
+ 3. FMRI
+
+# Programming Conventions
 In general, variables that are written in all capital letters are meant
  to be constant values -- set once in the beginning of the program
  (variable initialization) and nowhere else.
@@ -9,27 +17,29 @@ In general, variables that are written in all capital letters are meant
 Structures are used in the program by calling struct(...).
  These structures are meant to "bundle" or "group" together variables that
  have some kind of commonality, e.g., belonging to the same neuron, behavior,
- model, etc.
-The goal is to enforce readability by standardizing the names of grouped variables
+ model, etc. The goal is to enforce readability by standardizing the names of grouped variables
  and making relationships between variables more apparent. Note that this
  has an effect on performance, but it should be negligible.
-
-If debugging, one can observe the workspace of the function by issuing the following
- command before execution: "dbstop if error".
 
 Note that the grid is set up column-major order, with points accessed as
  grid(y,x), with the origin situated at the top-left corner and axes
  increasing right and down for x and y, respectively.
-%}
 
-% opt_val        - return value signifying value of some cost function, used
-%                  for global optimization
-% arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
-%                  exposed in global optimization; if not specified in
-%                  non-codegen version, will be given default values based
-%                  on configuration
-% optional_parms - (optional) struct that may contain additional parameters
-%                  for the model; not allowed in codegen version
+# Tips/Tricks
+If debugging, one can observe the workspace of the function by issuing the following
+ command before execution: "dbstop if error".
+
+# Function Signature
+opt_val_1      - return value signifying value of some cost function, used
+                 for global optimization
+opt_val_2      - return value signifying array used in FMRI group run
+arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
+                 exposed in global optimization; if not specified in
+                 non-codegen version, will be given default values based
+                 on configuration
+optional_parms - (optional for non-codegen) struct that may contain
+                 additional parameters for the model
+%}
 function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
@@ -40,7 +50,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
 
-    % Declare automaticity param struct
+    % Declare automaticity param struct and get parameters
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
     PARAMS = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
@@ -66,8 +76,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     PERF_TEST = 1;      % Enable/disable performance output
     SANDBOX   = 0;      % Controls whether "sandbox" area executes, or main func
 
-    % Model paramters (default values)
+    % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
+    COVIS_PERSEV_PARAM = 5;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
@@ -79,6 +90,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
         end
         if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
             VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
+        end
+        if isfield(optional_parms, 'COVIS_PERSEV_PARAM')
+            COVIS_PERSEV_PARAM = optional_parms.COVIS_PERSEV_PARAM;
         end
     end
     
@@ -182,7 +196,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     if COVIS_ENABLED
         COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
         					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', COVIS_PERSEV_PARAM, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
@@ -657,10 +671,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
         PFC_B.pos_volt(PFC_B.v > 0) = PFC_B.v(PFC_B.v > 0);
         PMC_A.pos_volt(PMC_A.v > 0) = PMC_A.v(PMC_A.v > 0);
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
-        % Record "alpha" function, summing PMC A and PMC B output
+        % Record "alpha" function and number of activations
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
-        % Record total PMC activations
-        PMC.activations(j) = trapz(PMC_A.out) + trapz(PMC_B.out);
+        PMC.activations(j) = trapz(PMC.alpha(j,:));
         trial_times(j) = toc(timeTrialStart);
 
         %% Determine decision neuron and reaction time, and record accuracy
