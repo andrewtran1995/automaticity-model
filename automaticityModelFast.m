@@ -64,6 +64,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
 
     % Model paramters (default values)
     VIS_INPUT_FROM_PARM = 0;
+    COVIS_PERSEV_PARAM = 5;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
@@ -75,6 +76,9 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
         end
         if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
             VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
+        end
+        if isfield(optional_parms, 'COVIS_PERSEV_PARAM')
+            COVIS_PERSEV_PARAM = optional_parms.COVIS_PERSEV_PARAM;
         end
     end
     
@@ -173,7 +177,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     if COVIS_ENABLED
         COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
         					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', 5, 'LAMBDA', 1, 'NUM_GUESS', 5);
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', COVIS_PERSEV_PARAM, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
