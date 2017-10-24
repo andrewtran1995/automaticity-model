@@ -30,9 +30,11 @@ If debugging, one can observe the workspace of the function by issuing the follo
  command before execution: "dbstop if error".
 
 # Function Signature
+## Output Variables
 opt_val_1      - return value signifying value of some cost function, used
                  for global optimization
 opt_val_2      - return value signifying array used in FMRI group run
+## Input Variables / Parameters
 arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
                  exposed in global optimization; if not specified in
                  non-codegen version, will be given default values based
