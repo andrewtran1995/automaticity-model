@@ -11,6 +11,10 @@ function [ opt_val_1, opt_val_2, new_vals ] = automaticityModelRandom( arg_vecto
     new_vals(2) = normrnd(arg_vector(2), SIGMA_ANTI_HEBB);
     new_vals(3) = normrnd(5, SIGMA_PERS);
     
+    arg_vector(1) = new_vals(1);
+    arg_vector(2) = new_vals(2);
+    optional_parms.COVIS_PERSEV_PARAM = new_vals(3);
+    
     [opt_val_1, opt_val_2] = automaticityModelFast_mex(arg_vector, optional_parms);
 end
 
