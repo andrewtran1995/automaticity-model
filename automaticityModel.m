@@ -35,14 +35,15 @@ opt_val_1      - return value signifying value of some cost function, used
                  for global optimization
 opt_val_2      - return value signifying array used in FMRI group run
 ## Input Variables / Parameters
-arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
+arg_struct     - (req. for codegen) structure of n fields used to pass parameters that are
                  exposed in global optimization; if not specified in
                  non-codegen version, will be given default values based
-                 on configuration
+                 on configuration; if called in codegen version, a full
+                 structure must be provided
 optional_parms - (optional for non-codegen) struct that may contain
                  additional parameters for the model
 %}
-function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) %#codegen
+function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -55,7 +56,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     % Declare automaticity param struct and get parameters
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
-    PARAMS = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'NOISE',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_PERSEV',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
@@ -64,14 +65,16 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Override parameter values if they were specified as inputs
-    if nargin ~= 0 && ~isempty(arg_vector)
-        PARAMS.HEB_CONSTS      = arg_vector(1);
-        PARAMS.ANTI_HEB_CONSTS = arg_vector(2);
-        PARAMS.PMC_DECISION_PT = arg_vector(3);
-        PARAMS.NOISE           = arg_vector(4);
-        PARAMS.NMDA            = arg_vector(5);
-        PARAMS.AMPA            = arg_vector(6);
-        PARAMS.W_MAX           = arg_vector(7);
+    % This should be turned into a function
+    if nargin >= 1
+        param_names = fieldnames(arg_struct);
+        for i = 1:numel(param_names)
+            if isfield(PARAMS, param_names{i})
+                PARAMS.(param_names{i}) = arg_struct.(param_names{i});
+            else
+                error('Field in arg_struct not found in PARAMS: %s\n Verify that arg_struct is valid.', param_names{i});
+            end
+        end
     end
     
     % Programming Parameters
@@ -80,7 +83,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
-    COVIS_PERSEV_PARAM = 5;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
@@ -92,9 +94,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
         end
         if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
             VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
-        end
-        if isfield(optional_parms, 'COVIS_PERSEV_PARAM')
-            COVIS_PERSEV_PARAM = optional_parms.COVIS_PERSEV_PARAM;
         end
     end
     
@@ -198,7 +197,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     if COVIS_ENABLED
         COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
         					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', COVIS_PERSEV_PARAM, 'LAMBDA', 1, 'NUM_GUESS', 5);
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', PARAMS.COVIS_PERSEV, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
@@ -227,7 +226,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', PARAMS.HEB_CONSTS, ...
-        'anti_heb', PARAMS.ANTI_HEB_CONSTS, ...
+        'anti_heb', PARAMS.HEB_CONSTS, ...
         'NMDA',     PARAMS.NMDA, ...
         'AMPA',     PARAMS.AMPA ...
     );
@@ -280,7 +279,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     % Neuron.u: voltage matrix (negative)
     PFC_A = struct( ...
         'W_OUT', 9, ...
-        'W_OUT_MDN', 1, ...
+        'W_OUT_MDN', PARAMS.PFC_A_W_OUT_MDN, ...
         'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
@@ -291,7 +290,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     );
     PFC_B = struct( ...
         'W_OUT', 9, ...
-        'W_OUT_MDN', 1, ...
+        'W_OUT_MDN', PARAMS.PFC_B_W_OUT_MDN, ...
         'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
@@ -332,7 +331,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
     %% FROST Model Neurons
     if FROST_ENABLED
         Driv_PFC = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.DRIV_PFC_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...
@@ -356,7 +355,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
         );
 
         MDN_A = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.MDN_A_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...
@@ -364,7 +363,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_vector, optional_parms) 
         );
 
         MDN_B = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.MDN_B_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...

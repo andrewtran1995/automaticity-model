@@ -1,4 +1,3 @@
-% Particle swarm stuff goes here!
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
 nvars = 7;
