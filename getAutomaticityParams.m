@@ -20,11 +20,10 @@ function [param_struct] = getAutomaticityParams(configuration)
     else
         error('Improper configuration requested in get_parameters(configuration)!');
     end
-    % Initialize parameters used in optimization
+    % Initialize configuration-agnostic parameters used in optimization
     % Note that PMC_DECISION_PT & NOISE are used in optimization as well, but their default value is dependent on configuration
-    % Therefore, we do not re-initialize it here
-    optim_param_names    = {'HEB_CONSTS';'ANTI_HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
-    optim_param_defaults = {        1e-8;             1e-8;  600;      0;     10};
+    optim_param_names    = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX';'PFC_A_W_OUT_MDN';'PFC_B_W_OUT_MDN';'DRIV_PFC_W_OUT';'MDN_A_W_OUT';'MDN_B_W_OUT';'COVIS_PERSEV'};
+    optim_param_defaults = {        1e-8;  600;      0;     10;                1;                1;               1;            1;            1;             5};
     param_struct = cell2struct(vertcat(params, optim_param_defaults), ...   % Parameter values
                                vertcat(param_names, optim_param_names), ... % Parameter names
                                1);
