@@ -1,3 +1,12 @@
+%% Particle swarm script
+%{
+Calls automaticityModelOpt, a wrapper to automaticityModelFast_mex, to
+globally optimize the function for a set of parameters.
+BEFORE RUNNING: automaticityModelFast_mex must be successfully compiled. In order
+to compile it, run automaticityModelFast_script first, and ensure that the code
+is successfully generated (no error report).
+%}
+%% Script body
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
 nvars = 9;
