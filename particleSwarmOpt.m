@@ -1,10 +1,10 @@
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
-nvars = 7;
+nvars = 9;
 % Lower and upper bounds of
-% HEB_CONSTS, ANTI_HEB_CONSTS, PMC_DECISION_PT, NOISE, NMDA, AMPA, W_MAX
-lb = [ 1e-16, 1e-16,   10, 0 + eps, 0 + eps,    0,  0];
-ub = [  1e-3,  1e-3, 2000,       5,    2000, 2000, 50];
+% PMC_DECISION_PT, NOISE, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2
+lb = [700, 2, 600, 0, 10,  1, 1e-10,  1, 1e-10];
+ub = [700, 2, 600, 0, 10, 10,  1e-7, 10,  1e-7];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...

@@ -7,7 +7,7 @@ function [ opt_val_1, opt_val_2, new_vals ] = automaticityModelRandom( arg_struc
     
     params = getAutomaticityParams('FMRI');
     
-    new_vals = zeros(3,1);
+    new_vals = zeros(2,1);
     new_vals(1) = normrnd(arg_struct.HEB_CONSTS, SIGMA_HEBB);
     new_vals(2) = normrnd(5, SIGMA_PERS);
     

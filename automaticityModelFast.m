@@ -196,7 +196,8 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
         'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PFC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PFC neuron reacting during trial
+        'activations', zeros(TRIALS,1) ...
     );
 
     % PMC scaling information
@@ -334,15 +335,19 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', MSN.rv*ones(n,1), ...
-            'u', zeros(n,1) ...
+            'u', zeros(n,1), ...
+            'activations', zeros(TRIALS,1) ...
         );
 
         GP = struct( ...
             'W_OUT', 1, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
-            'v', QIAF.rv*ones(n,1)...
+            'v', QIAF.rv*ones(n,1), ...
+            'activations', zeros(TRIALS,1) ...
         );
+    
+        MDN = struct('activations', zeros(TRIALS,1));
 
         MDN_A = struct( ...
             'W_OUT', PARAMS.MDN_A_W_OUT, ...
@@ -655,8 +660,12 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
-        % Record total PMC activations
-        PMC.activations(j) = trapz(PMC_A.out) + trapz(PMC_B.out);
+        % Record total neuron activations
+        PFC.activations(j) = trapz(PFC_A.out + PFC_B.out);
+        CN.activations(j) = trapz(CN.out);
+        GP.activations(j) = trapz(GP.out);
+        MDN.activations(j) = trapz(MDN_A.out + MDN_B.out);
+        PMC.activations(j) = trapz(PMC.alpha(j,:));
 
         %% Determine decision neuron and reaction time, and record accuracy
         % Determine reacting neuron and latency
@@ -787,6 +796,17 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
                 t = 1:LEARNING_TRIALS;
                 % Create hrf
                 hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+                % Get value for opt_val_1
+                target = load('fmri/targetFMRICorrelations.mat');
+                actual_corr = zeros(5, 4);
+                actual_corr = [get_FMRI_corr(accuracy, PFC.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, CN.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, GP.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, MDN.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, PMC.activations, FMRI_META, hrf)];
+                target_diff = actual_corr - [target.PFC; target.CN; target.GP; target.MDN; target.PMC];
+                opt_val_1 = sum(sum(target_diff.^2));
+                % Get value for opt_val_2
                 % Compute convolution for each trial
                 boldPMC = conv(PMC.activations, hrf');
                 opt_val_2 = [mean(boldPMC(FMRI_META.SES_1)), ...
@@ -837,4 +857,15 @@ end
 function [idx] = rand_discrete(distr)
     cum_distr = cumsum(distr);
     idx = find(rand<cum_distr, 1);
+end
+
+% Finds correlation between different neurons and accuracy
+function [corr_vec] = get_FMRI_corr(activations, accuracy, FMRI_META, hrf)
+    coder.extrinsic('corr');
+    % Compute convolution for each trial
+    bold = conv(activations, hrf');
+    corr_vec = [corr(mean(bold(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_1))), ...
+                corr(mean(bold(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_4))), ...
+                corr(mean(bold(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_10))), ...
+                corr(mean(bold(FMRI_META.SES_20)), mean(accuracy(FMRI_META.SES_20)))];
 end
