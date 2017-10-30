@@ -795,7 +795,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             return
         elseif CONFIGURATION == FMRI
             if ~FMRI_META.GROUP_RUN
-                target = load('fmri/means1dCondition.mat');
+                target = load('fmri/targetMeans1dCondition.mat');
                 % Calculate Mean Accuracy for trials from Session 4, 10, and 20
                 output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
                               mean(accuracy(FMRI_META.SES_4)), ...
