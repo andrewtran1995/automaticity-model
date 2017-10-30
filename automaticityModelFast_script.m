@@ -15,12 +15,29 @@ cfg.EnableJIT = true;
 %% Define argument types for entry-point 'automaticityModelFast'.
 ARGS = cell(1,1);
 ARGS{1} = cell(2,1);
-ARGS{1}{1} = coder.typeof(0,[1 7]);
+
+ARGS{1}{1} = struct;
+ARGS{1}{1}.PRE_LEARNING_TRIALS = coder.typeof(0);
+ARGS{1}{1}.LEARNING_TRIALS = coder.typeof(0);
+ARGS{1}{1}.POST_LEARNING_TRIALS = coder.typeof(0);
+ARGS{1}{1}.NOISE = coder.typeof(0);
+ARGS{1}{1}.PFC_DECISION_PT = coder.typeof(0);
+ARGS{1}{1}.PMC_DECISION_PT = coder.typeof(0);
+ARGS{1}{1}.HEB_CONSTS = coder.typeof(0);
+ARGS{1}{1}.NMDA = coder.typeof(0);
+ARGS{1}{1}.AMPA = coder.typeof(0);
+ARGS{1}{1}.W_MAX = coder.typeof(0);
+ARGS{1}{1}.PFC_A_W_OUT_MDN = coder.typeof(0);
+ARGS{1}{1}.PFC_B_W_OUT_MDN = coder.typeof(0);
+ARGS{1}{1}.DRIV_PFC_W_OUT = coder.typeof(0);
+ARGS{1}{1}.MDN_A_W_OUT = coder.typeof(0);
+ARGS{1}{1}.MDN_B_W_OUT = coder.typeof(0);
+ARGS{1}{1}.COVIS_PERSEV = coder.typeof(0);
+
 ARGS{1}{2} = struct;
 ARGS{1}{2}.FMRI_META_GROUP_RUN = coder.typeof(0);
 ARGS{1}{2}.VIS_INPUT_FROM_PARM = coder.typeof(0);
 ARGS{1}{2}.visualinput = coder.typeof(0,[Inf  2],[1 0]);
-ARGS{1}{2}.COVIS_PERSEV_PARAM = coder.typeof(0);
 ARGS{1}{2} = coder.typeof(ARGS{1}{2});
 
 %% Invoke MATLAB Coder.

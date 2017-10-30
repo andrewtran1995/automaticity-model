@@ -1,7 +1,15 @@
+%AUTOMATICITYMODEL automaticity model for PMC neurons
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%        Model of Automaticity in Rule Based Learning        %%%
+%%%        Model of Automaticity in Rule-Based Learning        %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
+# Description
+Run an automaticity model based upon a set of possible configurations:
+ 1. WALLIS
+ 2. MADDOX
+ 3. FMRI
+
+# Programming Conventions
 In general, variables that are written in all capital letters are meant
  to be constant values -- set once in the beginning of the program
  (variable initialization) and nowhere else.
@@ -9,28 +17,33 @@ In general, variables that are written in all capital letters are meant
 Structures are used in the program by calling struct(...).
  These structures are meant to "bundle" or "group" together variables that
  have some kind of commonality, e.g., belonging to the same neuron, behavior,
- model, etc.
-The goal is to enforce readability by standardizing the names of grouped variables
+ model, etc. The goal is to enforce readability by standardizing the names of grouped variables
  and making relationships between variables more apparent. Note that this
  has an effect on performance, but it should be negligible.
-
-If debugging, one can observe the workspace of the function by issuing the following
- command before execution: "dbstop if error".
 
 Note that the grid is set up column-major order, with points accessed as
  grid(y,x), with the origin situated at the top-left corner and axes
  increasing right and down for x and y, respectively.
-%}
 
-% opt_val        - return value signifying value of some cost function, used
-%                  for global optimization
-% arg_vector     - (req. for codegen) vector of 7 elements used to pass parameters that are
-%                  exposed in global optimization; if not specified in
-%                  non-codegen version, will be given default values based
-%                  on configuration
-% optional_parms - (optional) struct that may contain additional parameters
-%                  for the model; not allowed in codegen version
-function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_parms) %#codegen
+# Tips/Tricks
+If debugging, one can observe the workspace of the function by issuing the following
+ command before execution: "dbstop if error".
+
+# Function Signature
+## Output Variables
+opt_val_1      - return value signifying value of some cost function, used
+                 for global optimization
+opt_val_2      - return value signifying array used in FMRI group run
+## Input Variables / Parameters
+arg_struct     - (req. for codegen) structure of n fields used to pass parameters that are
+                 exposed in global optimization; if not specified in
+                 non-codegen version, will be given default values based
+                 on configuration; if called in codegen version, a full
+                 structure must be provided
+optional_parms - (optional for non-codegen) struct that may contain
+                 additional parameters for the model
+%}
+function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -43,7 +56,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     % Declare automaticity param struct
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
-    PARAMS = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
+    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'NOISE',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_PERSEV',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
@@ -52,19 +65,19 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Override parameter values if they were specified as inputs
-    if nargin ~= 0 && ~isempty(arg_vector)
-        PARAMS.HEB_CONSTS      = arg_vector(1);
-        PARAMS.ANTI_HEB_CONSTS = arg_vector(2);
-        PARAMS.PMC_DECISION_PT = arg_vector(3);
-        PARAMS.NOISE           = arg_vector(4);
-        PARAMS.NMDA            = arg_vector(5);
-        PARAMS.AMPA            = arg_vector(6);
-        PARAMS.W_MAX           = arg_vector(7);
+    if nargin >= 1
+        param_names = fieldnames(arg_struct);
+        for i = 1:numel(param_names)
+            if isfield(PARAMS, param_names{i})
+                PARAMS.(param_names{i}) = arg_struct.(param_names{i});
+            else
+                error('Field in arg_struct not found in PARAMS: %s\n Verify that arg_struct is valid.', param_names{i});
+            end
+        end
     end
 
     % Model paramters (default values)
     VIS_INPUT_FROM_PARM = 0;
-    COVIS_PERSEV_PARAM = 5;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
@@ -76,9 +89,6 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
         end
         if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
             VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
-        end
-        if isfield(optional_parms, 'COVIS_PERSEV_PARAM')
-            COVIS_PERSEV_PARAM = optional_parms.COVIS_PERSEV_PARAM;
         end
     end
     
@@ -177,7 +187,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     if COVIS_ENABLED
         COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
         					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', COVIS_PERSEV_PARAM, 'LAMBDA', 1, 'NUM_GUESS', 5);
+        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', PARAMS.COVIS_PERSEV, 'LAMBDA', 1, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
@@ -186,7 +196,8 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
         'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
         'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3) ...             % Stores information about PFC neuron reacting during trial
+        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PFC neuron reacting during trial
+        'activations', zeros(TRIALS,1) ...
     );
 
     % PMC scaling information
@@ -206,7 +217,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
     Hebbian = struct( ...
         'heb_coef', PARAMS.HEB_CONSTS, ...
-        'anti_heb', PARAMS.ANTI_HEB_CONSTS, ...
+        'anti_heb', PARAMS.HEB_CONSTS, ...
         'NMDA',     PARAMS.NMDA, ...
         'AMPA',     PARAMS.AMPA ...
     );
@@ -259,7 +270,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     % Neuron.u: voltage matrix (negative)
     PFC_A = struct( ...
         'W_OUT', 9, ...
-        'W_OUT_MDN', 1, ...
+        'W_OUT_MDN', PARAMS.PFC_A_W_OUT_MDN, ...
         'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
@@ -270,7 +281,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     );
     PFC_B = struct( ...
         'W_OUT', 9, ...
-        'W_OUT_MDN', 1, ...
+        'W_OUT_MDN', PARAMS.PFC_B_W_OUT_MDN, ...
         'W_OUT_AC', 1, ...
         'out', zeros(n,1), ...
         'spikes', 0, ...
@@ -311,7 +322,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
     %% FROST Model Neurons
     if FROST_ENABLED
         Driv_PFC = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.DRIV_PFC_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...
@@ -324,18 +335,22 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', MSN.rv*ones(n,1), ...
-            'u', zeros(n,1) ...
+            'u', zeros(n,1), ...
+            'activations', zeros(TRIALS,1) ...
         );
 
         GP = struct( ...
             'W_OUT', 1, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
-            'v', QIAF.rv*ones(n,1)...
+            'v', QIAF.rv*ones(n,1), ...
+            'activations', zeros(TRIALS,1) ...
         );
+    
+        MDN = struct('activations', zeros(TRIALS,1));
 
         MDN_A = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.MDN_A_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...
@@ -343,7 +358,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
         );
 
         MDN_B = struct( ...
-            'W_OUT', 1, ...
+            'W_OUT', PARAMS.MDN_B_W_OUT, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
             'v', RSN.rv*ones(n,1), ...
@@ -645,8 +660,12 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
-        % Record total PMC activations
-        PMC.activations(j) = trapz(PMC_A.out) + trapz(PMC_B.out);
+        % Record total neuron activations
+        PFC.activations(j) = trapz(PFC_A.out + PFC_B.out);
+        CN.activations(j) = trapz(CN.out);
+        GP.activations(j) = trapz(GP.out);
+        MDN.activations(j) = trapz(MDN_A.out + MDN_B.out);
+        PMC.activations(j) = trapz(PMC.alpha(j,:));
 
         %% Determine decision neuron and reaction time, and record accuracy
         % Determine reacting neuron and latency
@@ -753,7 +772,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
             return
         elseif CONFIGURATION == FMRI
             if ~FMRI_META.GROUP_RUN
-                target = load('fmri/means1dCondition.mat');
+                target = load('fmri/targetMeans1dCondition.mat');
                 % Calculate Mean Accuracy for trials from Session 4, 10, and 20
                 output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
                               mean(accuracy(FMRI_META.SES_4)), ...
@@ -777,6 +796,17 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_vector, optional_par
                 t = 1:LEARNING_TRIALS;
                 % Create hrf
                 hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+                % Get value for opt_val_1
+                target = load('fmri/targetFMRICorrelations.mat');
+                actual_corr = zeros(5, 4);
+                actual_corr = [get_FMRI_corr(accuracy, PFC.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, CN.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, GP.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, MDN.activations, FMRI_META, hrf); ...
+                               get_FMRI_corr(accuracy, PMC.activations, FMRI_META, hrf)];
+                target_diff = actual_corr - [target.PFC; target.CN; target.GP; target.MDN; target.PMC];
+                opt_val_1 = sum(sum(target_diff.^2));
+                % Get value for opt_val_2
                 % Compute convolution for each trial
                 boldPMC = conv(PMC.activations, hrf');
                 opt_val_2 = [mean(boldPMC(FMRI_META.SES_1)), ...
@@ -827,4 +857,15 @@ end
 function [idx] = rand_discrete(distr)
     cum_distr = cumsum(distr);
     idx = find(rand<cum_distr, 1);
+end
+
+% Finds correlation between different neurons and accuracy
+function [corr_vec] = get_FMRI_corr(activations, accuracy, FMRI_META, hrf)
+    coder.extrinsic('corr');
+    % Compute convolution for each trial
+    bold = conv(activations, hrf');
+    corr_vec = [corr(mean(bold(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_1))), ...
+                corr(mean(bold(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_4))), ...
+                corr(mean(bold(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_10))), ...
+                corr(mean(bold(FMRI_META.SES_20)), mean(accuracy(FMRI_META.SES_20)))];
 end
