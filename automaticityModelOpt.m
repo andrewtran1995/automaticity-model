@@ -42,12 +42,12 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
         [~, retval] = automaticityModelFast_mex(params, optional_parms);
         
         % Assign values for correlation
-        PFC(i) = retval(1,:);
-        CN(i)  = retval(2,:);
-        GP(i)  = retval(3,:);
-        MDN(i) = retval(4,:);
-        PMC(i) = retval(5,:);
-        acc(i) = retval(6,:);
+        PFC(i,:) = retval(1,:);
+        CN(i,:)  = retval(2,:);
+        GP(i,:)  = retval(3,:);
+        MDN(i,:) = retval(4,:);
+        PMC(i,:) = retval(5,:);
+        acc(i,:) = retval(6,:);
     end
     
     % Calculate SSE
