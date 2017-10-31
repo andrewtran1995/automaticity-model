@@ -751,11 +751,6 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
 
             COVIS_VARS.rule_log(j) = chosen_rule;
         end
-
-        %% Print data to console
-        if mod(j,1000) == 0
-            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
-        end
     end
     
     %% ========================================= %%
@@ -765,7 +760,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if OPTIMIZATION_RUN
         opt_val_1 = 0;
-        opt_val_2 = zeros(8,1);
+        opt_val_2 = zeros(6,4);
         if CONFIGURATION == MADDOX
             return
         elseif CONFIGURATION == WALLIS
@@ -796,27 +791,14 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
                 t = 1:LEARNING_TRIALS;
                 % Create hrf
                 hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
-                % Get value for opt_val_1
-                target = load('fmri/targetFMRICorrelations.mat');
-                actual_corr = zeros(5, 4);
-                actual_corr = [get_FMRI_corr(accuracy, PFC.activations, FMRI_META, hrf); ...
-                               get_FMRI_corr(accuracy, CN.activations, FMRI_META, hrf); ...
-                               get_FMRI_corr(accuracy, GP.activations, FMRI_META, hrf); ...
-                               get_FMRI_corr(accuracy, MDN.activations, FMRI_META, hrf); ...
-                               get_FMRI_corr(accuracy, PMC.activations, FMRI_META, hrf)];
-                target_diff = actual_corr - [target.PFC; target.CN; target.GP; target.MDN; target.PMC];
-                opt_val_1 = sum(sum(target_diff.^2));
                 % Get value for opt_val_2
-                % Compute convolution for each trial
-                boldPMC = conv(PMC.activations, hrf');
-                opt_val_2 = [mean(boldPMC(FMRI_META.SES_1)), ...
-                             mean(boldPMC(FMRI_META.SES_4)), ...
-                             mean(boldPMC(FMRI_META.SES_10)), ...
-                             mean(boldPMC(FMRI_META.SES_20)), ...
-                             mean(accuracy(FMRI_META.SES_1)), ...
-                             mean(accuracy(FMRI_META.SES_4)), ...
-                             mean(accuracy(FMRI_META.SES_10)), ...
-                             mean(accuracy(FMRI_META.SES_20))];
+                opt_val_2 = [get_FMRI_corr_data(PFC.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(GP.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
+                             mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
+                return;
             end
         end
     end
@@ -860,12 +842,11 @@ function [idx] = rand_discrete(distr)
 end
 
 % Finds correlation between different neurons and accuracy
-function [corr_vec] = get_FMRI_corr(activations, accuracy, FMRI_META, hrf)
-    coder.extrinsic('corr');
+function [corr_vec] = get_FMRI_corr_data(activations, FMRI_META, hrf)
     % Compute convolution for each trial
-    bold = conv(activations, hrf');
-    corr_vec = [corr(mean(bold(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_1))), ...
-                corr(mean(bold(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_4))), ...
-                corr(mean(bold(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_10))), ...
-                corr(mean(bold(FMRI_META.SES_20)), mean(accuracy(FMRI_META.SES_20)))];
+    boldPMC = conv(activations, hrf');
+    corr_vec = [mean(boldPMC(FMRI_META.SES_1)), ...
+                mean(boldPMC(FMRI_META.SES_4)), ...
+                mean(boldPMC(FMRI_META.SES_10)), ...
+                mean(boldPMC(FMRI_META.SES_20))];
 end
