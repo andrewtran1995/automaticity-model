@@ -1,40 +1,24 @@
-RUNS = 8;
-PMC_BOLD_S1  = zeros(RUNS,1);
-PMC_BOLD_S4  = zeros(RUNS,1);
-PMC_BOLD_S10 = zeros(RUNS,1);
-PMC_BOLD_S20 = zeros(RUNS,1);
-Accuracy_S1  = zeros(RUNS,1);
-Accuracy_S4  = zeros(RUNS,1);
-Accuracy_S10 = zeros(RUNS,1);
-Accuracy_S20 = zeros(RUNS,1);
+GROUP_SIZE = 12;
+results = zeros(6,4,GROUP_SIZE);
 
-loaded_value = load('fmri/particleswarm_target_17_10_8.mat');
-arg_struct = loaded_value.x;
-
-new_vals = zeros(RUNS,2);
+loaded = load('fmri/particleswarm_target_17_10_31.mat');
+arg_vector = loaded.x;
+CONFIG = 'FMRI';
 
 gcp;
-parfor i=1:RUNS
+parfor i=1:GROUP_SIZE
+    arg_struct = argvectortostruct(arg_vector, CONFIG);
     [r_x_vals, r_y_vals] = createFMRIInput(11520);
     visualinput = [r_x_vals, r_y_vals];
     optional_parms = struct('FMRI_META_GROUP_RUN', 1, ...
                             'VIS_INPUT_FROM_PARM', 1, ...
                             'visualinput', visualinput);
-    [~,results, new_vals(i,:)] = automaticityModelRandom(arg_struct, optional_parms);
-    PMC_BOLD_S1(i)  = results(1);
-    PMC_BOLD_S4(i)  = results(2);
-    PMC_BOLD_S10(i) = results(3);
-    PMC_BOLD_S20(i) = results(4);
-    Accuracy_S1(i)  = results(5);
-    Accuracy_S4(i)  = results(6);
-    Accuracy_S10(i) = results(7);
-    Accuracy_S20(i) = results(8);
+    [~,results(:,:,i)] = automaticityModelFast_mex(arg_struct, optional_parms);
 end
 delete(gcp('nocreate'));
 
-PMC_corr = [corr(PMC_BOLD_S1,Accuracy_S1), corr(PMC_BOLD_S4,Accuracy_S4), corr(PMC_BOLD_S10,Accuracy_S10), corr(PMC_BOLD_S20,Accuracy_S20)];
-
-figure;
-plot(PMC_corr);
-title('PMC Correlations (Average Bold vs. Accuracy)');
-axis([0 4 -1.1 1.1]);
+permuted_results = permute(results(:,:,:), [3 2 1]);
+corr_mat = zeros(5,4);
+for i=1:5
+    corr_mat(i,:) = corrneuron(permuted_results(:,:,i), permuted_results(:,:,6));
+end
