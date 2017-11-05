@@ -32,7 +32,10 @@ ARGS{1}{1}.PFC_B_W_OUT_MDN = coder.typeof(0);
 ARGS{1}{1}.DRIV_PFC_W_OUT = coder.typeof(0);
 ARGS{1}{1}.MDN_A_W_OUT = coder.typeof(0);
 ARGS{1}{1}.MDN_B_W_OUT = coder.typeof(0);
+ARGS{1}{1}.COVIS_DELTA_C = coder.typeof(0);
+ARGS{1}{1}.COVIS_DELTA_E = coder.typeof(0);
 ARGS{1}{1}.COVIS_PERSEV = coder.typeof(0);
+ARGS{1}{1}.COVIS_LAMBDA = coder.typeof(0);
 
 ARGS{1}{2} = struct;
 ARGS{1}{2}.FMRI_META_GROUP_RUN = coder.typeof(0);
