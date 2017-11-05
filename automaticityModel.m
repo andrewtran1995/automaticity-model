@@ -35,13 +35,14 @@ opt_val_1      - return value signifying value of some cost function, used
                  for global optimization
 opt_val_2      - return value signifying array used in FMRI group run
 ## Input Variables / Parameters
-arg_struct     - (req. for codegen) structure of n fields used to pass parameters that are
+arg_struct     - structure of n fields used to pass parameters that are
                  exposed in global optimization; if not specified in
                  non-codegen version, will be given default values based
                  on configuration; if called in codegen version, a full
                  structure must be provided
-optional_parms - (optional for non-codegen) struct that may contain
-                 additional parameters for the model
+optional_parms - struct that may contain additional arguments for the
+                 model, typically those that influence things outside of
+                 how parameters are set
 %}
 function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
     %% ======================================= %%

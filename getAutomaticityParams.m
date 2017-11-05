@@ -9,17 +9,6 @@ function [param_struct] = getAutomaticityParams(configuration)
     MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
     WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400};
     FMRI_CONFIG   = {                    0;             11520;                      0;       2;               400;               400};
-    
-%     if strcmp(configuration,'MADDOX')
-%         param_vals = MADDOX_CONFIG;
-%     elseif strcmp(configuration,'WALLIS')
-%         param_vals = WALLIS_CONFIG;
-%     elseif strcmp(configuration,'FMRI')
-%         param_vals = FMRI_CONFIG;
-%     else
-%         error('Improper configuration requested in get_parameters(configuration)!');
-%     end
-    
     switch configuration
         case 'MADDOX'
             param_vals = MADDOX_CONFIG;
