@@ -35,13 +35,14 @@ opt_val_1      - return value signifying value of some cost function, used
                  for global optimization
 opt_val_2      - return value signifying array used in FMRI group run
 ## Input Variables / Parameters
-arg_struct     - (req. for codegen) structure of n fields used to pass parameters that are
+arg_struct     - structure of n fields used to pass parameters that are
                  exposed in global optimization; if not specified in
                  non-codegen version, will be given default values based
                  on configuration; if called in codegen version, a full
                  structure must be provided
-optional_parms - (optional for non-codegen) struct that may contain
-                 additional parameters for the model
+optional_parms - struct that may contain additional arguments for the
+                 model, typically those that influence things outside of
+                 how parameters are set
 %}
 function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_parms) %#codegen
     %% ======================================= %%
@@ -56,7 +57,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     % Declare automaticity param struct
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
-    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'NOISE',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_PERSEV',0);
+    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'NOISE',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
@@ -185,9 +186,9 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     
     %% COVIS Model
     if COVIS_ENABLED
-        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:4,           'saliences', ones(1,4), ...
-        					'rule_weights', ones(1,4),       'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', 10, 'DELTA_E', 1, 'PERSEV', PARAMS.COVIS_PERSEV, 'LAMBDA', 1, 'NUM_GUESS', 5);
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules',           1:4, 'saliences',     ones(1,4), ...
+        					'rule_weights',       ones(1,4), 'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
+        COVIS_PARAMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, 'LAMBDA', PARAMS.COVIS_LAMBDA, 'NUM_GUESS', 5);
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons

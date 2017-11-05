@@ -1,32 +1,35 @@
 function [param_struct] = getAutomaticityParams(configuration)
-%GETAUTOMATICITYPARAMS Get parameters for automaticityModel
-%   Get parameters based on configuration
-    % Necessary for codegen
-    % coder.extrinsic('cell2struct');
-    % Preinitialize param_struct to allow codegen to infer type
-    % param_struct = struct('PRE_LEARNING_TRIALS',0, 'LEARNING_TRIALS',0, 'POST_LEARNING_TRIALS',0, 'NOISE',0, 'PFC_DECISION_PT',0, 'PMC_DECISION_PT',0,'HEB_CONSTS',0,'ANTI_HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0);
-    
+%GETAUTOMATICITYPARAMS Get parameters for automaticityModel based on
+%configuration
+%   Get parameters for automaticityModel. Parameters initialized here are
+%   either dependent on the chosen configuration or are exposed in the
+%   param_struct for the purpose of optimizing their value.
     % Initialize parameters that depend on configuration
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
     MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
     WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400};
     FMRI_CONFIG   = {                    0;             11520;                      0;       2;               400;               400};
-    if strcmp(configuration,'MADDOX')
-        params = MADDOX_CONFIG;
-    elseif strcmp(configuration,'WALLIS')
-        params = WALLIS_CONFIG;
-    elseif strcmp(configuration,'FMRI')
-        params = FMRI_CONFIG;
-    else
-        error('Improper configuration requested in get_parameters(configuration)!');
+    switch configuration
+        case 'MADDOX'
+            param_vals = MADDOX_CONFIG;
+        case 'WALLIS'
+            param_vals = WALLIS_CONFIG;
+        case 'FMRI'
+            param_vals = FMRI_CONFIG;
+        otherwise
+            error('Improper configuration requested in get_parameters(configuration): %s!', configuration);
     end
     % Initialize configuration-agnostic parameters used in optimization
-    % Note that PMC_DECISION_PT & NOISE are used in optimization as well, but their default value is dependent on configuration
-    optim_param_names    = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX';'PFC_A_W_OUT_MDN';'PFC_B_W_OUT_MDN';'DRIV_PFC_W_OUT';'MDN_A_W_OUT';'MDN_B_W_OUT';'COVIS_PERSEV'};
-    optim_param_defaults = {        1e-8;  600;      0;     10;                1;                1;               1;            1;            1;             5};
-    param_struct = cell2struct(vertcat(params, optim_param_defaults), ...   % Parameter values
-                               vertcat(param_names, optim_param_names), ... % Parameter names
+    agn_names = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
+    agn_vals  = {        1e-8;  600;      0;     10};
+    % FROST Params
+    frost_names = {'PFC_A_W_OUT_MDN';'PFC_B_W_OUT_MDN';'DRIV_PFC_W_OUT';'MDN_A_W_OUT';'MDN_B_W_OUT'};
+    frost_vals  = {                1;                1;               1;            1;            1};
+    % COVIS Params
+    covis_names = {'COVIS_DELTA_C';'COVIS_DELTA_E';'COVIS_PERSEV';'COVIS_LAMBDA'};
+    covis_vals  = {             10;              1;             5;             1};
+    param_struct = cell2struct(vertcat( param_vals,  agn_vals,  frost_vals, covis_vals), ...  % Parameter values
+                               vertcat(param_names, agn_names, frost_names, covis_names), ... % Parameter names
                                1);
-
 end
 
