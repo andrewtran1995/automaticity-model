@@ -53,8 +53,8 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
-    
-    % Declare automaticity param struct
+
+    % Declare automaticity param struct and get parameters
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'NOISE',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
@@ -66,6 +66,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
     
     % Override parameter values if they were specified as inputs
+    % This should be turned into a function
     if nargin >= 1
         param_names = fieldnames(arg_struct);
         for i = 1:numel(param_names)
@@ -77,7 +78,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         end
     end
 
-    % Model paramters (default values)
+    % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
     OPTIMIZATION_RUN = 1;
     FROST_ENABLED    = 1;
@@ -175,9 +176,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         'RADIUS', 0.8, ...
         'rbv', zeros(GRID_SIZE), ...
         'X', X, ...
-        'Y', Y, ...
-        'HALF_NUM_WEIGHTS', GRID_SIZE/2 * GRID_SIZE, ...
-        'NUM_WEIGHTS', GRID_SIZE * GRID_SIZE ...
+        'Y', Y ...
     );
 
     % Accuracy matrix, where each element indicates whether correct PMC
@@ -186,9 +185,10 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     
     %% COVIS Model
     if COVIS_ENABLED
-        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules',           1:4, 'saliences',     ones(1,4), ...
-        					'rule_weights',       ones(1,4), 'rule_prob', ones(1,4), 'rule_log', ones(1,TRIALS));
-        COVIS_PARAMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, 'LAMBDA', PARAMS.COVIS_LAMBDA, 'NUM_GUESS', 5);
+        COVIS_PARMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, ...
+                             'LAMBDA', PARAMS.COVIS_LAMBDA, 'NUM_GUESS', 5, 'NUM_RULES', 4);
+        COVIS_VARS = struct('correct_rule', VISUAL_RULES(2), 'rules', 1:COVIS_PARMS.NUM_RULES, 'saliences',     ones(1,4), ...
+        					'rule_weights',       ones(1,4), 'rule_prob',           ones(1,4), 'rule_log', ones(1,TRIALS));
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
@@ -293,9 +293,17 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     );
     % Use a simplified weights matrix for FMRI (due to large amount of trials)
     if CONFIGURATION == FMRI
-        WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE);
+        if COVIS_ENABLED
+            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,1,4);
+        else
+            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,1);
+        end
     else
-        WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
+        if COVIS_ENABLED
+            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS,4);
+        else
+            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
+        end
     end
     PMC_A = struct( ...
         'W_OUT', 0, ...
@@ -344,12 +352,12 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
             'W_OUT', 1, ...
             'out', zeros(n,1), ...
             'spikes', 0, ...
-            'v', QIAF.rv*ones(n,1), ...
+            'v', QIAF.rv*ones(n,1),...
             'activations', zeros(TRIALS,1) ...
         );
-    
-        MDN = struct('activations', zeros(TRIALS,1));
 
+        MDN = struct('activations', zeros(TRIALS,1));
+    
         MDN_A = struct( ...
             'W_OUT', PARAMS.MDN_A_W_OUT, ...
             'out', zeros(n,1), ...
@@ -415,31 +423,20 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         % Re-initialize Neuron Output Matrices
         PFC_A.out(:) = 0;        PMC_A.out(:) = 0;
         PFC_B.out(:) = 0;        PMC_B.out(:) = 0;
-        
-        % Set PMC weights; if first trial, set to initial weights
-        if CONFIGURATION == FMRI || j==1
-            PMC_A_weights = PMC_A.weights(:,:,1);
-            PMC_B_weights = PMC_B.weights(:,:,1);
-        % Else, set weights to results of previous trial
-        else
-            PMC_A_weights = PMC_A.weights(:,:,j-1);
-            PMC_B_weights = PMC_B.weights(:,:,j-1);
-        end
 
         %% Initialize FROST components
         if FROST_ENABLED
         	Driv_PFC.spikes = 0; Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0; Driv_PFC.out(:) = 0;
-	        CN.spikes = 0;       CN.v(:) = RSN.rv;        CN.u(:) = 0;       CN.out(:) = 0;
-	        GP.spikes = 0;       GP.v(:) = RSN.rv;                           GP.out(:) = 0;
-	        MDN_A.spikes = 0;    MDN_A.v(:) = RSN.rv;     MDN_A.u(:) = 0;    MDN_A.out(:) = 0;
-	        MDN_B.spikes = 0;    MDN_B.v(:) = RSN.rv;     MDN_B.u(:) = 0;    MDN_B.out(:) = 0;
-	        AC_A.spikes = 0;     AC_A.v(:) = RSN.rv;      AC_A.u(:) = 0;     AC_A.out(:) = 0;
-	        AC_B.spikes = 0;     AC_B.v(:) = RSN.rv;      AC_B.u(:) = 0;     AC_B.out(:) = 0;
-	        
+            CN.spikes       = 0; CN.v(:)       = RSN.rv;  CN.u(:)       = 0; CN.out(:)       = 0;
+            GP.spikes       = 0; GP.v(:)       = RSN.rv;                     GP.out(:)       = 0;
+            MDN_A.spikes    = 0; MDN_A.v(:)    = RSN.rv;  MDN_A.u(:)    = 0; MDN_A.out(:)    = 0;
+            MDN_B.spikes    = 0; MDN_B.v(:)    = RSN.rv;  MDN_B.u(:)    = 0; MDN_B.out(:)    = 0;
+            AC_A.spikes     = 0; AC_A.v(:)     = RSN.rv;  AC_A.u(:)     = 0; AC_A.out(:)     = 0;
+            AC_B.spikes     = 0; AC_B.v(:)     = RSN.rv;  AC_B.u(:)     = 0; AC_B.out(:)     = 0;
         end
         %% Initialize COVIS components (choose a rule)
         if COVIS_ENABLED
-            if j <= COVIS_PARAMS.NUM_GUESS
+            if j <= COVIS_PARMS.NUM_GUESS
                 chosen_rule = randi(length(COVIS_VARS.rules));
             elseif accuracy(j-1) == 1
                 chosen_rule = COVIS_VARS.rule_log(j-1);
@@ -447,6 +444,27 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
                 chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
             end
             RULE = VISUAL_RULES(chosen_rule);
+        end
+        
+        %% Set PMC weights, potentially dependent on COVIS
+        % If first trial, set to initial weights
+        if CONFIGURATION == FMRI || j==1
+            if COVIS_ENABLED
+                PMC_A_weights = PMC_A.weights(:,:,1,chosen_rule);
+                PMC_B_weights = PMC_B.weights(:,:,1,chosen_rule);
+            else
+                PMC_A_weights = PMC_A.weights(:,:,1);
+                PMC_B_weights = PMC_B.weights(:,:,1);
+            end
+        % Else, set weights to results of previous trial
+        else
+            if COVIS_ENABLED
+                PMC_A_weights = PMC_A.weights(:,:,j-1,chosen_rule);
+                PMC_B_weights = PMC_B.weights(:,:,j-1,chosen_rule);
+            else
+                PMC_A_weights = PMC_A.weights(:,:,j-1);
+                PMC_B_weights = PMC_B.weights(:,:,j-1);
+            end
         end
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
@@ -649,10 +667,8 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         end
         %% Record post-time-loop numbers
         % Count number of spikes
-        PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak);
-        PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
-        PMC_A.spikes = nnz(PMC_A.v >= RSN.vpeak);
-        PMC_B.spikes = nnz(PMC_B.v >= RSN.vpeak);
+        PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak); PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
+        PMC_A.spikes = nnz(PMC_A.v >= RSN.vpeak); PMC_B.spikes = nnz(PMC_B.v >= RSN.vpeak);
         % Record voltage value if positive. Else, do nothing.
         % For computation of integral
         PFC_A.pos_volt(PFC_A.v > 0) = PFC_A.v(PFC_A.v > 0);
@@ -689,6 +705,11 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         else
             k = j;
         end
+        if COVIS_ENABLED
+            el = chosen_rule;
+        else
+            el = 1;
+        end
         if LEARNING(j)
             %% Calculation of Hebbian Weight for PMC_A
             % Visual input to PMC_A neuron (presynaptic)
@@ -701,11 +722,12 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A.weights(:,:,k) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
+            PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
+            PMC_A.weights(:,:,k,el) = PMC_A_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,k) = max(PMC_A.weights(:,:,k), 0);
-            PMC_A.weights(:,:,k) = min(PMC_A.weights(:,:,k), W_MAX);
+            PMC_A.weights(:,:,k,el) = max(PMC_A.weights(:,:,k,el), 0);
+            PMC_A.weights(:,:,k,el) = min(PMC_A.weights(:,:,k,el), W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
@@ -718,34 +740,42 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B.weights(:,:,k) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
-
+            PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
+            PMC_B.weights(:,:,k,el) = PMC_B_weights;
+            
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,k) = max(PMC_B.weights(:,:,k), 0);
-            PMC_B.weights(:,:,k) = min(PMC_B.weights(:,:,k), W_MAX); 
+            PMC_B.weights(:,:,k,el) = max(PMC_B.weights(:,:,k,el), 0);
+            PMC_B.weights(:,:,k,el) = min(PMC_B.weights(:,:,k,el), W_MAX); 
         % Else, if not learning, set new weights to previous weights
         else
-            PMC_A.weights(:,:,k) = PMC_A_weights;
-            PMC_B.weights(:,:,k) = PMC_B_weights;
+            PMC_A.weights(:,:,k,el) = PMC_A_weights;
+            PMC_B.weights(:,:,k,el) = PMC_B_weights;
+        end
+        
+        % If COVIS is enabled and weight matrix has time dimension, update
+        % all other weight matrices for this iteration
+        if COVIS_ENABLED && CONFIGURATION ~= FMRI
+            PMC_A.weights(:,:,j,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_A.weights(:,:,j-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
+            PMC_B.weights(:,:,j,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_B.weights(:,:,j-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
         end
         
         % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,k)));
-        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k)));
+        PMC_A.weights_avg(j) = mean(mean(PMC_A.weights(:,:,k,el)));
+        PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k,el)));
         
         %% COVIS Calculations - readjusting saliences, weights
         if COVIS_ENABLED
             % Step 1: Readjust saliences & weights
             if accuracy(j) == 1
-                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_C;
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_C;
             else
-                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARAMS.DELTA_E;
+                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_E;
             end
-            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.rule_weights(chosen_rule) + COVIS_PARAMS.PERSEV;
+            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.rule_weights(chosen_rule) + COVIS_PARMS.PERSEV;
             
             % Step 2: updating of randomly chosen rule
             random_rule = randi(4);
-            COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARAMS.LAMBDA);
+            COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARMS.LAMBDA);
 
             % Step 3 (???): calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
