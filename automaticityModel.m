@@ -84,7 +84,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
-    OPTIMIZATION_RUN = 1;
+    OPTIMIZATION_RUN = 0;
     FROST_ENABLED    = 1;
     COVIS_ENABLED    = 1;
     
@@ -1106,29 +1106,29 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
     %% Following code can be run (copy-paste in terminal should work) to generate heat maps
-    % Without border
+    % Without border, COVIS_ENABLED
     figure;
     title('Synaptic Heatmaps');
     rows = 1; columns = 2;
     subplot(rows,columns,1);
     colormap('hot');
-    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
     colorbar;
     subplot(rows,columns,2);
     colormap('hot');
-    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE));
+    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
     colorbar;
-    % With border
+    % With border, COVIS_ENABLED
     figure;
     title('Synaptic Heatmaps');
     rows = 1; columns = 2;
     subplot(rows,columns,1);
     colormap('hot');
-    imagesc(PMC_A.weights(:,:));
+    imagesc(PMC_A.weights(:,:,1,chosen_rule));
     colorbar;
     subplot(rows,columns,2);
     colormap('hot');
-    imagesc(PMC_B.weights(:,:));
+    imagesc(PMC_B.weights(:,:,1,chosen_rule));
     colorbar;
 end
 
