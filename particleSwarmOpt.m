@@ -9,11 +9,11 @@ is successfully generated (no error report).
 %% Script body
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
-nvars = 13;
+nvars = 14;
 % Lower and upper bounds of
-% PMC_DECISION_PT, NOISE, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2, DELTA_C, DELTA_E, PERSEV, LAMBDA
-lb = [700, 2, 600, 0, 10, 1e-10, 1e-10,  1, 1e-10, 10, 1, 5, 1];
-ub = [700, 2, 600, 0, 10,  1e-7,  1e-7, 10,  1e-7, 10, 1, 5, 1];
+% PMC_DECISION_PT, NOISE_PFC, NOISE_PMC, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2, DELTA_C, DELTA_E, PERSEV, LAMBDA
+lb = [700, eps, eps, 600, 0, 10, 1e-10, 1e-10,  1, 1e-10, 10, 1, 5, 1];
+ub = [700,   5,   5, 600, 0, 10,  1e-7,  1e-7, 10,  1e-7, 10, 1, 5, 1];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...
