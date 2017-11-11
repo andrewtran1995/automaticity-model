@@ -5,10 +5,10 @@ function [param_struct] = getAutomaticityParams(configuration)
 %   either dependent on the chosen configuration or are exposed in the
 %   param_struct for the purpose of optimizing their value.
     % Initialize parameters that depend on configuration
-    param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'NOISE'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
-    MADDOX_CONFIG = {                    0;               500;                      0;       0;                 4;                 4};
-    WALLIS_CONFIG = {                  100;               200;                    100;       2;               400;               400};
-    FMRI_CONFIG   = {                    0;             11520;                      0;       2;               400;               400};
+    param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'};
+    MADDOX_CONFIG = {                    0;               500;                      0;                 4;                 4};
+    WALLIS_CONFIG = {                  100;               200;                    100;               400;               400};
+    FMRI_CONFIG   = {                    0;             11520;                      0;               400;               400};
     switch configuration
         case 'MADDOX'
             param_vals = MADDOX_CONFIG;
@@ -20,8 +20,8 @@ function [param_struct] = getAutomaticityParams(configuration)
             error('Improper configuration requested in get_parameters(configuration): %s!', configuration);
     end
     % Initialize configuration-agnostic parameters used in optimization
-    agn_names = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX'};
-    agn_vals  = {        1e-8;  600;      0;     10};
+    agn_names = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX';'NOISE_PFC';'NOISE_PMC'};
+    agn_vals  = {        1e-8;  600;      0;     10;          2;          2};
     % FROST Params
     frost_names = {'PFC_A_W_OUT_MDN';'PFC_B_W_OUT_MDN';'DRIV_PFC_W_OUT';'MDN_A_W_OUT';'MDN_B_W_OUT'};
     frost_vals  = {                1;                1;               1;            1;            1};
