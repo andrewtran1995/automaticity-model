@@ -4,6 +4,7 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
 %   global optimization function requirements
     GROUP_SIZE = 12;
     CONFIG = 'FMRI';
+    NAN_CEILING = 10;
     PFC = zeros(GROUP_SIZE, 4);
     CN  = zeros(GROUP_SIZE, 4);
     GP  = zeros(GROUP_SIZE, 4);
@@ -39,6 +40,6 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
                    corrneuron(PMC, acc)];
     target = load('fmri/targetFMRICorrelations.mat');
     target_diff = actual_corr - [target.PFC; target.CN; target.GP; target.MDN; target.PMC];
-    target_diff(isnan(target_diff)) = 0;
+    target_diff(isnan(target_diff)) = NAN_CEILING;
     opt_val = sum(sum(target_diff.^2));
 end
