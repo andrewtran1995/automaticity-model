@@ -3,7 +3,7 @@ GROUP_SIZE = 12;
 results = zeros(6,4,GROUP_SIZE);
 
 % Get parameters for automaticityModel
-loaded = load('fmri/particleswarm_target_17_10_31.mat');
+loaded = load('fmri/particleswarm_target_17_11_12.mat');
 arg_vector = loaded.x;
 CONFIG = 'FMRI';
 
