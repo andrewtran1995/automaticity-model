@@ -7,7 +7,6 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
     NAN_CEILING = 10;
     PFC = zeros(GROUP_SIZE, 4);
     CN  = zeros(GROUP_SIZE, 4);
-    GP  = zeros(GROUP_SIZE, 4);
     MDN = zeros(GROUP_SIZE, 4);
     PMC = zeros(GROUP_SIZE, 4);
     acc = zeros(GROUP_SIZE, 4);
@@ -26,20 +25,18 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
         % Assign values for correlation
         PFC(i,:) = retval(1,:);
         CN(i,:)  = retval(2,:);
-        GP(i,:)  = retval(3,:);
-        MDN(i,:) = retval(4,:);
-        PMC(i,:) = retval(5,:);
-        acc(i,:) = retval(6,:);
+        MDN(i,:) = retval(3,:);
+        PMC(i,:) = retval(4,:);
+        acc(i,:) = retval(5,:);
     end
     
     % Calculate SSE
     actual_corr = [corrneuron(PFC, acc); ...
                    corrneuron(CN, acc); ...
-                   corrneuron(GP, acc); ...
                    corrneuron(MDN, acc); ...
                    corrneuron(PMC, acc)];
     target = load('fmri/targetFMRICorrelations.mat');
-    target_diff = actual_corr - [target.PFC; target.CN; target.GP; target.MDN; target.PMC];
+    target_diff = actual_corr - [target.PFC; target.CN; target.MDN; target.PMC];
     target_diff(isnan(target_diff)) = NAN_CEILING;
     opt_val = sum(sum(target_diff.^2));
 end
