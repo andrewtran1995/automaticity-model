@@ -127,6 +127,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         r_y_vals = loaded_input.wallisVisualInput5(:,2);
         r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == FMRI
+    % %% FMRI Visual Input, 100 X 100 %%
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
@@ -528,7 +529,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        RBF.rbv(:,:) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
@@ -543,7 +544,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
-        timeTrialStart = tic;
+        if PERF_TEST; timeTrialStart = tic; end;
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
@@ -893,7 +894,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %  =========================================  %
     % Calculate Sum of Squared Errors of Prediction (SSE)
     opt_val_1 = 0;
-    opt_val_2 = zeros(6,4);
+    opt_val_2 = zeros(5,4);
     if CONFIGURATION == MADDOX
         opt_val_1 = 0;
     elseif CONFIGURATION == WALLIS
@@ -1211,7 +1212,7 @@ end
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
 % Return what neuron reacts to the stimuli, and the latency
-% Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+% Returns neuron_id = 0 for n1, neuron_id = 1 for n2
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
@@ -1233,7 +1234,7 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
+        neuron_id = double(trapz(n1) < trapz(n2));
         latency = length(n1);
     end
 end
