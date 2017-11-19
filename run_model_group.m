@@ -1,6 +1,6 @@
 % Set number of subjects and result matrix
 GROUP_SIZE = 12;
-results = zeros(6,4,GROUP_SIZE);
+results = zeros(5,4,GROUP_SIZE);
 
 % Get parameters for automaticityModel
 loaded = load('fmri/particleswarm_target_17_11_12.mat');
@@ -23,7 +23,7 @@ delete(gcp('nocreate'));
 
 % Get correlation information from results
 permuted_results = permute(results(:,:,:), [3 2 1]);
-corr_mat = zeros(5,4);
-for i=1:5
-    corr_mat(i,:) = corrneuron(permuted_results(:,:,i), permuted_results(:,:,6));
+corr_mat = zeros(4,4);
+for i=1:4
+    corr_mat(i,:) = corrneuron(permuted_results(:,:,i), permuted_results(:,:,5));
 end

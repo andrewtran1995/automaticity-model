@@ -62,7 +62,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Declare automaticity param struct and get parameters
     coder.extrinsic('getAutomaticityParams');
     coder.varsize('chosen_rule');
-    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
+    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
@@ -127,6 +127,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         r_y_vals = loaded_input.wallisVisualInput5(:,2);
         r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == FMRI
+    % %% FMRI Visual Input, 100 X 100 %%
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
@@ -154,8 +155,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     LAMBDA = 20;                  % Lambda Value
     W_MAX = PARAMS.W_MAX;         % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
-    NOISE_PFC = PARAMS.NOISE_PFC; % Std. dev. of noise given to PFC v; set to 0 for no noise
-    NOISE_PMC = PARAMS.NOISE_PMC; % Std. dev. of noise given to PMC v; set to 0 for no noise
+    NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
     
     % Performance parameters
     if PERF_TEST
@@ -209,7 +209,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
-    % PFC scaling information
+    % PFC general information
     PFC = struct( ...
         'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
         'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
@@ -218,13 +218,22 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'activations', zeros(TRIALS,1) ...
     );
 
-    % PMC scaling information
+    % PMC general information
     PMC = struct( ...
         'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
         'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
         'alpha', zeros(TRIALS,n), ...
+        'activations', zeros(TRIALS,1) ...
+    );
+
+    % MC general parameters
+    MC = struct( ...
+        'V_SCALE', 1, ...
+        'W_LI', 2, ...
+        'DECISION_PT', PARAMS.MC_DECISION_PT, ...
+        'rx_matrix', zeros(TRIALS,3), ...
         'activations', zeros(TRIALS,1) ...
     );
 
@@ -269,7 +278,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'E', 100 ...
     );
 
-    % QIAF (Quadratic Integrate and Fire Neuron): stimualte neurons in Globus Pallidus
+    % QIAF (Quadratic Integrate and Fire Neuron): stimulate neurons in Globus Pallidus
     QIAF = struct( ...
         'beta', 11.83, ...
         'gamma', 0.117, ...
@@ -343,6 +352,26 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'v_stim', 0, ...
         'weights', WEIGHTS_MATRIX, ...
         'weights_avg', zeros(TRIALS,1) ...
+    );
+
+    MC_A = struct( ...
+        'W_OUT', 0, ...
+        'out', zeros(n,1), ...
+        'spikes', 0, ...
+        'v', RSN.rv*ones(n,1), ...
+        'u', zeros(n,1), ...
+        'pos_volt', zeros(n,1), ...
+        'v_stim', 0 ...
+    );
+
+    MC_B = struct( ...
+        'W_OUT', 0, ...
+        'out', zeros(n,1), ...
+        'spikes', 0, ...
+        'v', RSN.rv*ones(n,1), ...
+        'u', zeros(n,1), ...
+        'pos_volt', zeros(n,1), ...
+        'v_stim', 0 ...
     );
 
     %% FROST Model Neurons
@@ -500,7 +529,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        RBF.rbv(:,:) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
@@ -515,12 +544,12 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
-        timeTrialStart = tic;
+        if PERF_TEST; timeTrialStart = tic; end;
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
                 % PFC A Neuron
-                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + MDN_A.W_OUT*MDN_A.out(i) + AC_A.W_OUT*AC_A.out(i) + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE_PFC);
+                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + MDN_A.W_OUT*MDN_A.out(i) + AC_A.W_OUT*AC_A.out(i) + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE.PFC);
                 PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
                 if PFC_A.v(i+1)>=RSN.vpeak
                     PFC_A.v(i)= RSN.vpeak;
@@ -530,7 +559,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PFC B Neuron
-                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + MDN_B.W_OUT*MDN_A.out(i) + AC_B.W_OUT*AC_A.out(i) + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE_PFC);
+                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + MDN_B.W_OUT*MDN_A.out(i) + AC_B.W_OUT*AC_A.out(i) + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE.PFC);
                 PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
                 if PFC_B.v(i+1)>=RSN.vpeak
                     PFC_B.v(i)= RSN.vpeak;
@@ -540,7 +569,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PMC_A Neuron
-                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE_PMC);
+                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE.PMC);
                 PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
                 if PMC_A.v(i+1)>=RSN.vpeak
                     PMC_A.v(i)= RSN.vpeak;
@@ -550,7 +579,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PMC_B Neuron
-                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE_PMC);
+                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE.PMC);
                 PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
                 if PMC_B.v(i+1)>=RSN.vpeak
                     PMC_B.v(i)= RSN.vpeak;
@@ -558,6 +587,26 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                     PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
                     PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
+                
+                % MC_A Neuron
+                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*PMC_A.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_A.u(i+1)=MC_A.u(i)+TAU*RSN.a*(RSN.b*(MC_A.v(i)-RSN.rv)-MC_A.u(i));
+                if MC_A.v(i+1)>=RSN.vpeak
+                    MC_A.v(i)= RSN.vpeak;
+                    MC_A.v(i+1)= RSN.c;
+                    MC_A.u(i+1)= MC_A.u(i+1)+ RSN.d;
+                    MC_A.out(i:n) = MC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+                
+                % MC_B Neuron
+                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_B.u(i+1)=MC_B.u(i)+TAU*RSN.a*(RSN.b*(MC_B.v(i)-RSN.rv)-MC_B.u(i));
+                if MC_B.v(i+1)>=RSN.vpeak
+                    MC_B.v(i)= RSN.vpeak;
+                    MC_B.v(i+1)= RSN.c;
+                    MC_B.u(i+1)= MC_B.u(i+1)+ RSN.d;
+                    MC_B.out(i:n) = MC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end                
 
                 % Driv_PFC Neuron
                     % Input from Rule Stimulus (arbitrary value - constant)
@@ -651,7 +700,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             %% Non-FROST Calculation
             for i=1:n-1
                 % PFC A Neuron
-                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE_PFC);
+                PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE.PFC);
                 PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
                 if PFC_A.v(i+1)>=RSN.vpeak
                     PFC_A.v(i)= RSN.vpeak;
@@ -661,7 +710,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PFC B Neuron
-                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE_PFC);
+                PFC_B.v(i+1)=(PFC_B.v(i) + TAU*(RSN.k*(PFC_B.v(i)-RSN.rv)*(PFC_B.v(i)-RSN.vt)-PFC_B.u(i)+ RSN.E + PFC_B.v_stim + (PMC_B.W_OUT*PMC_B.out(i)) - PFC.W_LI*PFC_A.out(i))/RSN.C) + normrnd(0,NOISE.PFC);
                 PFC_B.u(i+1)=PFC_B.u(i)+TAU*RSN.a*(RSN.b*(PFC_B.v(i)-RSN.rv)-PFC_B.u(i));
                 if PFC_B.v(i+1)>=RSN.vpeak
                     PFC_B.v(i)= RSN.vpeak;
@@ -671,7 +720,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PMC_A Neuron
-                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE_PMC);
+                PMC_A.v(i+1)=(PMC_A.v(i) + TAU*(RSN.k*(PMC_A.v(i)-RSN.rv)*(PMC_A.v(i)-RSN.vt)-PMC_A.u(i)+ RSN.E + PMC_A.v_stim + (PFC_A.W_OUT*PFC_A.out(i)) - PMC.W_LI*PMC_B.out(i) )/RSN.C) + normrnd(0,NOISE.PMC);
                 PMC_A.u(i+1)=PMC_A.u(i)+TAU*RSN.a*(RSN.b*(PMC_A.v(i)-RSN.rv)-PMC_A.u(i));
                 if PMC_A.v(i+1)>=RSN.vpeak
                     PMC_A.v(i)= RSN.vpeak;
@@ -681,13 +730,33 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
 
                 % PMC_B Neuron
-                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE_PMC);
+                PMC_B.v(i+1)=(PMC_B.v(i) + TAU*(RSN.k*(PMC_B.v(i)-RSN.rv)*(PMC_B.v(i)-RSN.vt)-PMC_B.u(i)+ RSN.E + PMC_B.v_stim + (PFC_B.W_OUT*PFC_B.out(i)) - PMC.W_LI*PMC_A.out(i) )/RSN.C) + normrnd(0,NOISE.PMC);
                 PMC_B.u(i+1)=PMC_B.u(i)+TAU*RSN.a*(RSN.b*(PMC_B.v(i)-RSN.rv)-PMC_B.u(i));
                 if PMC_B.v(i+1)>=RSN.vpeak
                     PMC_B.v(i)= RSN.vpeak;
                     PMC_B.v(i+1)= RSN.c;
                     PMC_B.u(i+1)= PMC_B.u(i+1)+ RSN.d;
                     PMC_B.out(i:n) = PMC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+                
+                % MC_A Neuron
+                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*PMC_A.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_A.u(i+1)=MC_A.u(i)+TAU*RSN.a*(RSN.b*(MC_A.v(i)-RSN.rv)-MC_A.u(i));
+                if MC_A.v(i+1)>=RSN.vpeak
+                    MC_A.v(i)= RSN.vpeak;
+                    MC_A.v(i+1)= RSN.c;
+                    MC_A.u(i+1)= MC_A.u(i+1)+ RSN.d;
+                    MC_A.out(i:n) = MC_A.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
+                end
+                
+                % MC_B Neuron
+                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_B.u(i+1)=MC_B.u(i)+TAU*RSN.a*(RSN.b*(MC_B.v(i)-RSN.rv)-MC_B.u(i));
+                if MC_B.v(i+1)>=RSN.vpeak
+                    MC_B.v(i)= RSN.vpeak;
+                    MC_B.v(i+1)= RSN.c;
+                    MC_B.u(i+1)= MC_B.u(i+1)+ RSN.d;
+                    MC_B.out(i:n) = MC_B.out(i:n) + LAMBDA_PRECALC(1:n-i+1);
                 end
             end
         end
@@ -709,24 +778,25 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         GP.activations(j) = trapz(GP.out);
         MDN.activations(j) = trapz(MDN_A.out + MDN_B.out);
         PMC.activations(j) = trapz(PMC.alpha(j,:));
-        trial_times(j) = toc(timeTrialStart);
+        MC.activations(j) = trapz(MC_A.out + MC_B.out);
+        if PERF_TEST; trial_times(j) = toc(timeTrialStart); end;
 
         %% Determine decision neuron and reaction time, and record accuracy
-        rt_start_time = tic;
+        if PERF_TEST; rt_start_time = tic; end;
         % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
-        PFC.rx_matrix(j,1:2) = [neuron_id_PFC, latency];
-        PFC.rx_matrix(j,3) = r_group;
+        PFC.rx_matrix(j,:) = [neuron_id_PFC, latency, r_group];
         [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
-        PMC.rx_matrix(j,1:2) = [neuron_id_PMC, latency];
-        PMC.rx_matrix(j,3) = r_group;
+        PMC.rx_matrix(j,:) = [neuron_id_PMC, latency, r_group];
+        [neuron_id_MC, latency] = determine_reacting_neuron(MC_A.out, MC_B.out, MC.DECISION_PT);
+        MC.rx_matrix(j,:) = [neuron_id_MC, latency, r_group];
         % Determine accuracy
         if COVIS_ENABLED
-            accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_PMC;
+            accuracy(j) = double((any(r_x == COVIS_VARS.correct_rule.B_X) && any(r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
         else
-            accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_PMC;
+            accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_MC;
         end
-        rt_calc_times(j) = toc(rt_start_time);
+        if PERF_TEST; rt_calc_times(j) = toc(rt_start_time); end;
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
@@ -806,7 +876,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             random_rule = randi(4);
             COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARMS.LAMBDA);
 
-            % Step 3 (???): calculate rule probabilities for next trial
+            % Step 3: calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
 
             COVIS_VARS.rule_log(j) = chosen_rule;
@@ -824,7 +894,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %  =========================================  %
     % Calculate Sum of Squared Errors of Prediction (SSE)
     opt_val_1 = 0;
-    opt_val_2 = zeros(6,4);
+    opt_val_2 = zeros(5,4);
     if CONFIGURATION == MADDOX
         opt_val_1 = 0;
     elseif CONFIGURATION == WALLIS
@@ -857,7 +927,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             % Get value for opt_val_2
             opt_val_2 = [get_FMRI_corr_data(PFC.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(GP.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
                          mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
@@ -867,282 +936,283 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % (e.g., for global optimization)
     if SUPPRESS_UI
         return;
-    end
-    %% =============================== %%
-    %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
-    %  ===============================  %
-    %% Figure 1 - neuron information from last trial or throughout trials
-    figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
-    rows = 3; columns = 4;
+    else
+        %% =============================== %%
+        %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
+        %  ===============================  %
+        %% Figure 1 - neuron information from last trial or throughout trials
+        figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+        rows = 3; columns = 4;
 
-    subplot(rows,columns,1); plot(TAU*(1:n),PFC_A.v);
-    axis([0 n -100 100]); title('PFC_A Neuron Voltage');
+        subplot(rows,columns,1); plot(TAU*(1:n),PFC_A.v);
+        axis([0 n -100 100]); title('PFC_A Neuron Voltage');
 
-    subplot(rows,columns,2); plot(TAU*(1:n),PFC_B.v);
-    axis([0 n -100 100]); title('PFC_B Neuron Voltage');
+        subplot(rows,columns,2); plot(TAU*(1:n),PFC_B.v);
+        axis([0 n -100 100]); title('PFC_B Neuron Voltage');
 
-    subplot(rows,columns,3); plot(TAU*(1:n),PMC_A.v);
-    axis([0 n -100 100]); title('PMC_A Neuron Voltage');
+        subplot(rows,columns,3); plot(TAU*(1:n),PMC_A.v);
+        axis([0 n -100 100]); title('PMC_A Neuron Voltage');
 
-    subplot(rows,columns,4); plot(TAU*(1:n),PMC_B.v);
-    axis([0 n -100 100]); title('PMC_B Neuron Voltage');
+        subplot(rows,columns,4); plot(TAU*(1:n),PMC_B.v);
+        axis([0 n -100 100]); title('PMC_B Neuron Voltage');
 
-    subplot(rows,columns,5); plot(TAU*(1:n),PFC_A.out);
-    axis([0 n -1 10]); title('PFC_A Neuron Output');
+        subplot(rows,columns,5); plot(TAU*(1:n),PFC_A.out);
+        axis([0 n -1 10]); title('PFC_A Neuron Output');
 
-    subplot(rows,columns,6); plot(TAU*(1:n),PFC_B.out);
-    axis([0 n -1 10]); title('PFC_B Neuron Output');
+        subplot(rows,columns,6); plot(TAU*(1:n),PFC_B.out);
+        axis([0 n -1 10]); title('PFC_B Neuron Output');
 
-    subplot(rows,columns,7); plot(TAU*(1:n),PMC_A.out);
-    axis([0 n -1 10]); title('PMC_A Neuron Output');
+        subplot(rows,columns,7); plot(TAU*(1:n),PMC_A.out);
+        axis([0 n -1 10]); title('PMC_A Neuron Output');
 
-    subplot(rows,columns,8); plot(TAU*(1:n),PMC_B.out);
-    axis([0 n -1 10]); title('PMC_B Neuron Output');
+        subplot(rows,columns,8); plot(TAU*(1:n),PMC_B.out);
+        axis([0 n -1 10]); title('PMC_B Neuron Output');
 
-    subplot(rows,columns,9);
-    colormap('hot');
-    imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, VISUAL.STIM));
+        subplot(rows,columns,9);
+        colormap('hot');
+        imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
+        title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, VISUAL.STIM));
 
-    subplot(rows,columns,10);
-    x_axis = linspace(1, TRIALS, TRIALS);
-    plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
-    legend('PMC_A', 'PMC_B', 'Location', 'southeast');
-    title('PMC_A & PMC_B Weight Average');
+        subplot(rows,columns,10);
+        x_axis = linspace(1, TRIALS, TRIALS);
+        plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
+        legend('PMC_A', 'PMC_B', 'Location', 'southeast');
+        title('PMC_A & PMC_B Weight Average');
 
-    subplot(rows,columns,11);
-    x_axis = linspace(1, TRIALS, TRIALS);
-    PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
-    PMC_B_Rx = ~PMC_A_Rx;
-    scatter(find(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
-    hold on;
-    scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
-    legend('PMC_A', 'PMC_B');
-    title('PMC_A & PMC_B Reaction Time');
-    
-    %% Figure 1B - neuron information from last trial or throughout trials
-    if FROST_ENABLED
-	    figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
-	    rows = 7; columns = 2;
-	    
-	    subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
-	    axis([0 n -100 100]); title('Driv_PFC Voltage');
+        subplot(rows,columns,11);
+        x_axis = linspace(1, TRIALS, TRIALS);
+        PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
+        PMC_B_Rx = ~PMC_A_Rx;
+        scatter(find(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
+        hold on;
+        scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
+        legend('PMC_A', 'PMC_B');
+        title('PMC_A & PMC_B Reaction Time');
 
-	    subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
-	    axis([0 n -100 100]); title('CN Voltage');
+        %% Figure 1B - neuron information from last trial or throughout trials
+        if FROST_ENABLED
+            figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+            rows = 7; columns = 2;
 
-	    subplot(rows,columns,5); plot(TAU*(1:n),GP.v);
-	    axis([0 n -100 100]); title('GP Voltage');
+            subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
+            axis([0 n -100 100]); title('Driv_PFC Voltage');
 
-	    subplot(rows,columns,7); plot(TAU*(1:n),MDN_A.v);
-	    axis([0 n -100 100]); title('MDN_A Voltage');
+            subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
+            axis([0 n -100 100]); title('CN Voltage');
 
-	    subplot(rows,columns,9); plot(TAU*(1:n),MDN_B.v);
-	    axis([0 n -100 100]); title('MDN_B Voltage');
+            subplot(rows,columns,5); plot(TAU*(1:n),GP.v);
+            axis([0 n -100 100]); title('GP Voltage');
 
-	    subplot(rows,columns,11); plot(TAU*(1:n),AC_A.v);
-	    axis([0 n -100 100]); title('AC_A Voltage');
+            subplot(rows,columns,7); plot(TAU*(1:n),MDN_A.v);
+            axis([0 n -100 100]); title('MDN_A Voltage');
 
-	    subplot(rows,columns,13); plot(TAU*(1:n),AC_B.v);
-	    axis([0 n -100 100]); title('AC_B Voltage');
-	    
-	    subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
-	    axis([0 n 0 30]); title('Driv_PFC Output');
+            subplot(rows,columns,9); plot(TAU*(1:n),MDN_B.v);
+            axis([0 n -100 100]); title('MDN_B Voltage');
 
-	    subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
-	    axis([0 n 0 30]); title('CN Output');
+            subplot(rows,columns,11); plot(TAU*(1:n),AC_A.v);
+            axis([0 n -100 100]); title('AC_A Voltage');
 
-	    subplot(rows,columns,6); plot(TAU*(1:n),GP.out);
-	    axis([0 n 0 30]); title('GP Output');
+            subplot(rows,columns,13); plot(TAU*(1:n),AC_B.v);
+            axis([0 n -100 100]); title('AC_B Voltage');
 
-	    subplot(rows,columns,8); plot(TAU*(1:n),MDN_A.out);
-	    axis([0 n 0 30]); title('MDN_A Output');
+            subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
+            axis([0 n 0 30]); title('Driv_PFC Output');
 
-	    subplot(rows,columns,10); plot(TAU*(1:n),MDN_B.out);
-	    axis([0 n 0 30]); title('MDN_B Output');
+            subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
+            axis([0 n 0 30]); title('CN Output');
 
-	    subplot(rows,columns,12); plot(TAU*(1:n),AC_A.out);
-	    axis([0 n 0 30]); title('AC_A Output');
+            subplot(rows,columns,6); plot(TAU*(1:n),GP.out);
+            axis([0 n 0 30]); title('GP Output');
 
-	    subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
-	    axis([0 n 0 30]); title('AC_B Output');
-    end
-    
-    %% Figure 1C - COVIS
-    if COVIS_ENABLED
-        figure; title('COVIS Information');
-        scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
-    end
-    
-    %% Figure 2
-    % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
-    % Only relevant if any learning trials were conducted
-    if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
-        figure; title('Synaptic Heatmaps');
-        rows = 1; columns = 2;
-        % Force slider to integer/discrete value:
-        % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
-        PMC_A_trial_num = 1;
-        PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
+            subplot(rows,columns,8); plot(TAU*(1:n),MDN_A.out);
+            axis([0 n 0 30]); title('MDN_A Output');
+
+            subplot(rows,columns,10); plot(TAU*(1:n),MDN_B.out);
+            axis([0 n 0 30]); title('MDN_B Output');
+
+            subplot(rows,columns,12); plot(TAU*(1:n),AC_A.out);
+            axis([0 n 0 30]); title('AC_A Output');
+
+            subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
+            axis([0 n 0 30]); title('AC_B Output');
+        end
+
+        %% Figure 1C - COVIS
+        if COVIS_ENABLED
+            figure; title('COVIS Information');
+            scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
+        end
+
+        %% Figure 2
+        % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
+        % Only relevant if any learning trials were conducted
+        if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
+            figure; title('Synaptic Heatmaps');
+            rows = 1; columns = 2;
+            % Force slider to integer/discrete value:
+            % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
+            PMC_A_trial_num = 1;
+            PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                            BORDER_SIZE:end-BORDER_SIZE, ...
+                                            LEARNING_IDX);
+            subplot(rows,columns,1);
+            data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
+            colormap('hot');
+            imagesc(data3);
+            colorbar;
+            title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
+            slider_PMC_A = uicontrol('Style', 'slider', ...
+                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                     'Value', 1, ...
+                                     'Position', [100 50 300 20]);
+            set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
+
+            PMC_B_trial_num = 1;
+            PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
+                                            BORDER_SIZE:end-BORDER_SIZE, ...
+                                            LEARNING_IDX);
+            subplot(rows,columns,2);
+            data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
+            colormap('hot');
+            imagesc(data4);
+            colorbar;
+            title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
+            slider_PMC_B = uicontrol('Style', 'slider', ...
+                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                     'Value', 1, ...
+                                     'Position', [500 50 300 20]);
+            set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+        end
+
+        if CONFIGURATION == MADDOX
+            %% Figure 3
+            % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+            % CDF = P(RT <= t), for each specific value t
+            % Set-up
+            PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
+            PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
+            PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';        
+            figure; title('CDFs of PMC Rx Times (Grouped by Distance)');
+
+            p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
+            set(p1, 'Color', 'r');
+            hold on;
+            p2 = cdfplot(PMC.rx_matrix(PMC_M, 2));
+            set(p2, 'Color', 'b');
+            hold on;
+            p3 = cdfplot(PMC.rx_matrix(PMC_L, 2));
+            set(p3, 'Color', 'g');
+            legend('S', 'M', 'L', 'Location', 'southeast');
+            title('CDFs of RTs by Grouping');
+
+            %% Figure 4 - Hazard Functions
+            % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
+            % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
+            figure; title('PMC Rx Times Hazard Functions');
+
+            % Reuse vars from CDF plot
+            pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
+            plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
+            hold on;
+            plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
+            hold on;
+            plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_L, 2), pts), 'Color', 'g');
+            legend('S', 'M', 'L', 'Location', 'southeast');
+            title('Hazard Functions');
+        end
+
+        %% Figure 5 - Reaction Latency
+        % Compare the latency of the PFC versus the PMC
+        % TODO: factor out x/y labeling
+        f = figure;
+        title('Reaction Latency Histograms');
+        rows = 3; columns = 2;
+        numBins = 20;
+
+        % Pre-Learning
         subplot(rows,columns,1);
-        data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
-        colormap('hot');
-        imagesc(data3);
-        colorbar;
-        title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
-        slider_PMC_A = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [100 50 300 20]);
-        set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
-
-        PMC_B_trial_num = 1;
-        PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
+        hist(PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PFC Latencies (Pre-Learning)');
         subplot(rows,columns,2);
-        data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
+        hist(PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PMC Latencies (Pre-Learning)');
+        % Learning
+        subplot(rows,columns,3);
+        hist(PFC.rx_matrix(LEARNING_IDX,2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PFC Latencies (Learning)');
+        subplot(rows,columns,4);
+        hist(PMC.rx_matrix(LEARNING_IDX,2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PMC Latencies (Learning)');
+        % Post-Learning
+        subplot(rows,columns,5);
+        hist(PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PFC Latencies (No Learning)');
+        subplot(rows,columns,6);
+        hist(PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title('PMC Latencies (No Learning)');
+
+        %% Figure 6 - Accuracy
+        figure;
+        plot(smooth(accuracy, 11), 'b');
+        title('Accuracy');
+
+        %% Figure 7 - Performance Tests
+        % Information regarding the performance, or run-time, of this program
+        if PERF_TEST
+            elapsedTime = toc(startTime);
+            figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
+            plot(loop_times, 'b'); hold on;
+            plot(trial_times, 'r'); hold on;
+            plot(rt_calc_times, 'g');
+        end
+
+        %% Starts debug mode, allowing variables to be observed before the function ends
+        keyboard;
+        %% Following code can be run (copy-paste in terminal should work) to generate heat maps
+        % Without border, COVIS_ENABLED
+        figure;
+        title('Synaptic Heatmaps');
+        rows = 1; columns = 2;
+        subplot(rows,columns,1);
         colormap('hot');
-        imagesc(data4);
+        imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
         colorbar;
-        title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
-        slider_PMC_B = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [500 50 300 20]);
-        set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+        subplot(rows,columns,2);
+        colormap('hot');
+        imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
+        colorbar;
+        % With border, COVIS_ENABLED
+        figure;
+        title('Synaptic Heatmaps');
+        rows = 1; columns = 2;
+        subplot(rows,columns,1);
+        colormap('hot');
+        imagesc(PMC_A.weights(:,:,1,chosen_rule));
+        colorbar;
+        subplot(rows,columns,2);
+        colormap('hot');
+        imagesc(PMC_B.weights(:,:,1,chosen_rule));
+        colorbar;
     end
-
-    if CONFIGURATION == MADDOX
-        %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
-        % CDF = P(RT <= t), for each specific value t
-        % Set-up
-        PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
-        PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
-        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';        
-        figure; title('CDFs of PMC Rx Times (Grouped by Distance)');
-
-        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
-        set(p1, 'Color', 'r');
-        hold on;
-        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2));
-        set(p2, 'Color', 'b');
-        hold on;
-        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2));
-        set(p3, 'Color', 'g');
-        legend('S', 'M', 'L', 'Location', 'southeast');
-        title('CDFs of RTs by Grouping');
-
-        %% Figure 4 - Hazard Functions
-        % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
-        % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
-        figure; title('PMC Rx Times Hazard Functions');
-
-        % Reuse vars from CDF plot
-        pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
-        hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
-        hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_L, 2), pts), 'Color', 'g');
-        legend('S', 'M', 'L', 'Location', 'southeast');
-        title('Hazard Functions');
-    end
-    
-    %% Figure 5 - Reaction Latency
-    % Compare the latency of the PFC versus the PMC
-    % TODO: factor out x/y labeling
-    f = figure;
-    title('Reaction Latency Histograms');
-    rows = 3; columns = 2;
-    numBins = 20;
-    
-    % Pre-Learning
-    subplot(rows,columns,1);
-    hist(PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (Pre-Learning)');
-    subplot(rows,columns,2);
-    hist(PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (Pre-Learning)');
-    % Learning
-    subplot(rows,columns,3);
-    hist(PFC.rx_matrix(LEARNING_IDX,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (Learning)');
-    subplot(rows,columns,4);
-    hist(PMC.rx_matrix(LEARNING_IDX,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (Learning)');
-    % Post-Learning
-    subplot(rows,columns,5);
-    hist(PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (No Learning)');
-    subplot(rows,columns,6);
-    hist(PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (No Learning)');
-    
-    %% Figure 6 - Accuracy
-    figure;
-    plot(smooth(accuracy, 11), 'b');
-    title('Accuracy');
-    
-    %% Figure 7 - Performance Tests
-    % Information regarding the performance, or run-time, of this program
-    if PERF_TEST
-        elapsedTime = toc(startTime);
-        figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
-        plot(loop_times, 'b'); hold on;
-        plot(trial_times, 'r'); hold on;
-        plot(rt_calc_times, 'g');
-    end
-    
-    %% Starts debug mode, allowing variables to be observed before the function ends
-    keyboard;
-    %% Following code can be run (copy-paste in terminal should work) to generate heat maps
-    % Without border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    % With border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(:,:,1,chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(:,:,1,chosen_rule));
-    colorbar;
 end
 
 %% =============================== %%
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
 % Return what neuron reacts to the stimuli, and the latency
-% Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+% Returns neuron_id = 0 for n1, neuron_id = 1 for n2
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
@@ -1164,7 +1234,7 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
+        neuron_id = double(trapz(n1) < trapz(n2));
         latency = length(n1);
     end
 end
