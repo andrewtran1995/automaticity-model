@@ -8,7 +8,7 @@ function [param_struct] = getAutomaticityParams(configuration)
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'; 'MC_DECISION_PT'};
     MADDOX_CONFIG = {                    0;               500;                      0;                 4;                 4;                4};
     WALLIS_CONFIG = {                  100;               200;                    100;               400;               400;              400};
-    FMRI_CONFIG   = {                    0;             11520;                      0;               400;               400;              400};
+    FMRI_CONFIG   = {                    0;             11520;                      0;               700;               700;              700};
     switch configuration
         case 'MADDOX'
             param_vals = MADDOX_CONFIG;
