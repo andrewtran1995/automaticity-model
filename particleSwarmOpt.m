@@ -10,11 +10,11 @@ If adding an additional parameter in the parameter vector, update argvectortostr
 %% Script body
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
-nvars = 15;
+nvars = 16;
 % Lower and upper bounds of
-% PMC_DECISION_PT, NOISE_PFC, NOISE_PMC, NOISE_MC, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2, DELTA_C, DELTA_E, PERSEV, LAMBDA
-lb = [700, eps, eps, eps, 600, 0,  0, 1e-10, 1e-10,  1,  1,  1,  1,  1,  1];
-ub = [700,   5,   5,  20, 600, 0, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
+% PMC_DECISION_PT, MC_DECISION_PT, NOISE_PFC, NOISE_PMC, NOISE_MC, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2, DELTA_C, DELTA_E, PERSEV, LAMBDA
+lb = [ 500,  500, eps, eps, eps,  200,    0,  0, 1e-10, 1e-10,  1,  1,  1,  1,  1,  1];
+ub = [1500, 2000,   5,   5,  30, 1000, 1000, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...

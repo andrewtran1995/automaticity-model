@@ -60,7 +60,8 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     CONFIGURATION = FMRI;
 
     % Declare automaticity param struct and get parameters
-    coder.extrinsic('getAutomaticityParams');
+    coder.extrinsic('getAutomaticityParams','displayautoresults');
+    coder.extrinsic('tic','toc');
     coder.varsize('chosen_rule');
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
@@ -73,21 +74,19 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     % Override parameter values if they were specified as inputs
     % This should be turned into a function
     if nargin >= 1
-        param_names = fieldnames(arg_struct);
-        for i = 1:numel(param_names)
-            if isfield(PARAMS, param_names{i})
-                PARAMS.(param_names{i}) = arg_struct.(param_names{i});
-            else
-                error('Field in arg_struct not found in PARAMS: %s\n Verify that arg_struct is valid.', param_names{i});
-            end
+        PARAMS = absorbstruct(PARAMS, arg_struct);
+        if not(areparamsvalid(PARAMS))
+            disp(struct2table(PARAMS));
+            error('Parameters not valid.');
         end
     end
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
-    SUPRESS_UI       = 0;
-    FROST_ENABLED    = 1;
-    COVIS_ENABLED    = 1;
+    SUPPRESS_UI         = 1;
+    FROST_ENABLED       = 1;
+    COVIS_ENABLED       = 1;
+    PERF_TEST           = 0; % Enable/disable performance output
     
     % Override values with optional_parms if it was passed as an argument
     if nargin == 2
@@ -123,6 +122,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         r_y_vals = loaded_input.wallisVisualInput5(:,2);
         r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == FMRI
+    % %% FMRI Visual Input, 100 X 100 %%
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
@@ -151,6 +151,13 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     W_MAX = PARAMS.W_MAX;         % maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
+    
+    % Performance parameters
+    if PERF_TEST
+        loop_times    = zeros(1, TRIALS); % Time needed for each loop (outer loop)
+        trial_times   = zeros(1, TRIALS); % Time required to run each time loop (inner loop)
+        rt_calc_times = zeros(1, TRIALS); % Time required to run reaction time calculation
+    end
 
     % Quantity of Visual Stimulus
     VISUAL = struct('STIM', 50, ...
@@ -431,6 +438,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %  ============================  %
 
+    if PERF_TEST; start_time = tic; end;
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
     t = (0:n)';
@@ -438,6 +446,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     
     %% Learning trials
     for j=1:TRIALS
+        if PERF_TEST; loopStart = tic; end;
         %% Initialize appropriate variables for each loop
         % variables tracking spiking rate in each neuron
         PFC_A.spikes = 0;       PMC_A.spikes = 0;
@@ -509,7 +518,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:, :) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        RBF.rbv(:,:) = exp( -(sqrt((r_y-RBF.Y).^2 + (r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
@@ -524,6 +533,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
+        if PERF_TEST; timeTrialStart = tic; end;
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
@@ -758,8 +768,10 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         MDN.activations(j) = trapz(MDN_A.out + MDN_B.out);
         PMC.activations(j) = trapz(PMC.alpha(j,:));
         MC.activations(j) = trapz(MC_A.out + MC_B.out);
+        if PERF_TEST; trial_times(j) = toc(timeTrialStart); end;
 
         %% Determine decision neuron and reaction time, and record accuracy
+        if PERF_TEST; rt_start_time = tic; end;
         % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
         PFC.rx_matrix(j,:) = [neuron_id_PFC, latency, r_group];
@@ -773,6 +785,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
         else
             accuracy(j) = double((any(r_x == RULE.B_X) && any(r_y == RULE.B_Y)) + 1) == neuron_id_MC;
         end
+        if PERF_TEST; rt_calc_times(j) = toc(rt_start_time); end;
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
@@ -857,6 +870,12 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
 
             COVIS_VARS.rule_log(j) = chosen_rule;
         end
+
+        %% Print data to console
+        if mod(j,1) == 0
+            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
+        end
+        if PERF_TEST; loop_times(j) = toc(loopStart); end;
     end
     
     %% ========================================= %%
@@ -864,7 +883,7 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
     %  =========================================  %
     % Calculate Sum of Squared Errors of Prediction (SSE)
     opt_val_1 = 0;
-    opt_val_2 = zeros(6,4);
+    opt_val_2 = zeros(4,4);
     if CONFIGURATION == MADDOX
         opt_val_1 = 0;
     elseif CONFIGURATION == WALLIS
@@ -895,21 +914,20 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
             % Create hrf
             hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
             % Get value for opt_val_2
-            opt_val_2 = [get_FMRI_corr_data(PFC.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
+            opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
                          mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
         end
     end
-    return
+    return;
 end
 
 %% =============================== %%
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
 % Return what neuron reacts to the stimuli, and the latency
-% Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+% Returns neuron_id = 0 for n1, neuron_id = 1 for n2
 function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
     n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
@@ -931,7 +949,7 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = double(trapz(n1) < trapz(n2)) + 1;
+        neuron_id = double(trapz(n1) < trapz(n2));
         latency = length(n1);
     end
 end
