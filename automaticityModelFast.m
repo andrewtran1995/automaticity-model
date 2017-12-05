@@ -870,12 +870,6 @@ function [opt_val_1, opt_val_2] = automaticityModelFast(arg_struct, optional_par
 
             COVIS_VARS.rule_log(j) = chosen_rule;
         end
-
-        %% Print data to console
-        if mod(j,1) == 0
-            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
-        end
-        if PERF_TEST; loop_times(j) = toc(loopStart); end;
     end
     
     %% ========================================= %%
