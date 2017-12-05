@@ -60,7 +60,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     CONFIGURATION = FMRI;
 
     % Declare automaticity param struct and get parameters
-    coder.extrinsic('getAutomaticityParams');
+    coder.extrinsic('getAutomaticityParams','displayautoresults');
+    coder.extrinsic('tic','toc');
     coder.varsize('chosen_rule');
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
@@ -73,25 +74,19 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Override parameter values if they were specified as inputs
     % This should be turned into a function
     if nargin >= 1
-        param_names = fieldnames(arg_struct);
-        for i = 1:numel(param_names)
-            if isfield(PARAMS, param_names{i})
-                PARAMS.(param_names{i}) = arg_struct.(param_names{i});
-            else
-                error('Field in arg_struct not found in PARAMS: %s\n Verify that arg_struct is valid.', param_names{i});
-            end
+        PARAMS = absorbstruct(PARAMS, arg_struct);
+        if not(areparamsvalid(PARAMS))
+            disp(struct2table(PARAMS));
+            error('Parameters not valid.');
         end
     end
-    
-    % Programming Parameters
-    PERF_TEST = 1;      % Enable/disable performance output
-    SANDBOX   = 0;      % Controls whether "sandbox" area executes, or main func
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM = 0;
-    SUPRESS_UI       = 0;
-    FROST_ENABLED    = 1;
-    COVIS_ENABLED    = 1;
+    SUPPRESS_UI         = 1;
+    FROST_ENABLED       = 1;
+    COVIS_ENABLED       = 1;
+    PERF_TEST           = 0; % Enable/disable performance output
     
     % Override values with optional_parms if it was passed as an argument
     if nargin == 2
@@ -439,17 +434,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         );
     end
 
-    %% Sandbox Area
-    % Area where code can be prototyped/tested (e.g., for performance/validity)
-    if PERF_TEST; startTime = tic; end;
-    if SANDBOX
-        return;
-    end;
-
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %  ============================  %
 
+    if PERF_TEST; start_time = tic; end;
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
     t = (0:n)';
@@ -894,7 +883,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %  =========================================  %
     % Calculate Sum of Squared Errors of Prediction (SSE)
     opt_val_1 = 0;
-    opt_val_2 = zeros(5,4);
+    opt_val_2 = zeros(4,4);
     if CONFIGURATION == MADDOX
         opt_val_1 = 0;
     elseif CONFIGURATION == WALLIS
@@ -925,21 +914,27 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             % Create hrf
             hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
             % Get value for opt_val_2
-            opt_val_2 = [get_FMRI_corr_data(PFC.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
+            opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
                          get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
                          mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
         end
     end
+    %% =============================== %%
+    %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
+    %  ===============================  %
     % Return prematurely if we are suppressing UI output
     % (e.g., for global optimization)
     if SUPPRESS_UI
         return;
     else
-        %% =============================== %%
-        %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
-        %  ===============================  %
+    % Dynamically store all variables in current workspace in struct for
+    % function
+%         coder.extrinsic('tempname');
+%         varfile = tempname;
+%         save(varfile);
+%         displayautoresults(varfile);
+%         delete(varfile);
         %% Figure 1 - neuron information from last trial or throughout trials
         figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
         rows = 3; columns = 4;
@@ -1171,7 +1166,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Figure 7 - Performance Tests
         % Information regarding the performance, or run-time, of this program
         if PERF_TEST
-            elapsedTime = toc(startTime);
+            elapsedTime = toc(start_time);
             figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
             plot(loop_times, 'b'); hold on;
             plot(trial_times, 'r'); hold on;

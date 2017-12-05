@@ -3,10 +3,10 @@ addpath('matGenerationScripts');
 
 % Set number of subjects and result matrix
 GROUP_SIZE = 12;
-results = zeros(6,4,GROUP_SIZE);
+results = zeros(4,4,GROUP_SIZE);
 
 % Get parameters for automaticityModel
-loaded = load('fmri/particle_swarm_results_11_22.mat');
+loaded = load('fmri/particleswarm_target_17_12_01.mat');
 arg_vector = loaded.x;
 CONFIG = 'FMRI';
 
@@ -26,9 +26,9 @@ delete(gcp('nocreate'));
 
 % Get correlation information from results
 permuted_results = permute(results(:,:,:), [3 2 1]);
-corr_mat = zeros(5,4);
-for i=1:5
-    corr_mat(i,:) = corrneuron(permuted_results(:,:,i), permuted_results(:,:,6));
+corr_mat = zeros(3,4);
+for i=1:4
+    corr_mat(i,:) = corrneuron(permuted_results(:,:,i), permuted_results(:,:,4));
 end
 
 % Plot correlation data
@@ -37,16 +37,10 @@ rows = 2; columns = 3;
 
 subplot(rows,columns,1);
 plot(corr_mat(1,:));
-title('PFC');
+title('CN');
 subplot(rows,columns,2);
 plot(corr_mat(2,:));
-title('CN');
+title('MDN');
 subplot(rows,columns,3);
 plot(corr_mat(3,:));
-title('GP');
-subplot(rows,columns,4);
-plot(corr_mat(4,:));
-title('MDN');
-subplot(rows,columns,5);
-plot(corr_mat(5,:));
 title('PMC');
