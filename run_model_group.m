@@ -6,11 +6,12 @@ GROUP_SIZE = 12;
 results = zeros(4,4,GROUP_SIZE);
 
 % Get parameters for automaticityModel
-loaded = load('fmri/particleswarm_target_17_12_01.mat');
+loaded = load('fmri/particleswarm_target_17_12_14.mat');
 arg_vector = loaded.x;
 CONFIG = 'FMRI';
 
 % Create parallel pool
+tic;
 poolobj = gcp;
 parfor i=1:GROUP_SIZE
     arg_struct = argvectortostruct(arg_vector, CONFIG);
@@ -23,6 +24,7 @@ parfor i=1:GROUP_SIZE
 end
 % Delete parallel pool
 delete(gcp('nocreate'));
+toc;
 
 % Get correlation information from results
 permuted_results = permute(results(:,:,:), [3 2 1]);
@@ -43,4 +45,18 @@ plot(corr_mat(2,:));
 title('MDN');
 subplot(rows,columns,3);
 plot(corr_mat(3,:));
+title('PMC');
+
+% Plot target data
+figure;
+target = load('fmri/targetFMRICorrelations.mat');
+
+subplot(rows,columns,1);
+plot(target.CN);
+title('CN');
+subplot(rows,columns,2);
+plot(target.MDN);
+title('MDN');
+subplot(rows,columns,3);
+plot(target.PMC);
 title('PMC');
