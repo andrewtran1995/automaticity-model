@@ -13,8 +13,10 @@ fun = @automaticityModelOpt;
 nvars = 16;
 % Lower and upper bounds of
 % PMC_DECISION_PT, MC_DECISION_PT, NOISE_PFC, NOISE_PMC, NOISE_MC, NDMA, AMPA, W_MAX, mu_1, sigma_1, mu_2, sigma_2, DELTA_C, DELTA_E, PERSEV, LAMBDA
-lb = [ 500,  500, eps, eps, eps,  200,    0,  0, 1e-10, 1e-10,  1,  1,  1,  1,  1,  1];
-ub = [1500, 2000,   5,   5,  30, 1000, 1000, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
+% lb = [ 500,  500, eps, eps, eps,  200,    0,  0, 1e-10, 1e-10,  1,  1,  1,  1,  1,  1];
+% ub = [1500, 2000,   5,   5,  30, 1000, 1000, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
+lb = [  0,   0, eps, eps, eps,   0,   0,  0,    0,   0,   0,   0,   0,   0,   0,   0];
+ub = [inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...
