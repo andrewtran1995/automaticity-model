@@ -1,17 +1,8 @@
-function displayautoresults( input_struct )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, LEARNING_TRIALS, LEARNING_IDX, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all*
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    %% Extract variables from input_struct into current workspace
-    % May want to look into this instead:
-    % https://www.mathworks.com/help/matlab/ref/tempname.html
-%     varnames = fieldnames(input_struct);
-%     for varidx=1:length(varnames)
-%         eval([varnames{varidx} '=input_struct.' varnames{varidx}]);
-%     end
-    load(input_struct);
-    delete(input_struct);
     %% Figure 1 - neuron information from last trial or throughout trials
     figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
     rows = 3; columns = 4;
