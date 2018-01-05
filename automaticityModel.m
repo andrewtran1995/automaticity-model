@@ -83,11 +83,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 0;
+    SUPPRESS_UI           = 1;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
     BUTTON_SWITCH_ENABLED = 0;
-    PERF_TEST             = 1; % Enable/disable performance output
+    PERF_TEST             = 0; % Enable/disable performance output
     
     % Override values with optional_parms if it was passed as an argument
     if nargin == 2
