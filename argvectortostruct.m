@@ -15,16 +15,16 @@ function [ arg_struct ] = argvectortostruct( arg_vector, configuration )
     params.W_MAX           = arg_vector(8);
 
     % Get normal distribution parameters for certain model parms
-    mu_1                   = arg_vector(9);
-    sigma_1                = arg_vector(10);
-    mu_2                   = arg_vector(11);
-    sigma_2                = arg_vector(12);
-    params.HEB_CONSTS      = max(eps, normrnd(mu_1, sigma_1));
-    params.PFC_A_W_OUT_MDN = max(eps, normrnd(mu_2, sigma_2));
-    params.PFC_B_W_OUT_MDN = max(eps, normrnd(mu_2, sigma_2));
-    params.DRIV_PFC_W_OUT  = max(eps, normrnd(mu_2, sigma_2));
-    params.MDN_A_W_OUT     = max(eps, normrnd(mu_2, sigma_2));
-    params.MDN_B_W_OUT     = max(eps, normrnd(mu_2, sigma_2));
+    rnd_1                  = arg_vector(9);
+    rnd_2                  = arg_vector(10);
+    rnd_3                  = arg_vector(11);
+    rnd_4                  = arg_vector(12);
+    params.HEB_CONSTS      = autoparmrnd(rnd_1, rnd_2);
+    params.PFC_A_W_OUT_MDN = autoparmrnd(rnd_3, rnd_4);
+    params.PFC_B_W_OUT_MDN = autoparmrnd(rnd_3, rnd_4);
+    params.DRIV_PFC_W_OUT  = autoparmrnd(rnd_3, rnd_4);
+    params.MDN_A_W_OUT     = autoparmrnd(rnd_3, rnd_4);
+    params.MDN_B_W_OUT     = autoparmrnd(rnd_3, rnd_4);
     
     % Set static values for COVIS
     params.COVIS_DELTA_C   = arg_vector(13);

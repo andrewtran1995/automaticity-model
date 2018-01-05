@@ -19,7 +19,7 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
                                 'visualinput', zeros(2));
 
         % Call automaticity model function
-        [~, retval] = automaticityModelFast_mex(arg_struct, optional_parms);
+        [~, retval] = automaticityModel_mex(arg_struct, optional_parms);
         
         % Assign values for correlation
         CN(i,:)  = retval(1,:);

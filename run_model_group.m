@@ -20,7 +20,7 @@ parfor i=1:GROUP_SIZE
     optional_parms = struct('FMRI_META_GROUP_RUN', 1, ...
                             'VIS_INPUT_FROM_PARM', 1, ...
                             'visualinput', visualinput);
-    [~,results(:,:,i)] = automaticityModelFast_mex(arg_struct, optional_parms);
+    [~,results(:,:,i)] = automaticityModel_mex(arg_struct, optional_parms);
 end
 % Delete parallel pool
 delete(gcp('nocreate'));
