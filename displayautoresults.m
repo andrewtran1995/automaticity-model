@@ -1,4 +1,4 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, LEARNING_TRIALS, LEARNING_IDX, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, LEARNING_IDX, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all*
 %   variables from the Automaticity Model workspace to be passed in.
@@ -34,7 +34,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, FMRI_META, CONFIGURAT
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', r_y, r_x, VISUAL.STIM));
+    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.r_y, VISUAL.r_x, VISUAL.STIM));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
