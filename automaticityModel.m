@@ -57,11 +57,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = MADDOX;
+    CONFIGURATION = FMRI;
 
     % Declare automaticity param struct and get parameters
     coder.extrinsic('getAutomaticityParams','displayautoresults');
-    coder.extrinsic('tic','toc');
+    coder.extrinsic('tic','toc','struct2table');
     coder.varsize('chosen_rule');
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
@@ -83,7 +83,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 1;
+    SUPPRESS_UI           = 0;
+    OPTIMIZATION_CALC     = 0;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
     BUTTON_SWITCH_ENABLED = 0;
@@ -377,7 +378,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %  ============================  %
 
-    if PERF_TEST; start_time = tic; end;
+    start_time = tic;
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
     t = (0:n)';
@@ -385,7 +386,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     
     %% Learning trials
     for j=1:TRIALS
-        if PERF_TEST; loopStart = tic; end;
+        loopStart = tic;
         %% Initialize appropriate variables for each loop
         % Spiking rate of each neuron
         PFC_A.spikes = 0; PFC_B.spikes = 0; PMC_A.spikes = 0; PMC_B.spikes = 0; MC_A.spikes = 0; MC_B.spikes = 0;
@@ -472,7 +473,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.v_stim = PMC_B.v_stim * PMC.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
-        if PERF_TEST; timeTrialStart = tic; end;
+        timeTrialStart = tic;
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
@@ -707,10 +708,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         MDN.activations(j) = trapz(MDN_A.out + MDN_B.out);
         PMC.activations(j) = trapz(PMC.alpha(j,:));
         MC.activations(j) = trapz(MC_A.out + MC_B.out);
-        if PERF_TEST; trial_times(j) = toc(timeTrialStart); end;
+        trial_times(j) = toc(timeTrialStart);
 
         %% Determine decision neuron and reaction time, and record accuracy
-        if PERF_TEST; rt_start_time = tic; end;
+        rt_start_time = tic;
         % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
         PFC.rx_matrix(j,:) = [neuron_id_PFC, latency, VISUAL.r_group];
@@ -724,7 +725,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         else
             accuracy(j) = double((any(VISUAL.r_x == RULE.B_X) && any(VISUAL.r_y == RULE.B_Y)) + 1) == neuron_id_MC;
         end
-        if PERF_TEST; rt_calc_times(j) = toc(rt_start_time); end;
+        rt_calc_times(j) = toc(rt_start_time);
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
@@ -811,65 +812,63 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
 
         %% Print data to console
-        if not(SUPPRESS_UI) && mod(j,1) == 100
+        if not(SUPPRESS_UI) && mod(j,1) == 0
             fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
         end
-        if PERF_TEST; loop_times(j) = toc(loopStart); end;
+        loop_times(j) = toc(loopStart);
     end
     
     %% ========================================= %%
     %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
     %  =========================================  %
-    % Calculate Sum of Squared Errors of Prediction (SSE)
     opt_val_1 = 0;
     opt_val_2 = zeros(4,4);
-    if CONFIGURATION == MADDOX
-        opt_val_1 = 0;
-    elseif CONFIGURATION == WALLIS
-        opt_val_1 = 0;
-    elseif CONFIGURATION == FMRI
-        if ~FMRI_META.GROUP_RUN
-            target = load('fmri/targetMeans1dCondition.mat');
-            % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-            output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
-                          mean(accuracy(FMRI_META.SES_4)), ...
-                          mean(accuracy(FMRI_META.SES_10)), ...
-                          mean(accuracy(FMRI_META.SES_20))];
-            % Calculate Mean Median RT for trials from Session 4, 10, and 20
-            % Reaction times must be converted from ms to seconds
-            norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
-                              median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
-            % Weight reaction time greater than accuracy
-            target_diff = [target.means1dCondition(1,:) - output_acc;
-                           (target.means1dCondition(2,:) - norm_output_rt)*20];
-            opt_val_1 = sum(sum(target_diff.^2));
-        else
-            % Set parameter values of hrf
-            t1 = 1; n = 4; lamda = 2;
-            % Define time axis
-            t = 1:LEARNING_TRIALS;
-            % Create hrf
-            hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
-            % Get value for opt_val_2
-            opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
-                         mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
+    % Calculate Sum of Squared Errors of Prediction (SSE)
+    if OPTIMIZATION_CALC
+        if CONFIGURATION == MADDOX
+            opt_val_1 = 0;
+        elseif CONFIGURATION == WALLIS
+            opt_val_1 = 0;
+        elseif CONFIGURATION == FMRI
+            if ~FMRI_META.GROUP_RUN
+                target = load('fmri/targetMeans1dCondition.mat');
+                % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+                output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                              mean(accuracy(FMRI_META.SES_4)), ...
+                              mean(accuracy(FMRI_META.SES_10)), ...
+                              mean(accuracy(FMRI_META.SES_20))];
+                % Calculate Mean Median RT for trials from Session 4, 10, and 20
+                % Reaction times must be converted from ms to seconds
+                norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
+                                  median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+                % Weight reaction time greater than accuracy
+                target_diff = [target.means1dCondition(1,:) - output_acc;
+                               (target.means1dCondition(2,:) - norm_output_rt)*20];
+                opt_val_1 = sum(sum(target_diff.^2));
+            else
+                % Set parameter values of hrf
+                t1 = 1; n = 4; lamda = 2;
+                % Define time axis
+                t = 1:LEARNING_TRIALS;
+                % Create hrf
+                hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+                % Get value for opt_val_2
+                opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
+                             get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
+                             mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
+            end
         end
     end
     %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
-    % Return prematurely if we are suppressing UI output
-    % (e.g., for global optimization)
-    if SUPPRESS_UI
-        return;
-    else
-    % Dynamically store all variables in current workspace in struct for function
-        displayautoresults(FROST_ENABLED, COVIS_ENABLED, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, LEARNING_TRIALS, LEARNING_IDX, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
+    if not(SUPPRESS_UI)
+        displayautoresults(FROST_ENABLED, COVIS_ENABLED, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, LEARNING_IDX, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
     end
+    return;
 end
 
 %% =============================== %%
