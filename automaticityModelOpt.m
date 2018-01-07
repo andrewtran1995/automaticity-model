@@ -10,8 +10,7 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
     PMC = zeros(GROUP_SIZE, 4);
     acc = zeros(GROUP_SIZE, 4);
     
-    for i = 1:GROUP_SIZE
-        disp('Starting stuff');
+    parfor i = 1:GROUP_SIZE
         arg_struct = argvectortostruct(arg_vector, CONFIG);
 
         % Populate second function argument
@@ -20,7 +19,6 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
                                 'visualinput', zeros(2));
 
         % Call automaticity model function
-        disp('Calling stuff');
         [~, retval] = automaticityModel_mex(arg_struct, optional_parms);
         
         % Assign values for correlation

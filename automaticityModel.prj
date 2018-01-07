@@ -1,5 +1,5 @@
 <deployment-project plugin="plugin.coder" plugin-version="R2016a">
-  <configuration build-checksum="2021873800" file="C:\Users\andre\GitHub\automaticity-model\automaticityModel.prj" location="C:\Users\andre\GitHub\automaticity-model" name="automaticityModel" target="target.unifiedcoder" target-name="MATLAB Coder">
+  <configuration build-checksum="472148016" file="D:\Users\Andrew\GitHub\automaticity-model\automaticityModel.prj" location="D:\Users\Andrew\GitHub\automaticity-model" name="automaticityModel" target="target.unifiedcoder" target-name="MATLAB Coder">
     <profile key="profile.mex">
       <param.BuiltInstrumentedMex>false</param.BuiltInstrumentedMex>
       <param.RanInstrumentedMex>false</param.RanInstrumentedMex>
@@ -52,7 +52,7 @@
       <param.InitFltsAndDblsToZero>true</param.InitFltsAndDblsToZero>
       <param.ConstantInputs>option.ConstantInputs.CheckValues</param.ConstantInputs>
       <param.EnableCRICodeCoverage>true</param.EnableCRICodeCoverage>
-      <param.EnableJIT>false</param.EnableJIT>
+      <param.EnableJIT>true</param.EnableJIT>
       <param.EnableJITSilentBailOut>false</param.EnableJITSilentBailOut>
       <param.CheckForIssuesJIT>true</param.CheckForIssuesJIT>
       <unset>
@@ -106,38 +106,37 @@
         <param.InitFltsAndDblsToZero />
         <param.ConstantInputs />
         <param.EnableCRICodeCoverage />
-        <param.EnableJIT />
         <param.EnableJITSilentBailOut />
         <param.CheckForIssuesJIT />
       </unset>
     </profile>
     <profile key="profile.c">
-      <param.grt.GenCodeOnly>true</param.grt.GenCodeOnly>
+      <param.grt.GenCodeOnly>false</param.grt.GenCodeOnly>
       <param.WorkingFolder>option.WorkingFolder.Project</param.WorkingFolder>
       <param.SpecifiedWorkingFolder />
       <param.BuildFolder>option.BuildFolder.Project</param.BuildFolder>
       <param.SpecifiedBuildFolder />
       <param.SearchPaths />
       <param.SaturateOnIntegerOverflow>true</param.SaturateOnIntegerOverflow>
-      <param.PurelyIntegerCode>false</param.PurelyIntegerCode>
-      <param.SupportNonFinite>true</param.SupportNonFinite>
+      <param.PurelyIntegerCode />
+      <param.SupportNonFinite />
       <param.EnableVariableSizing>true</param.EnableVariableSizing>
       <param.DynamicMemoryAllocation>option.DynamicMemoryAllocation.Threshold</param.DynamicMemoryAllocation>
       <param.DynamicMemoryAllocationThreshold>65536</param.DynamicMemoryAllocationThreshold>
       <param.StackUsageMax>200000</param.StackUsageMax>
-      <param.MultiInstanceCode>false</param.MultiInstanceCode>
+      <param.MultiInstanceCode />
       <param.FilePartitionMethod>option.FilePartitionMethod.MapMFileToCFile</param.FilePartitionMethod>
       <param.GenerateComments>true</param.GenerateComments>
-      <param.CommentStyle>option.CommentStyle.Auto</param.CommentStyle>
+      <param.CommentStyle />
       <param.MATLABSourceComments>false</param.MATLABSourceComments>
-      <param.MATLABFcnDesc>true</param.MATLABFcnDesc>
-      <param.DataTypeReplacement>option.DataTypeReplacement.CBuiltIn</param.DataTypeReplacement>
-      <param.ConvertIfToSwitch>false</param.ConvertIfToSwitch>
-      <param.PreserveExternInFcnDecls>true</param.PreserveExternInFcnDecls>
-      <param.EnableSignedLeftShifts>true</param.EnableSignedLeftShifts>
-      <param.EnableSignedRightShifts>true</param.EnableSignedRightShifts>
-      <param.ParenthesesLevel>option.ParenthesesLevel.Nominal</param.ParenthesesLevel>
-      <param.MaxIdLength>31</param.MaxIdLength>
+      <param.MATLABFcnDesc />
+      <param.DataTypeReplacement />
+      <param.ConvertIfToSwitch />
+      <param.PreserveExternInFcnDecls />
+      <param.EnableSignedLeftShifts />
+      <param.EnableSignedRightShifts />
+      <param.ParenthesesLevel />
+      <param.MaxIdLength />
       <param.CustomSymbolStrGlobalVar>$M$N</param.CustomSymbolStrGlobalVar>
       <param.CustomSymbolStrType>$M$N</param.CustomSymbolStrType>
       <param.CustomSymbolStrField>$M$N</param.CustomSymbolStrField>
@@ -145,22 +144,22 @@
       <param.CustomSymbolStrTmpVar>$M$N</param.CustomSymbolStrTmpVar>
       <param.CustomSymbolStrMacro>$M$N</param.CustomSymbolStrMacro>
       <param.CustomSymbolStrEMXArray>emxArray_$M$N</param.CustomSymbolStrEMXArray>
-      <param.CustomSymbolStrEMXArrayFcn>emx$M$N</param.CustomSymbolStrEMXArrayFcn>
+      <param.CustomSymbolStrEMXArrayFcn />
       <param.ReservedNameArray />
-      <param.RuntimeChecks>false</param.RuntimeChecks>
-      <param.Verbose>false</param.Verbose>
+      <param.RuntimeChecks />
+      <param.Verbose />
       <param.GenerateReport>true</param.GenerateReport>
-      <param.GenerateCodeMetricsReport>true</param.GenerateCodeMetricsReport>
-      <param.GenerateCodeReplacementReport>false</param.GenerateCodeReplacementReport>
-      <param.HighlightPotentialDataTypeIssues>false</param.HighlightPotentialDataTypeIssues>
+      <param.GenerateCodeMetricsReport />
+      <param.GenerateCodeReplacementReport />
+      <param.HighlightPotentialDataTypeIssues />
       <param.LaunchReport>false</param.LaunchReport>
-      <param.SILDebugging>false</param.SILDebugging>
-      <param.CodeExecutionProfiling>false</param.CodeExecutionProfiling>
+      <param.SILDebugging />
+      <param.CodeExecutionProfiling />
       <param.DefaultTestFile />
       <param.MergeInstrumentationResults>false</param.MergeInstrumentationResults>
       <param.RanPilSilVerification>false</param.RanPilSilVerification>
       <param.VerificationMode>option.VerificationMode.None</param.VerificationMode>
-      <param.VerificationStatus>option.VerificationStatus.Inactive</param.VerificationStatus>
+      <param.VerificationStatus />
       <param.CustomSourceCode />
       <param.CustomHeaderCode />
       <param.CustomInitializer />
@@ -169,12 +168,12 @@
       <param.CustomSource />
       <param.CustomLibrary />
       <param.PostCodeGenCommand />
-      <param.TargetLangStandard>C89/C90 (ANSI)</param.TargetLangStandard>
-      <param.CodeReplacementLibrary>None</param.CodeReplacementLibrary>
+      <param.TargetLangStandard />
+      <param.CodeReplacementLibrary />
       <param.DeprecatedCRLFlag />
       <param.SameHardware>true</param.SameHardware>
       <param.Toolchain>Automatically locate an installed toolchain</param.Toolchain>
-      <param.BuildConfiguration>Faster Builds</param.BuildConfiguration>
+      <param.BuildConfiguration />
       <param.CustomToolchainOptions />
       <var.ToolchainSettingsVisible />
       <param.target.Data />
@@ -222,19 +221,19 @@
       <param.HardwareAtomicIntegerSize.Target>option.HardwareAtomicIntegerSize.Char</param.HardwareAtomicIntegerSize.Target>
       <param.HardwareAtomicFloatSize.Target>option.HardwareAtomicFloatSize.None</param.HardwareAtomicFloatSize.Target>
       <param.HardwareDivisionRounding.Target>option.HardwareDivisionRounding.Zero</param.HardwareDivisionRounding.Target>
-      <param.CastingMode>option.CastingMode.Nominal</param.CastingMode>
-      <param.IndentStyle>option.IndentStyle.K&amp;R</param.IndentStyle>
-      <param.IndentSize>2</param.IndentSize>
+      <param.CastingMode />
+      <param.IndentStyle />
+      <param.IndentSize />
       <param.ConstantFoldingTimeout>40000</param.ConstantFoldingTimeout>
       <param.CompileTimeRecursionLimit>50</param.CompileTimeRecursionLimit>
       <param.EnableRuntimeRecursion>true</param.EnableRuntimeRecursion>
-      <param.IncludeTerminateFcn>true</param.IncludeTerminateFcn>
+      <param.IncludeTerminateFcn />
       <param.GenerateExampleMain>option.GenerateExampleMain.GenerateCodeOnly</param.GenerateExampleMain>
       <param.PreserveVariableNames>option.PreserveVariableNames.None</param.PreserveVariableNames>
       <param.TargetLang>option.TargetLang.C</param.TargetLang>
       <param.CCompilerOptimization />
       <param.CCompilerCustomOptimizations />
-      <param.GenerateMakefile>true</param.GenerateMakefile>
+      <param.GenerateMakefile />
       <param.BuildToolEnable>false</param.BuildToolEnable>
       <param.MakeCommand />
       <param.TemplateMakefile />
@@ -242,14 +241,14 @@
       <param.InlineThreshold>10</param.InlineThreshold>
       <param.InlineThresholdMax>200</param.InlineThresholdMax>
       <param.InlineStackLimit>4000</param.InlineStackLimit>
-      <param.EnableStrengthReduction>false</param.EnableStrengthReduction>
+      <param.EnableStrengthReduction />
       <param.EnableMemcpy>true</param.EnableMemcpy>
       <param.MemcpyThreshold>64</param.MemcpyThreshold>
       <param.EnableOpenMP>true</param.EnableOpenMP>
       <param.InitFltsAndDblsToZero>true</param.InitFltsAndDblsToZero>
-      <param.PassStructByReference>true</param.PassStructByReference>
+      <param.PassStructByReference />
       <param.CustomLAPACKCallback />
-      <param.UseECoderFeatures>false</param.UseECoderFeatures>
+      <param.UseECoderFeatures />
       <unset>
         <param.WorkingFolder />
         <param.SpecifiedWorkingFolder />
@@ -721,14 +720,14 @@
       </unset>
     </profile>
     <param.objective>option.objective.c</param.objective>
-    <param.WorkflowStep>verifyCompatibility</param.WorkflowStep>
+    <param.WorkflowStep>workflowSummary</param.WorkflowStep>
     <param.TestSnippets>
       <item>tempscript</item>
     </param.TestSnippets>
     <param.DefaultImportExportVariable>config</param.DefaultImportExportVariable>
     <param.RowMajor>false</param.RowMajor>
     <param.UseGlobals>option.UseGlobals.No</param.UseGlobals>
-    <param.outputfile>${PROJECT_ROOT}\codegen\lib\automaticityModel\automaticityModel.lib</param.outputfile>
+    <param.outputfile>${PROJECT_ROOT}\automaticityModel_mex.mexw64</param.outputfile>
     <param.version>R2012a</param.version>
     <param.HasECoderFeatures>false</param.HasECoderFeatures>
     <param.mex.mainhtml />
@@ -741,29 +740,29 @@
     <param.AutoInferUnboundedSizeThreshold>2048</param.AutoInferUnboundedSizeThreshold>
     <param.EnableFixedPointStep>false</param.EnableFixedPointStep>
     <param.EnableScreener>true</param.EnableScreener>
-    <param.AnnotationChecksum>3415333271</param.AnnotationChecksum>
+    <param.AnnotationChecksum>3388991972</param.AnnotationChecksum>
     <var.LegacyTarget />
     <var.MirrorOnOpen>false</var.MirrorOnOpen>
     <param.FixedPointEnabled>false</param.FixedPointEnabled>
     <var.redirectedInputTypeData />
     <var.DismissScreener>true</var.DismissScreener>
     <param.unifiedParamStorage />
-    <var.gc.lastOutputRoot />
-    <var.gc.lastOutputType />
-    <var.gc.preBuildChecksum />
+    <var.gc.lastOutputRoot>codegen\mex\automaticityModel</var.gc.lastOutputRoot>
+    <var.gc.lastOutputType>MEX_FILE</var.gc.lastOutputType>
+    <var.gc.preBuildChecksum>2111551415</var.gc.preBuildChecksum>
     <var.cfi.lastOutputRoot>codegen\mex\automaticityModel</var.cfi.lastOutputRoot>
-    <var.cfi.preBuildChecksum>4247116162</var.cfi.preBuildChecksum>
+    <var.cfi.preBuildChecksum>748673812</var.cfi.preBuildChecksum>
     <var.lastCfiTestSnippet>tempscript</var.lastCfiTestSnippet>
     <var.outdatedOnRestore>false</var.outdatedOnRestore>
-    <var.lastUserSourceChecksum />
-    <var.sourceSetState>&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;&lt;sourceModel&gt;&lt;primarySourceFiles&gt;&lt;file&gt;C:\Users\andre\GitHub\automaticity-model\absorbstruct.m&lt;/file&gt;&lt;file&gt;C:\Users\andre\GitHub\automaticity-model\areparamsvalid.m&lt;/file&gt;&lt;file&gt;C:\Users\andre\GitHub\automaticity-model\automaticityModel.m&lt;/file&gt;&lt;/primarySourceFiles&gt;&lt;fixedPointSourceFiles/&gt;&lt;fixedPointSourceRegistered&gt;false&lt;/fixedPointSourceRegistered&gt;&lt;fixedPointSourceSelected&gt;false&lt;/fixedPointSourceSelected&gt;&lt;/sourceModel&gt;</var.sourceSetState>
+    <var.lastUserSourceChecksum>&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;&lt;checksum&gt;&lt;includedFiles&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\absorbstruct.m&lt;/file&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\areparamsvalid.m&lt;/file&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\automaticityModel.m&lt;/file&gt;&lt;/includedFiles&gt;&lt;value&gt;984482019&lt;/value&gt;&lt;/checksum&gt;</var.lastUserSourceChecksum>
+    <var.sourceSetState>&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;&lt;sourceModel&gt;&lt;primarySourceFiles&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\absorbstruct.m&lt;/file&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\areparamsvalid.m&lt;/file&gt;&lt;file&gt;D:\Users\Andrew\GitHub\automaticity-model\automaticityModel.m&lt;/file&gt;&lt;/primarySourceFiles&gt;&lt;fixedPointSourceFiles/&gt;&lt;fixedPointSourceRegistered&gt;false&lt;/fixedPointSourceRegistered&gt;&lt;fixedPointSourceSelected&gt;false&lt;/fixedPointSourceSelected&gt;&lt;/sourceModel&gt;</var.sourceSetState>
     <param.forceMexBuild>false</param.forceMexBuild>
     <param.configImportActive>false</param.configImportActive>
     <var.boundToGui>true</var.boundToGui>
     <param.mex.outputfile>automaticityModel_mex</param.mex.outputfile>
     <param.grt.outputfile>automaticityModel</param.grt.outputfile>
-    <param.artifact>option.target.artifact.lib</param.artifact>
-    <param.outputfile>${PROJECT_ROOT}\codegen\lib\automaticityModel\automaticityModel.lib</param.outputfile>
+    <param.artifact>option.target.artifact.mex</param.artifact>
+    <param.outputfile>${PROJECT_ROOT}\automaticityModel_mex.mexw64</param.outputfile>
     <param.EnableAutoExtrinsicCalls>true</param.EnableAutoExtrinsicCalls>
     <param.UsePreconditions>false</param.UsePreconditions>
     <param.FeatureFlags />
@@ -832,15 +831,12 @@
       <param.FixedPointEnabled />
       <var.redirectedInputTypeData />
       <param.unifiedParamStorage />
-      <var.gc.lastOutputRoot />
-      <var.gc.lastOutputType />
-      <var.gc.preBuildChecksum />
       <var.outdatedOnRestore />
-      <var.lastUserSourceChecksum />
       <param.forceMexBuild />
       <param.configImportActive />
       <param.mex.outputfile />
       <param.grt.outputfile />
+      <param.artifact />
       <param.EnableAutoExtrinsicCalls />
       <param.UsePreconditions />
       <param.FeatureFlags />
@@ -888,7 +884,7 @@
     </unset>
     <fileset.entrypoints>
       <file custom-data-expanded="false" value="${PROJECT_ROOT}\automaticityModel.m">
-        <Marker>1515216613744</Marker>
+        <Marker>1515361915266</Marker>
       </file>
     </fileset.entrypoints>
     <fileset.testbench>
@@ -948,7 +944,7 @@
             </type>
             <type typeId="2">
               <Class>double</Class>
-              <Size>:inf x :inf</Size>
+              <Size>:inf x 2</Size>
               <Value />
               <InitialValue />
               <UserDefined>true</UserDefined>
@@ -959,11 +955,11 @@
       </file>
     </fileset.inputtypes>
     <build-deliverables>
-      <file location="${PROJECT_ROOT}\codegen\lib\automaticityModel" name="automaticityModel.lib" optional="false">C:\Users\andre\GitHub\automaticity-model\codegen\lib\automaticityModel\automaticityModel.lib</file>
+      <file location="D:\Users\Andrew\GitHub\automaticity-model" name="automaticityModel_mex.mexw64" optional="false">D:\Users\Andrew\GitHub\automaticity-model\automaticityModel_mex.mexw64</file>
     </build-deliverables>
     <workflow />
     <matlab>
-      <root>C:\Program Files\MATLAB\R2016b</root>
+      <root>D:\Program Files\MATLAB\R2016b</root>
       <toolboxes>
         <toolbox name="matlabcoder" />
       </toolboxes>

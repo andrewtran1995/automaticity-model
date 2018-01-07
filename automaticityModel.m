@@ -83,8 +83,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 0;
-    OPTIMIZATION_CALC     = 0;
+    SUPPRESS_UI           = 1;
+    OPTIMIZATION_CALC     = 1;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
     BUTTON_SWITCH_ENABLED = 0;
@@ -812,7 +812,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
 
         %% Print data to console
-        if not(SUPPRESS_UI) && mod(j,1) == 0
+        if not(SUPPRESS_UI) && mod(j,1) == 500
             fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
         end
         loop_times(j) = toc(loopStart);
