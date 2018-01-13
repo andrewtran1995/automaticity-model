@@ -17,8 +17,8 @@ nvars = 16;
 % ub = [1500, 2000,   5,   5,  30, 1000, 1000, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
 % lb = [  0,   0, eps, eps, eps,   0,   0,  0,    0,   0,   0,   0,   0,   0,   0,   0];
 % ub = [inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf];
-lb = [  0,   0, eps, eps, eps,   0,   0,   0, 1, -inf, 1, -inf,   0,   0,   0,   0];
-ub = [inf, inf, inf, inf, inf, inf, inf, inf, 9,  inf, 9,  inf, inf, inf, inf, inf];
+lb = [  0,   0, eps, eps, eps,   0,   0,   0, 1, -inf,      0,      0,   0,   0,   0,   0];
+ub = [inf, inf, inf, inf, inf, inf, inf, inf, 9,  inf, 100000, 100000, inf, inf, inf, inf];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...
