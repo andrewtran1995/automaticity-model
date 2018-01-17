@@ -19,8 +19,8 @@ function [param_struct] = getAutomaticityParams(configuration)
             error('Improper configuration requested in get_parameters(configuration): %s!', configuration);
     end
     % Initialize configuration-agnostic parameters used in optimization
-    agn_names = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX';'NOISE_PFC';'NOISE_PMC';'NOISE_MC'};
-    agn_vals  = {        1e-8;  600;      0;     10;          2;          2;        10};
+    agn_names = {'HEB_CONSTS';'NMDA';'AMPA';'W_MAX';'NOISE_PFC';'NOISE_PMC';'NOISE_MC';'PMC_A_W_OUT';'PMC_B_W_OUT'};
+    agn_vals  = {        1e-8;  600;      0;     10;          2;          2;        10;            1;            1};
     % FROST Params
     frost_names = {'PFC_A_W_OUT_MDN';'PFC_B_W_OUT_MDN';'DRIV_PFC_W_OUT';'MDN_A_W_OUT';'MDN_B_W_OUT'};
     frost_vals  = {                1;                1;               1;            1;            1};

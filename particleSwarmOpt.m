@@ -10,15 +10,11 @@ If adding an additional parameter in the parameter vector, update argvectortostr
 %% Script body
 % Declare particleswarm arguments, starting with function and num variables
 fun = @automaticityModelOpt;
-nvars = 16;
+nvars = 18;
 % Lower and upper bounds of
-% PMC_DECISION_PT, MC_DECISION_PT, NOISE_PFC, NOISE_PMC, NOISE_MC, NDMA, AMPA, W_MAX, rnd_1, rnd_2, rnd_3, rnd_4, DELTA_C, DELTA_E, PERSEV, LAMBDA
-% lb = [ 500,  500, eps, eps, eps,  200,    0,  0, 1e-10, 1e-10,  1,  1,  1,  1,  1,  1];
-% ub = [1500, 2000,   5,   5,  30, 1000, 1000, 10,  1e-7,  1e-7, 10, 10, 10, 10, 10, 10];
-% lb = [  0,   0, eps, eps, eps,   0,   0,  0,    0,   0,   0,   0,   0,   0,   0,   0];
-% ub = [inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf, inf];
-lb = [  0,   0, eps, eps, eps,   0,   0,   0, 1, -inf,      0,      0,   0,   0,   0,   0];
-ub = [inf, inf, inf, inf, inf, inf, inf, inf, 9,  inf, 100000, 100000, inf, inf, inf, inf];
+% PMC_DECISION_PT, MC_DECISION_PT, NOISE_PFC, NOISE_PMC, NOISE_MC, NDMA, AMPA, W_MAX, PMC_A_W_OUT, PMC_B_W_OUT, rnd_1, rnd_2, rnd_3, rnd_4, DELTA_C, DELTA_E, PERSEV, LAMBDA
+lb = [  0,   0, eps, eps, eps,   0,   0,   0, -15, 0, 1, -inf,      0,      0,   0,   0,   0,   0];
+ub = [inf, inf, inf, inf, inf, inf, inf, inf,  -5, 1, 9,  inf, 100000, 100000, inf, inf, inf, inf];
 % Declare optimization options
 options = optimoptions(@particleswarm, 'UseParallel', true, ...
                                        'Display', 'iter', ...
