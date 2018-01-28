@@ -1,5 +1,5 @@
-function [param_struct] = getAutomaticityParams(configuration)
-%GETAUTOMATICITYPARAMS Get parameters for automaticityModel based on configuration
+function [param_struct] = getautoparams(configuration)
+%GETAUTOPARAMS Get parameters for automaticityModel based on configuration
 %   Get parameters for automaticityModel. Parameters initialized here are
 %   either dependent on the chosen configuration or are exposed in the
 %   param_struct for the purpose of optimizing their value.
