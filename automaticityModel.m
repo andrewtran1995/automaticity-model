@@ -29,17 +29,8 @@ Note that the grid is set up column-major order, with points accessed as
 If debugging, one can observe the workspace of the function by issuing the following
  command before execution: "dbstop if error".
 
-# Converting UI Function to Codegen Function
-* Remove all UI functionality ("Display Results")
-* Remove functions used exclusively for UI functionality
-* Remove variables/statements related to performance testing
-
 # Function Signature
-## Output Variables
-opt_val_1      - return value signifying value of some cost function, used
-                 for global optimization
-opt_val_2      - return value signifying array used in FMRI group run
-## Input Variables / Parameters
+## Input Variables
 arg_struct     - structure of n fields used to pass parameters that are
                  exposed in global optimization; if not specified in
                  non-codegen version, will be given default values based
@@ -48,23 +39,29 @@ arg_struct     - structure of n fields used to pass parameters that are
 optional_parms - struct that may contain additional arguments for the
                  model, typically those that influence things outside of
                  how parameters are set
+## Output Variables
+opt_val_1      - return value signifying value of some cost function, used
+                 for global optimization
+opt_val_2      - return value signifying array used in FMRI group run
+
 %}
 function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
-    %  =======================================  %
+    %  =======================================  %    
+    % Code-generation declarations
+    coder.extrinsic('getautoparams','displayautoresults');
+    coder.extrinsic('tic','toc','struct2table');
+    coder.varsize('chosen_rule');
     
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
     CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
     CONFIGURATION = FMRI;
-
-    % Declare automaticity param struct and get parameters
-    coder.extrinsic('getAutomaticityParams','displayautoresults');
-    coder.extrinsic('tic','toc','struct2table');
-    coder.varsize('chosen_rule');
+    
+    % Get parameters
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
-    PARAMS = getAutomaticityParams(CONFIGURATIONS{CONFIGURATION});
+    PARAMS = getautoparams(CONFIGURATIONS{CONFIGURATION});
     
     % Struct to contain meta-data of FMRI configuration
     FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
@@ -83,7 +80,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 1;
+    SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 1;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
@@ -813,8 +810,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
 
         %% Print data to console
-        if not(SUPPRESS_UI) && mod(j,1) == 500
-            fprintf('~~~ TRIAL #: %d ~~~\n', int64(j));
+        if not(SUPPRESS_UI)
+            consoleprogressbar('TRIALS COMPLETED', j, TRIALS);
         end
         loop_times(j) = toc(loopStart);
     end
@@ -917,4 +914,38 @@ function [corr_vec] = get_FMRI_corr_data(activations, FMRI_META, hrf)
                 mean(boldPMC(FMRI_META.SES_4)), ...
                 mean(boldPMC(FMRI_META.SES_10)), ...
                 mean(boldPMC(FMRI_META.SES_20))];
+end
+
+% Console progress bar
+% Resources used:
+% https://www.mathworks.com/matlabcentral/fileexchange/28067-text-progress-bar
+% https://www.mathworks.com/matlabcentral/fileexchange/30297-consoleprogressbar
+function consoleprogressbar(str, iter, total)
+    % Constants and variable initialization
+    coder.extrinsic('num2str');
+    coder.varsize('STR_CR');
+    BAR_LENGTH = 40;
+    persistent STR_CR_COUNT;
+    if isempty(STR_CR_COUNT)
+        STR_CR_COUNT = 0;
+    end
+    
+    % Create progress bar
+    percentage = iter/total;
+    fullbar = repmat('.', [1, BAR_LENGTH]);
+    completedbar = round(percentage * BAR_LENGTH);
+    fullbar(1:completedbar) = '#';
+    fullbar = ['[', fullbar, ']'];
+    
+    strout = [fullbar, ' ', num2str(iter), '/', num2str(total), ' ', str];
+    
+    % Print bar
+    if iter == 1
+        fprintf(strout);
+    else
+        fprintf([repmat('\b', 1, STR_CR_COUNT), strout]);
+    end
+    
+    % Update carriage return
+    STR_CR_COUNT = length(strout);
 end

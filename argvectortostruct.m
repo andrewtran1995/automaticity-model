@@ -1,7 +1,7 @@
 function [ arg_struct ] = argvectortostruct( arg_vector, configuration )
 %ARGVECTORTOSTRUCT Convert arg_vector into arg_struct compatible w/ automaticityModel
     % Get default parameters for configuration (hardcoded to FMRI)
-    params = getAutomaticityParams(configuration);
+    params = getautoparams(configuration);
 
     % Set static values for base parameters
     params.PMC_DECISION_PT = arg_vector(1);
