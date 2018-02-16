@@ -1,8 +1,10 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, LEARNING_IDX, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all*
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
+    LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
+
     %% Figure 1 - neuron information from last trial or throughout trials
     figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
     rows = 3; columns = 4;
@@ -106,45 +108,73 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, COVIS_VARS, FMRI_META
         scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
     end
 
-    %% Figure 2
-    % Synaptic weight heatmaps with sliders to allow the observation of the heatmap at different intervals in time
+    %% Figure 2 - Synaptic Weight Heatmaps
     % Only relevant if any learning trials were conducted
-    if CONFIGURATION ~= FMRI && LEARNING_TRIALS > 0
-        figure; title('Synaptic Heatmaps');
-        rows = 1; columns = 2;
-        % Force slider to integer/discrete value:
-        % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
-        PMC_A_trial_num = 1;
-        PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
-        subplot(rows,columns,1);
-        data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
-        colormap('hot');
-        imagesc(data3);
-        colorbar;
-        title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
-        slider_PMC_A = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [100 50 300 20]);
-        set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
+    if LEARNING_TRIALS > 0
+        % If not FMRI, assume there is a record for the weights for each trial
+        if CONFIGURATION ~= FMRI
+            figure; title('Synaptic Heatmaps');
+            rows = 1; columns = 2;
+            % Force slider to integer/discrete value:
+            % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
+            PMC_A_trial_num = 1;
+            PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, LEARNING_IDX);
+            subplot(rows,columns,1);
+            data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
+            colormap('hot');
+            imagesc(data3);
+            colorbar;
+            title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
+            slider_PMC_A = uicontrol('Style', 'slider', ...
+                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                     'Value', 1, ...
+                                     'Position', [100 50 300 20]);
+            set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
 
-        PMC_B_trial_num = 1;
-        PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, ...
-                                        BORDER_SIZE:end-BORDER_SIZE, ...
-                                        LEARNING_IDX);
-        subplot(rows,columns,2);
-        data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
-        colormap('hot');
-        imagesc(data4);
-        colorbar;
-        title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
-        slider_PMC_B = uicontrol('Style', 'slider', ...
-                                 'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                 'Value', 1, ...
-                                 'Position', [500 50 300 20]);
-        set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+            PMC_B_trial_num = 1;
+            PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, LEARNING_IDX);
+            subplot(rows,columns,2);
+            data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
+            colormap('hot');
+            imagesc(data4);
+            colorbar;
+            title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
+            slider_PMC_B = uicontrol('Style', 'slider', ...
+                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
+                                     'Value', 1, ...
+                                     'Position', [500 50 300 20]);
+            set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+        % Create figures for button switch
+        elseif CONFIGURATION == FMRI && BUTTON_SWITCH_ENABLED
+            rows = 2; columns = 4;
+            figure; title('Initial Heatmaps');
+            for i=1:4
+                subplot(rows,columns,i);
+                colormap('hot');
+                imagesc(BUTTON_SWITCH.PMC_A_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                title(sprintf('PMC_A Rule %d', i));
+            end
+            for i=1:4
+                subplot(rows,columns,i + 4);
+                colormap('hot');
+                imagesc(BUTTON_SWITCH.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                title(sprintf('PMC_B Rule %d', i));
+            end
+            figure; title('Final Heatmaps');
+            subplot(rows,columns,1);
+            for i=1:4
+                subplot(rows,columns,i);
+                colormap('hot');
+                imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                title(sprintf('PMC_A Rule %d', i));
+            end
+            for i=1:4
+                subplot(rows,columns,i + 4);
+                colormap('hot');
+                imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                title(sprintf('PMC_B Rule %d', i));
+            end
+        end
     end
 
     if CONFIGURATION == MADDOX

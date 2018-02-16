@@ -67,26 +67,30 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
                        'SES_1',      1:480, 'SES_4',    1681:2160, ...
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
-    
-    % Override parameter values if they were specified as inputs
-    % This should be turned into a function
-    if nargin >= 1
-        PARAMS = absorbstruct(PARAMS, arg_struct);
-        if not(areparamsvalid(PARAMS))
-            disp(struct2table(PARAMS));
-            error('Parameters not valid.');
-        end
-    end
 
     % Model parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
     SUPPRESS_UI           = 0;
-    OPTIMIZATION_CALC     = 1;
+    OPTIMIZATION_CALC     = 0;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
-    BUTTON_SWITCH_ENABLED = 0;
+    BUTTON_SWITCH_ENABLED = 1;
     PERF_TEST             = 0; % Enable/disable performance output
     
+    % Override parameter values if they were specified as inputs
+    % This should be turned into a function
+    if nargin >= 1
+        % Determine if parms are valid
+        if not(areparamsvalid(PARAMS))
+            disp(struct2table(PARAMS));
+            error('Parameters not valid.');
+        end
+        if BUTTON_SWITCH_ENABLED && not(COVIS_ENABLED)
+            error('Button switch cannot be enabled without COVIS');
+        end
+        PARAMS = absorbstruct(PARAMS, arg_struct);
+    end
+
     % Override values with optional_parms if it was passed as an argument
     if nargin == 2
         if isfield(optional_parms, 'FMRI_META_GROUP_RUN')
@@ -129,25 +133,31 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
-    % Set behavior and number of trials
-    PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
-    LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
-    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
-    TRIALS               = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS; % Total number of trials
-    % Create matrix to store information on when learning should occur
-    LEARNING     = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
-    LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
-
     % Set properties of grid
     STIM_GRID_SIZE = 100;                          % Length of side of square grid used for visual input; should be an even number
     BORDER_SIZE    = 20;                           % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
     GRID_SIZE      = STIM_GRID_SIZE+2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
     
+    % Button switch must be initialized before TRIALS
+    BUTTON_SWITCH = struct('TRIALS', 600, 'PMC_A_weights', ones(GRID_SIZE,GRID_SIZE,1,4), 'PMC_B_weights', ones(GRID_SIZE,GRID_SIZE,1,4));
+    
+    % Set behavior and number of trials
+    PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;                                   % Number of control trials run before learning trials
+    LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;                                       % Number of learning trials in automaticity experiment
+    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS;                                  % Number of trials where no learning is involved after learning trials
+    if BUTTON_SWITCH_ENABLED
+        TRIALS           = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS + BUTTON_SWITCH.TRIALS;
+        LEARNING         = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS), ones(1,BUTTON_SWITCH.TRIALS)];
+    else
+        TRIALS           = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS;
+        LEARNING         = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
+    end
+    
     % Other parameters
     n = 1000;                     % Time period for one trial (in milliseconds)
-    TAU = 1;
-    LAMBDA = 20;                  % Lambda Value
-    W_MAX = PARAMS.W_MAX;         % maximum possible weight for Hebbian Synapses
+    TAU = 1;                      % Tau
+    LAMBDA = 20;                  % Lambda
+    W_MAX = PARAMS.W_MAX;         % Maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
@@ -179,18 +189,15 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Radial Basis Function
     [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
-    RBF = struct( ...
-        'RADIUS', 0.8, ...
-        'rbv', zeros(GRID_SIZE), ...
-        'X', X, ...
-        'Y', Y ...
-    );
+    RBF = struct('RADIUS', 0.8, 'rbv', zeros(GRID_SIZE), 'X', X, 'Y', Y);
 
     %% COVIS Model
     COVIS_PARMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, ...
                          'LAMBDA', PARAMS.COVIS_LAMBDA, 'NUM_GUESS', 5, 'NUM_RULES', 4);
-    COVIS_VARS = struct('correct_rule', VISUAL.RULES(2), 'rules', 1:COVIS_PARMS.NUM_RULES, 'saliences',     ones(1,4), ...
-                        'rule_weights',       ones(1,4), 'rule_prob',           ones(1,4), 'rule_log', ones(1,TRIALS));
+    COVIS_VARS = struct('correct_rule', VISUAL.RULES(2), 'rules', 1:COVIS_PARMS.NUM_RULES, 'saliences', ones(1,COVIS_PARMS.NUM_RULES), ...
+                        'rule_weights', ones(1,COVIS_PARMS.NUM_RULES), 'rule_prob', ones(1,COVIS_PARMS.NUM_RULES), ...
+                        'rule_log', ones(1,TRIALS));
+    
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC general information
@@ -251,10 +258,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     );
 
     %% Neuron Set-Up
-    % ## Initialize neuron structs to logically group variables
+    % # Initialize neuron structs to logically group variables
     % Many neurons are initialized as pairs, and are identical (except for
     % some exceptions, which are intialized manually)
-    % ## Commonly used struct fields
+    % # Commonly used struct fields
     % W_OUT  | weight of output from one neuron to another (e.g., PFC to PMC or PMC to PFC)
     % out    | output array
     % spikes | variables tracking spiking rate per trial
@@ -375,7 +382,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %  ============================  %
-
     start_time = tic;
     %% Pre-calculations (for performance reasons)
     % Calculate lambda values for individual trials
@@ -422,11 +428,17 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             RULE = VISUAL.RULES(chosen_rule);
         end
         %% Button Switch if enabled and correct trials
-        if BUTTON_SWITCH_ENABLED &&  j==length(TRIALS)
-            chosen_rule = RULE.INVERSE;
-            RULE = VISUAL.RULES(chosen_rule);
+        if BUTTON_SWITCH_ENABLED && j == TRIALS - BUTTON_SWITCH.TRIALS + 1
+            COVIS_VARS.correct_rule = VISUAL.RULES(RULE(1).INVERSE);
+            if CONFIGURATION == FMRI
+                BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
+                BUTTON_SWITCH.PMC_B_weights(:,:,1,:) = PMC_B.weights(:,:,1,:);
+            else
+                BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,j,:);
+                BUTTON_SWITCH.PMC_B_weights(:,:,1,:) = PMC_B.weights(:,:,j,:);
+            end
         end
-        
+
         %% Set PMC weights, potentially dependent on COVIS
         % If first trial, set to initial weights
         if CONFIGURATION == FMRI || j==1
@@ -864,7 +876,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-        displayautoresults(FROST_ENABLED, COVIS_ENABLED, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, LEARNING_IDX, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
+        displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
     end
     return;
 end
