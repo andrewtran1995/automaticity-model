@@ -9,40 +9,46 @@ Run an automaticity model based upon a set of possible configurations:
  2. MADDOX
  3. FMRI
 
-# Programming Conventions
-In general, variables that are written in all capital letters are meant
- to be constant values -- set once in the beginning of the program
- (variable initialization) and nowhere else.
+# General Notes
+Variables written in all capital letters are generally meant
+ to be constant values, initialized once in the beginning of the program
+ and nowhere else.
 
-Structures are used in the program by calling struct(...).
- These structures are meant to "bundle" or "group" together variables that
- have some kind of commonality, e.g., belonging to the same neuron, behavior,
- model, etc. The goal is to enforce readability by standardizing the names of grouped variables
- and making relationships between variables more apparent. Note that this
- has an effect on performance, but it should be negligible.
+Structures are initialized in the program by calling struct(...).
+ These structures are meant to group variables that have some
+ kind of commonality, e.g., belonging to the same neuron, behavior,
+ model, etc. Note that this has a (negligible) effect on performance.
 
-Note that the grid is set up column-major order, with points accessed as
+The grid is set up column-major order, with points accessed as
  grid(y,x), with the origin situated at the top-left corner and axes
  increasing right and down for x and y, respectively.
 
+# MATLAB Code Generation
+This file is compatible with MATLAB Code Generation, which greatly improves
+ runtime. In order to keep it compatible, UI-related logic has been moved
+ into a separate function. Note that this file's function allows optional
+ arguments if being used in the non-codegen version. However, the codegen
+ version of this function does not allow any optional arguments or
+ structure fields: All arguments must be supplied as defined by the
+ function definition.
+
 # Tips/Tricks
-If debugging, one can observe the workspace of the function by issuing the following
- command before execution: "dbstop if error".
+If debugging, one can observe the workspace of the function by
+ issuing the following command before execution: "dbstop if error".
 
 # Function Signature
 ## Input Variables
 arg_struct     - structure of n fields used to pass parameters that are
-                 exposed in global optimization; if not specified in
-                 non-codegen version, will be given default values based
-                 on configuration; if called in codegen version, a full
-                 structure must be provided
-optional_parms - struct that may contain additional arguments for the
-                 model, typically those that influence things outside of
-                 how parameters are set
+                 exposed in global optimization; if any fields are not
+                 specified in the non-codegen version, they will be given
+                 default values based on configuration
+optional_parms - struct that contains additional arguments for the
+                 model separate from specific model parameters
 ## Output Variables
 opt_val_1      - return value signifying value of some cost function, used
                  for global optimization
-opt_val_2      - return value signifying array used in FMRI group run
+opt_val_2      - return value (array) signifying value of cost function
+                 used in FMRI group runs
 
 %}
 function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
@@ -68,17 +74,16 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                        'SES_1',      1:480, 'SES_4',    1681:2160, ...
                        'SES_10', 5161:5640, 'SES_20', 11041:11520);
 
-    % Model parameters (default values)
+    % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
     SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
     BUTTON_SWITCH_ENABLED = 1;
-    PERF_TEST             = 0; % Enable/disable performance output
+    PERF_OUTPUT           = 0;
     
-    % Override parameter values if they were specified as inputs
-    % This should be turned into a function
+    % Validate any supplied arguments
     if nargin >= 1
         % Determine if parms are valid
         if not(areparamsvalid(PARAMS))
@@ -91,7 +96,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PARAMS = absorbstruct(PARAMS, arg_struct);
     end
 
-    % Override values with optional_parms if it was passed as an argument
+    % Override values with optional_parms if passed as an argument
     if nargin == 2
         if isfield(optional_parms, 'FMRI_META_GROUP_RUN')
             FMRI_META.GROUP_RUN = optional_parms.FMRI_META_GROUP_RUN;
@@ -102,30 +107,30 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
     
     %% Load visual stimulus matrix
-    % %% Random Visual Input, 100 x 100 %%
+    % Random Visual Input
     if 0
         loaded_input = load('datasets/randomVisualInput.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
-    % %% Visual Input Matrix from optional_parms struct %%
+    % Visual Input Matrix from optional_parms struct
     elseif VIS_INPUT_FROM_PARM
         r_x_vals = optional_parms.visualinput(:,1);
         r_y_vals = optional_parms.visualinput(:,2);
         r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == MADDOX
-    % %% Random Visual Input to Maddox Grid, 100 X 100 %%
+    % MADDOX
         loaded_input = load('datasets/maddoxVisualInput.mat');
         r_x_vals = loaded_input.maddoxVisualInput(:, 1);
         r_y_vals = loaded_input.maddoxVisualInput(:, 2);
         r_groups = loaded_input.maddoxVisualInput(:, 3);
     elseif CONFIGURATION == WALLIS
-    % %% Wallis Visual Input, 100 X 100 %%
+    % WALLIS
         loaded_input = load('datasets/wallisVisualInput.mat');
         r_x_vals = loaded_input.wallisVisualInput5(:,1);
         r_y_vals = loaded_input.wallisVisualInput5(:,2);
         r_groups = zeros(1, length(r_x_vals));
     elseif CONFIGURATION == FMRI
-    % %% FMRI Visual Input, 100 X 100 %%
+    % FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         r_x_vals = loaded_input.r_x_mat;
         r_y_vals = loaded_input.r_y_mat;
@@ -204,18 +209,18 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     PFC = struct( ...
         'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
         'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
-        'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % Integral value which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PFC neuron reacting during trial
+        'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
     % PMC general information
     PMC = struct( ...
-        'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out way too high
+        'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out too high
         'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
-        'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % Integral value which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3), ...            % Stores information about PMC neuron reacting during trial
-        'alpha', zeros(TRIALS,n), ...
+        'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
+        'rx_matrix', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
+        'alpha', zeros(TRIALS,n), ...                % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
 
@@ -233,12 +238,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % AMPA - lower threshold
     % Strengthening occurs if integral_PMCAvoltage > Hebbian.NMDA
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
-    Hebbian = struct( ...
-        'heb_coef', PARAMS.HEB_CONSTS, ...
-        'anti_heb', PARAMS.HEB_CONSTS, ...
-        'NMDA',     PARAMS.NMDA, ...
-        'AMPA',     PARAMS.AMPA ...
-    );
+    Hebbian = struct('heb_coef', PARAMS.HEB_CONSTS, 'anti_heb', PARAMS.HEB_CONSTS, 'NMDA', PARAMS.NMDA, 'AMPA', PARAMS.AMPA);
 
     %% Neuron constants
     % RSN (Regular Spiking Neuron): cortical regular spiking neuron
@@ -876,7 +876,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-        displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_TEST, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
+        displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
     end
     return;
 end
