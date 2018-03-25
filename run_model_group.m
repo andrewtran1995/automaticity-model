@@ -1,5 +1,5 @@
 % Add createFMRIInput function to path
-addpath('matGenerationScripts');
+addpath('visinputgen');
 
 % Set number of subjects and result matrix
 GROUP_SIZE = 12;
