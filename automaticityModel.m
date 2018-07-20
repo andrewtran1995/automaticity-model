@@ -435,7 +435,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && j == TRIALS - BUTTON_SWITCH.TRIALS + 1
-            COVIS_VARS.correct_rule = VISUAL.RULES(RULE(1).INVERSE);
+            % COVIS_VARS.correct_rule = VISUAL.RULES(RULE(1).INVERSE);
             [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             if CONFIGURATION == FMRI
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
