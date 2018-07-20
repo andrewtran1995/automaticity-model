@@ -164,6 +164,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     LAMBDA = 20;                  % Lambda
     W_MAX = PARAMS.W_MAX;         % Maximum possible weight for Hebbian Synapses
     INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
+    INIT_MC_WEIGHT = 0.08;        % Initial weight for MC neurons
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
     
@@ -230,7 +231,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'W_LI', 2, ...
         'DECISION_PT', PARAMS.MC_DECISION_PT, ...
         'rx_matrix', zeros(TRIALS,3), ...
-        'activations', zeros(TRIALS,1) ...
+        'activations', zeros(TRIALS,1), ...
+        'PRIMARY_WEIGHT', 0.9, ...
+        'SECONDARY_WEIGHT', 0.1 ...
     );
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
@@ -291,12 +294,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         else
             WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,1);
         end
+        MC_WEIGHTS_MATRIX = INIT_MC_WEIGHT*ones(2,1);
     else
         if COVIS_ENABLED
             WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS,4);
         else
             WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
         end
+        MC_WEIGHTS_MATRIX = INIT_MC_WEIGHT*ones(2,TRIALS);
     end
     
     % PMC - Premotor Cortex
@@ -322,6 +327,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'v', repmat(RSN.rv,n,1), ...
         'u', zeros(n,1), ...
         'pos_volt', zeros(n,1), ...
+        'weights', MC_WEIGHTS_MATRIX, ...
         'v_stim', 0 ...
     );
     MC_B = MC_A;
@@ -430,6 +436,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && j == TRIALS - BUTTON_SWITCH.TRIALS + 1
             COVIS_VARS.correct_rule = VISUAL.RULES(RULE(1).INVERSE);
+            [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             if CONFIGURATION == FMRI
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
                 BUTTON_SWITCH.PMC_B_weights(:,:,1,:) = PMC_B.weights(:,:,1,:);
@@ -449,6 +456,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 PMC_A_weights = PMC_A.weights(:,:,1);
                 PMC_B_weights = PMC_B.weights(:,:,1);
             end
+            MC_A_weights = MC_A.weights(:,:,1);
+            MC_B_weights = MC_B.weights(:,:,1);
         % Else, set weights to results of previous trial
         else
             if COVIS_ENABLED
@@ -458,6 +467,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 PMC_A_weights = PMC_A.weights(:,:,j-1);
                 PMC_B_weights = PMC_B.weights(:,:,j-1);
             end
+            MC_A_weights = MC_A.weights(:,:,j-1);
+            MC_B_weights = MC_B.weights(:,:,j-1);
         end
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
@@ -528,7 +539,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
                 
                 % MC_A Neuron
-                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*PMC_A.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*MC.PRIMARY_WEIGHT*MC_A_weights(1)*PMC_A.out(i) + PMC_B.W_OUT*MC.SECONDARY_WEIGHT*MC_B_weights(2)*PMC_B.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
                 MC_A.u(i+1)=MC_A.u(i)+TAU*RSN.a*(RSN.b*(MC_A.v(i)-RSN.rv)-MC_A.u(i));
                 if MC_A.v(i+1)>=RSN.vpeak
                     MC_A.v(i)= RSN.vpeak;
@@ -538,7 +549,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
                 
                 % MC_B Neuron
-                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*MC.PRIMARY_WEIGHT*MC_B_weights(1)*PMC_B.out(i) + PMC_A.W_OUT*MC.SECONDARY_WEIGHT*MC_A_weights(2)*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
                 MC_B.u(i+1)=MC_B.u(i)+TAU*RSN.a*(RSN.b*(MC_B.v(i)-RSN.rv)-MC_B.u(i));
                 if MC_B.v(i+1)>=RSN.vpeak
                     MC_B.v(i)= RSN.vpeak;
@@ -679,7 +690,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
                 
                 % MC_A Neuron
-                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*PMC_A.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_A.v(i+1)=(MC_A.v(i) + TAU*(RSN.k*(MC_A.v(i)-RSN.rv)*(MC_A.v(i)-RSN.vt)-MC_A.u(i)+ RSN.E + (PMC_A.W_OUT*MC.PRIMARY_WEIGHT*MC_A_weights(1)*PMC_A.out(i) + PMC_B.W_OUT*MC.SECONDARY_WEIGHT*MC_B_weights(2)*PMC_B.out(i)) - MC.W_LI*MC_B.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
                 MC_A.u(i+1)=MC_A.u(i)+TAU*RSN.a*(RSN.b*(MC_A.v(i)-RSN.rv)-MC_A.u(i));
                 if MC_A.v(i+1)>=RSN.vpeak
                     MC_A.v(i)= RSN.vpeak;
@@ -689,7 +700,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 end
                 
                 % MC_B Neuron
-                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
+                MC_B.v(i+1)=(MC_B.v(i) + TAU*(RSN.k*(MC_B.v(i)-RSN.rv)*(MC_B.v(i)-RSN.vt)-MC_B.u(i)+ RSN.E + (PMC_B.W_OUT*MC.PRIMARY_WEIGHT*MC_B_weights(1)*PMC_B.out(i) + PMC_A.W_OUT*MC.SECONDARY_WEIGHT*MC_A_weights(2)*PMC_B.out(i)) - MC.W_LI*MC_A.out(i) )/RSN.C) + normrnd(0,NOISE.MC);
                 MC_B.u(i+1)=MC_B.u(i)+TAU*RSN.a*(RSN.b*(MC_B.v(i)-RSN.rv)-MC_B.u(i));
                 if MC_B.v(i+1)>=RSN.vpeak
                     MC_B.v(i)= RSN.vpeak;
@@ -709,6 +720,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PFC_B.pos_volt(PFC_B.v > 0) = PFC_B.v(PFC_B.v > 0);
         PMC_A.pos_volt(PMC_A.v > 0) = PMC_A.v(PMC_A.v > 0);
         PMC_B.pos_volt(PMC_B.v > 0) = PMC_B.v(PMC_B.v > 0);
+        MC_A.pos_volt(MC_A.v > 0) = MC_A.v(MC_A.v > 0);
+        MC_B.pos_volt(MC_B.v > 0) = MC_B.v(MC_B.v > 0);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
         % Record total neuron activations
@@ -760,7 +773,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputA)*g_t_1_A.*(W_MAX - PMC_A_weights) - (Hebbian.anti_heb)*(integral_visinputA)*g_t_2_A.*PMC_A_weights);
+            PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_visinputA*g_t_1_A.*(W_MAX - PMC_A_weights) - Hebbian.anti_heb*integral_visinputA*g_t_2_A.*PMC_A_weights);
             PMC_A.weights(:,:,k,el) = PMC_A_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
@@ -778,16 +791,41 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*((Hebbian.heb_coef)*(integral_visinputB)*g_t_1_B.*(W_MAX - PMC_B_weights) - (Hebbian.anti_heb)*(integral_visinputB)*g_t_2_B.*PMC_B_weights);
+            PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_visinputB*g_t_1_B.*(W_MAX - PMC_B_weights) - Hebbian.anti_heb*integral_visinputB*g_t_2_B.*PMC_B_weights);
             PMC_B.weights(:,:,k,el) = PMC_B_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
             PMC_B.weights(:,:,k,el) = max(PMC_B.weights(:,:,k,el), 0);
-            PMC_B.weights(:,:,k,el) = min(PMC_B.weights(:,:,k,el), W_MAX); 
+            PMC_B.weights(:,:,k,el) = min(PMC_B.weights(:,:,k,el), W_MAX);
+            
+            %% Calculation of Hebbian Weights for MC_A
+            integral_MCAvoltage = trapz(MC_A.pos_volt);
+            g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA);
+            g_t_2_MCA = max(0, Hebbian.NMDA - integral_MCAvoltage - Hebbian.AMPA);
+            
+            MC_A_weights(:,1) = MC_A_weights + Hebbian.heb_coef*integral_PMCAvoltage*g_t_1_MCA.*(W_MAX - MC_A_weights) - Hebbian.anti_heb*integral_PMCAvoltage*g_t_2_MCA.*MC_A_weights;
+            MC_A.weights(:,k) = MC_A_weights;
+            
+            MC_A.weights(:,k) = max(MC_A.weights(:),0);
+            MC_A.weights(:,k) = min(MC_A.weights(:),W_MAX);
+            
+            %% Calculation of Hebbian Weights for MC_B
+            integral_MCBvoltage = trapz(MC_B.pos_volt);
+            g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA);
+            g_t_2_MCB = max(0, Hebbian.NMDA - integral_MCBvoltage - Hebbian.AMPA);
+            
+            MC_B_weights(:,1) = MC_B_weights + Hebbian.heb_coef*integral_PMCBvoltage*g_t_1_MCB.*(W_MAX - MC_B_weights) - Hebbian.anti_heb*integral_PMCBvoltage*g_t_2_MCB.*MC_B_weights;
+            MC_B.weights(:,k) = MC_B_weights;
+            
+            MC_B.weights(:,k) = max(MC_B.weights(:),0);
+            MC_B.weights(:,k) = min(MC_B.weights(:),W_MAX);
+            
         % Else, if not learning, set new weights to previous weights
         else
             PMC_A.weights(:,:,k,el) = PMC_A_weights;
             PMC_B.weights(:,:,k,el) = PMC_B_weights;
+            MC_A.weights(:,k) = MC_A_weights;
+            MC_B.weights(:,k) = MC_B_weights;
         end
         
         % If COVIS is enabled and weight matrix has time dimension, update
