@@ -163,8 +163,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     TAU = 1;                      % Tau
     LAMBDA = 20;                  % Lambda
     W_MAX = PARAMS.W_MAX;         % Maximum possible weight for Hebbian Synapses
+    W_MAX_MC = 100;
     INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
-    INIT_MC_WEIGHT = 0.08;        % Initial weight for MC neurons
+    INIT_MC_WEIGHT = 1;        % Initial weight for MC neurons
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
     
@@ -241,7 +242,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % AMPA - lower threshold
     % Strengthening occurs if integral_PMCAvoltage > Hebbian.NMDA
     % Weakening occurs if Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA > 0, i.e., only if integral_PMCAvoltage < Hebbian.NMDA + Hebbian.AMPA
-    Hebbian = struct('heb_coef', PARAMS.HEB_CONSTS, 'anti_heb', PARAMS.HEB_CONSTS, 'NMDA', PARAMS.NMDA, 'AMPA', PARAMS.AMPA);
+    Hebbian = struct('heb_coef', PARAMS.HEB_CONSTS, 'anti_heb', PARAMS.HEB_CONSTS, 'NMDA', PARAMS.NMDA, 'AMPA', PARAMS.AMPA, ...
+                     'heb_coef_mc', PARAMS.HEB_CONSTS, 'anti_heb_mc', PARAMS.HEB_CONSTS, 'NMDA_MC', PARAMS.NMDA, 'AMPA_MC', PARAMS.AMPA);
 
     %% Neuron constants
     % RSN (Regular Spiking Neuron): cortical regular spiking neuron
@@ -331,6 +333,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'v_stim', 0 ...
     );
     MC_B = MC_A;
+    MC_A_ALL_WEIGHTS = zeros(2,TRIALS);
+    MC_B_ALL_WEIGHTS = zeros(2,TRIALS);
 
     %% FROST Model Neurons
     % Driving signal from PFC
@@ -800,10 +804,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             
             %% Calculation of Hebbian Weights for MC_A
             integral_MCAvoltage = trapz(MC_A.pos_volt);
-            g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA);
-            g_t_2_MCA = max(0, Hebbian.NMDA - integral_MCAvoltage - Hebbian.AMPA);
+            g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA_MC);
+            g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MCAvoltage - Hebbian.AMPA_MC);
             
-            MC_A_weights(:,1) = MC_A_weights + Hebbian.heb_coef*integral_PMCAvoltage*g_t_1_MCA.*(W_MAX - MC_A_weights) - Hebbian.anti_heb*integral_PMCAvoltage*g_t_2_MCA.*MC_A_weights;
+            MC_A_weights(:,1) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCAvoltage*(Hebbian.heb_coef_mc*g_t_1_MCA.*(W_MAX_MC - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
             MC_A.weights(:,k) = MC_A_weights;
             
             MC_A.weights(:,k) = max(MC_A.weights(:),0);
@@ -811,10 +815,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             
             %% Calculation of Hebbian Weights for MC_B
             integral_MCBvoltage = trapz(MC_B.pos_volt);
-            g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA);
-            g_t_2_MCB = max(0, Hebbian.NMDA - integral_MCBvoltage - Hebbian.AMPA);
+            g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA_MC);
+            g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MCBvoltage - Hebbian.AMPA_MC);
             
-            MC_B_weights(:,1) = MC_B_weights + Hebbian.heb_coef*integral_PMCBvoltage*g_t_1_MCB.*(W_MAX - MC_B_weights) - Hebbian.anti_heb*integral_PMCBvoltage*g_t_2_MCB.*MC_B_weights;
+            MC_B_weights(:,1) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCBvoltage*(Hebbian.heb_coef_mc*g_t_1_MCB.*(W_MAX_MC - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
             MC_B.weights(:,k) = MC_B_weights;
             
             MC_B.weights(:,k) = max(MC_B.weights(:),0);
@@ -827,6 +831,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             MC_A.weights(:,k) = MC_A_weights;
             MC_B.weights(:,k) = MC_B_weights;
         end
+        MC_A_ALL_WEIGHTS(:,j) = MC_A_weights;
+        MC_B_ALL_WEIGHTS(:,j) = MC_B_weights;
         
         % If COVIS is enabled and weight matrix has time dimension, update
         % all other weight matrices for this iteration
