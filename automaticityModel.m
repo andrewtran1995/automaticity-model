@@ -846,7 +846,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.weights_avg(j) = mean(mean(PMC_B.weights(:,:,k,el)));
         
         %% COVIS Calculations - readjusting saliences, weights
-        if COVIS_ENABLED
+        if COVIS_ENABLED && j < PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
             % Step 1: Readjust saliences & weights
             if accuracy(j) == 1
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_C;
