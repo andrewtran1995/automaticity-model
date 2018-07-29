@@ -1,4 +1,4 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, PFC_A, PFC_B, PMC_A, PMC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
@@ -7,7 +7,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
     %% Figure 1 - neuron information from last trial or throughout trials
-    figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+    figure;
     rows = 3; columns = 4;
 
     subplot(rows,columns,1); plot(TAU*(1:n),PFC_A.v);
@@ -53,11 +53,11 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     hold on;
     scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
-    title('PMC_A & PMC_B Reaction Time');
+    suplabel('PMC_A & PMC_B Reaction Time', 't');
 
     %% Figure 1B - neuron information from last trial or throughout trials
     if FROST_ENABLED
-        figure; title('Neuron Information from Last Trial, Rx Times, Etc.');
+        figure;
         rows = 7; columns = 2;
 
         subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
@@ -101,12 +101,15 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
         subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
         axis([0 n 0 30]); title('AC_B Output');
+        
+        suplabel('Neuron Information from Last Trial, Rx Times, Etc.');
     end
 
     %% Figure 1C - COVIS
     if COVIS_ENABLED
-        figure; title('COVIS Information');
+        figure;
         scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
+        title('COVIS Information');
     end
 
     %% Figure 2 - Synaptic Weight Heatmaps
@@ -114,10 +117,11 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     if LEARNING_TRIALS > 0
         % If not FMRI, assume there is a record for the weights for each trial
         if CONFIGURATION ~= FMRI
-            figure; title('Synaptic Heatmaps');
+            figure;
             rows = 1; columns = 2;
             % Force slider to integer/discrete value:
             % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
+
             PMC_A_trial_num = 1;
             PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, LEARNING_IDX);
             subplot(rows,columns,1);
@@ -145,6 +149,8 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
                                      'Value', 1, ...
                                      'Position', [500 50 300 20]);
             set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+            
+            suplabel('Synaptic Heatmaps');
         % Create figures for button switch
         elseif CONFIGURATION == FMRI && BUTTON_SWITCH_ENABLED
             rows = 2; columns = 4;
@@ -161,7 +167,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
                 imagesc(BUTTON_SWITCH.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_B Rule %d', i));
             end
-            suplabel('Initial Heatmaps (Upon Button Switch)');
+            suplabel('Initial Heatmaps (Upon Button Switch)', 't');
             figure;
             subplot(rows,columns,1);
             for i=1:4
@@ -176,30 +182,26 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
                 imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_B Rule %d', i));
             end
-            suplabel('Final Heatmaps');
+            suplabel('Final Heatmaps', 't');
         end
     end
 
     if CONFIGURATION == MADDOX
         %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type -- Short, Medium, or Long
+        % CDFs of RTs (reaction times) dependent on stimulus type — Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
-        % Set-up
         PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
         PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
-        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';        
-        figure; title('CDFs of PMC Rx Times (Grouped by Distance)');
+        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';
 
-        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2));
-        set(p1, 'Color', 'r');
+        figure;
+        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2)); set(p1, 'Color', 'r');
         hold on;
-        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2));
-        set(p2, 'Color', 'b');
+        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2)); set(p2, 'Color', 'b');
         hold on;
-        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2));
-        set(p3, 'Color', 'g');
+        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2)); set(p3, 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
-        title('CDFs of RTs by Grouping');
+        suplabel('CDFs of PMC Rx Times (Grouped by Distance)');
 
         %% Figure 4 - Hazard Functions
         % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
@@ -218,54 +220,55 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
 
     %% Figure 5 - Reaction Latency
-    % Compare the latency of the PFC versus the PMC
-    % TODO: factor out x/y labeling
-    f = figure;
-    title('Reaction Latency Histograms');
-    rows = 3; columns = 2;
+    % Histograms of reaction latencies by neuron and trial subsets
+    figure;
+    latencies = {PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PFC Latencies (Pre-Learning)'; ...
+                 PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PMC Latencies (Pre-Learning)'; ...
+                 PFC.rx_matrix(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
+                 PMC.rx_matrix(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
+                 PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
+                 PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PMC Latencies (Post-Learning'};
+    latencies(cellfun(@isempty, latencies(:,1)), :) = [];
+    rows = length(latencies(:,1))/2; columns = 2;
     numBins = 20;
-
-    % Pre-Learning
-    subplot(rows,columns,1);
-    hist(PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (Pre-Learning)');
-    subplot(rows,columns,2);
-    hist(PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (Pre-Learning)');
-    % Learning
-    subplot(rows,columns,3);
-    hist(PFC.rx_matrix(LEARNING_IDX,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (Learning)');
-    subplot(rows,columns,4);
-    hist(PMC.rx_matrix(LEARNING_IDX,2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (Learning)');
-    % Post-Learning
-    subplot(rows,columns,5);
-    hist(PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PFC Latencies (No Learning)');
-    subplot(rows,columns,6);
-    hist(PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), numBins);
-    xlabel('Latency of selectivity for the behavioral response (ms)');
-    ylabel('Number of neurons');
-    title('PMC Latencies (No Learning)');
-
-    %% Figure 6 - Accuracy
+    for i=1:rows*columns
+        subplot(rows,columns,i);
+        hist(latencies{i,1}, numBins);
+        xlabel('Latency of selectivity for the behavioral response (ms)');
+        ylabel('Number of neurons');
+        title(latencies{i,2});
+    end
+    suplabel('Reaction Latency Histograms', 't');
+    
+    %% Figure 6 — Reaction Plots
+    figure;
+    rows = 3; columns = 1;
+    latencies = {PFC.rx_matrix(:,2), PMC.rx_matrix(:,2), MC.rx_matrix(:,2)};
+    latencyTitles = {'PFC Reaction Time', 'PMC Reaction Time', 'MC Reaction Time'};
+    for i=1:3
+        subplot(rows,columns,i);
+        plot(smooth(latencies{i},30));
+        xlim([0, TRIALS]);
+        if BUTTON_SWITCH_ENABLED
+            hold on;
+            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+        end
+        title(latencyTitles{i});
+    end
+    suplabel('Reaction Latencies Over Time', 't');
+    
+    %% Figure 7 - Accuracy
     figure;
     plot(smooth(accuracy, 11), 'b');
+    xlim([0, TRIALS]); ylim([0, 1]);
+    if BUTTON_SWITCH_ENABLED
+       hold on;
+       plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r'); 
+    end
     title('Accuracy');
 
-    %% Figure 7 - Performance Tests
-    % Information regarding the performance, or run-time, of this program
+    %% Figure 8 — Performance Tests
+    % Information regarding the run-time of this program
     if PERF_OUTPUT
         elapsedTime = toc(start_time);
         figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
