@@ -1,7 +1,6 @@
 %% Particle swarm script
 %{
-Calls automaticityModelOpt, a wrapper to automaticityModel_mex, to
-globally optimize the function for a set of parameters.
+Calls automaticityModelOpt to globally optimize the function for a set of parameters.
 BEFORE RUNNING: automaticityModel_mex must be successfully compiled. In order
 to compile it, run automaticityModel_script first, and ensure that the code
 is successfully generated (no error report).
