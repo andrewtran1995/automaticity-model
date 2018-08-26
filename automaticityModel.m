@@ -56,8 +56,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %  =======================================  %    
     % Code-generation declarations
     coder.extrinsic('getautoparams','displayautoresults');
-    coder.extrinsic('tic','toc','struct2table');
+    coder.extrinsic('tic','toc','struct2table','addpath');
     coder.varsize('chosen_rule');
+    addpath('classes');
     
     % Load configuration and config parameters
     MADDOX = 1; WALLIS = 2; FMRI = 3;
@@ -162,9 +163,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     TAU = 1;                      % Tau
     LAMBDA = 20;                  % Lambda
     W_MAX = PARAMS.W_MAX;         % Maximum possible weight for Hebbian Synapses
-    W_MAX_MC = 100;
-    INIT_PMC_WEIGHT = 0.08;       % Initial weight for PMC neurons
-    INIT_MC_WEIGHT = 1;        % Initial weight for MC neurons
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
     
@@ -208,18 +206,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %% General settings for PFC, PMC neurons
     % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC general information
-    PFC = struct( ...
-        'V_SCALE', 1, ...                            % scaling factor for visual input into PFC neurons
-        'W_LI', 2, ...                               % lateral inhibition between PFC A / PFC B
+    PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
         'rx_matrix', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
     % PMC general information
-    PMC = struct( ...
-        'V_SCALE', 1, ...                            % can use to scale PMC visual input value if it comes out too high
-        'W_LI', 2, ...                               % lateral inhibition between PMC A / PMC B
+    PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
         'rx_matrix', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
         'alpha', zeros(TRIALS,n), ...                % PMC_A.out + PMC_B.out
@@ -228,8 +222,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % MC general parameters
     MC = struct( ...
-        'V_SCALE', 1, ...
-        'W_LI', 2, ...
         'DECISION_PT', PARAMS.MC_DECISION_PT, ...
         'rx_matrix', zeros(TRIALS,3), ...
         'activations', zeros(TRIALS,1), ...
@@ -245,23 +237,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     Hebbian = struct('heb_coef', PARAMS.HEB_CONSTS, 'anti_heb', PARAMS.HEB_CONSTS, 'NMDA', PARAMS.NMDA, 'AMPA', PARAMS.AMPA, ...
                      'heb_coef_mc', PARAMS.HEB_CONSTS, 'anti_heb_mc', PARAMS.HEB_CONSTS, 'NMDA_MC', PARAMS.NMDA, 'AMPA_MC', PARAMS.AMPA);
 
-    %% Neuron constants
-    % RSN (Regular Spiking Neuron): cortical regular spiking neuron
-    RSN = struct('C', 100, 'rv', -60, 'vt', -40, 'k', 0.7, 'a', 0.03, 'b', -2,  'c', -50, 'd', 100, 'vpeak', 35, 'E', 60);
-
-    % MSN (Regular Spiking Neuron): medium spiny neuron in caudate nucleus
-    MSN = struct('C', 50,  'rv', -80, 'vt', -25, 'k', 1,   'a', 0.01, 'b', -20, 'c', -55, 'd', 150, 'vpeak', 40, 'E', 100);
-
-    % QIAF (Quadratic Integrate and Fire Neuron): stimulate neurons in Globus Pallidus
-    QIAF = struct( ...
-        'beta', 11.83, ...
-        'gamma', 0.117, ...
-        'vt', -40, ...
-        'rv', -60, ...
-        'vpeak', 35, ...
-        'vreset', -50 ...
-    );
-
     %% Neuron Set-Up
     % # Initialize neuron structs to logically group variables
     % Many neurons are initialized as pairs, and are identical (except for
@@ -272,118 +247,29 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % spikes | variables tracking spiking rate per trial
     % v      | voltage matrix (positive)
     % u      | voltage matrix (negative)
-    
-    % PFC - Primary Frontal Cortex
-    PFC_A = struct( ...
-        'W_OUT', 9, ...
-        'W_OUT_MDN', PARAMS.PFC_A_W_OUT_MDN, ...
-        'W_OUT_AC', 1, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'pos_volt', zeros(n,1), ...
-        'v_stim', 0 ...
-    );
-    PFC_B = PFC_A;
-    PFC_B.W_OUT_MDN = PARAMS.PFC_B_W_OUT_MDN;
 
-    % Create synpatic weight matrix
-    % Use a simplified weights matrix for FMRI (performance reasons)
-    if CONFIGURATION == FMRI
-        if COVIS_ENABLED
-            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,1,4);
-        else
-            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,1);
-        end
-    else
-        if COVIS_ENABLED
-            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS,4);
-        else
-            WEIGHTS_MATRIX = INIT_PMC_WEIGHT*ones(GRID_SIZE,GRID_SIZE,TRIALS);
-        end
-    end
-    
-    % PMC - Premotor Cortex
-    PMC_A = struct( ...
-        'W_OUT', PARAMS.PMC_A_W_OUT, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'pos_volt', zeros(n,1), ...
-        'v_stim', 0, ...
-        'weights', WEIGHTS_MATRIX, ...
-        'weights_avg', zeros(TRIALS,1) ...
-    );
-    PMC_B = PMC_A;
-    PMC_B.W_OUT = PARAMS.PMC_B_W_OUT;
+    PFC_A = PFCNeuron(PARAMS.PFC_A_W_OUT_MDN, n);
+    PFC_B = PFCNeuron(PARAMS.PFC_B_W_OUT_MDN, n);
 
-    % MC - Motor Cortex
-    MC_A = struct( ...
-        'W_OUT', 0, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'pos_volt', zeros(n,1), ...
-        'weights', INIT_MC_WEIGHT*ones(2,TRIALS), ...
-        'v_stim', 0 ...
-    );
-    MC_B = MC_A;
+    PMC_A = PMCNeuron(PARAMS.PMC_A_W_OUT, n, trials, CONFIGURATION == FMRI, COVIS_ENABLED, GRID_SIZE);
+    PMC_B = PMCNeuron(PARAMS.PMC_B_W_OUT, n, trials, CONFIGURATION == FMRI, COVIS_ENABLED, GRID_SIZE);
+
+    MC_A = MCNeuron(n, trials);
+    MC_B = MCNeuron(n, trials);
 
     %% FROST Model Neurons
-    % Driving signal from PFC
-    Driv_PFC = struct( ...
-        'W_OUT', PARAMS.DRIV_PFC_W_OUT, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'rule_stim', 0 ...
-    );
+    Driv_PFC = Driv_PFCNeuron(PARAMS.DRIV_PFC_W_OUT, n);
 
-    % Caudate nucleus
-    CN = struct( ...
-        'W_OUT', 1, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(MSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'activations', zeros(TRIALS,1) ...
-    );
+    CN = CNNeuron(n, trials);
+    
+    GP = GPNeuron(n, trials);
 
-    % Globus pallidus
-    GP = struct( ...
-        'W_OUT', 1, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(QIAF.rv,n,1),...
-        'activations', zeros(TRIALS,1) ...
-    );
+    MDN = struct('activations', zeros(TRIALS,1)); % TODO
+    MDN_A = MDNNeuron(PARAMS.MDN_A_W_OUT, n);
+    MDN_B = MDNNeuron(PARAMS.MDN_B_W_OUT, n);
 
-    % MDN
-    MDN = struct('activations', zeros(TRIALS,1));
-    MDN_A = struct( ...
-        'W_OUT', PARAMS.MDN_A_W_OUT, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1) ...
-    );
-    MDN_B = MDN_A;
-    MDN_B.W_OUT = PARAMS.MDN_B_W_OUT;
-
-    % AC
-    AC_A = struct( ...
-        'W_OUT', 1, ...
-        'out', zeros(n,1), ...
-        'spikes', 0, ...
-        'v', repmat(RSN.rv,n,1), ...
-        'u', zeros(n,1), ...
-        'rule_stim', 0.1 ...
-    );
-    AC_B = AC_A;
+    AC_A = ACNeuron(n);
+    AC_B = ACNeuron(n);
 
     %% ============================ %%
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
@@ -397,30 +283,17 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %% Learning trials
     for j=1:TRIALS
         loopStart = tic;
-        %% Initialize appropriate variables for each loop
-        % Spiking rate of each neuron
-        PFC_A.spikes = 0; PFC_B.spikes = 0; PMC_A.spikes = 0; PMC_B.spikes = 0; MC_A.spikes = 0; MC_B.spikes = 0;
-
-        % Positive voltage values for integral (for Hebbian learning equation)
-        PFC_A.pos_volt(:) = 0; PFC_B.pos_volt(:) = 0; PMC_A.pos_volt(:) = 0; PMC_B.pos_volt(:) = 0;
-
-        % Neuron Voltage Matrices
-        PFC_A.v(:) = RSN.rv; PFC_B.v(:) = RSN.rv; PMC_A.v(:) = RSN.rv; PMC_B.v(:) = RSN.rv; MC_A.v(:) = RSN.rv; MC_B.v(:) = RSN.rv;
-        PFC_A.u(:) = 0;      PFC_B.u(:) = 0;      PMC_A.u(:) = 0;      PMC_B.u(:) = 0;      MC_A.u(:) = 0;      MC_B.u(:) = 0;
-
-        % Neuron output vectors
-        PFC_A.out(:) = 0; PMC_A.out(:) = 0; MC_A.out(:) = 0;
-        PFC_B.out(:) = 0; PMC_B.out(:) = 0; MC_B.out(:) = 0;
-
-        %% Initialize FROST components
+        %% Initialize each neuron for the trial
+        PFC_A.reset(); PFC_B.reset();
+        PMC_A.reset(); PMC_B.reset();
+        MC_A.reset(); MC_B.reset();
+        
         if FROST_ENABLED
-        	Driv_PFC.spikes = 0; Driv_PFC.v(:) = RSN.rv;  Driv_PFC.u(:) = 0; Driv_PFC.out(:) = 0;
-            CN.spikes       = 0; CN.v(:)       = RSN.rv;  CN.u(:)       = 0; CN.out(:)       = 0;
-            GP.spikes       = 0; GP.v(:)       = RSN.rv;                     GP.out(:)       = 0;
-            MDN_A.spikes    = 0; MDN_A.v(:)    = RSN.rv;  MDN_A.u(:)    = 0; MDN_A.out(:)    = 0;
-            MDN_B.spikes    = 0; MDN_B.v(:)    = RSN.rv;  MDN_B.u(:)    = 0; MDN_B.out(:)    = 0;
-            AC_A.spikes     = 0; AC_A.v(:)     = RSN.rv;  AC_A.u(:)     = 0; AC_A.out(:)     = 0;
-            AC_B.spikes     = 0; AC_B.v(:)     = RSN.rv;  AC_B.u(:)     = 0; AC_B.out(:)     = 0;
+            Driv_PFC.reset();
+            CN.reset();
+            GP.reset();
+            MDN_A.reset(); MDN_B.reset();
+            AC_A.reset(); AC_B.reset();
         end
         %% Initialize COVIS components (choose a rule)
         if COVIS_ENABLED
@@ -435,7 +308,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && j == TRIALS - BUTTON_SWITCH.TRIALS + 1
-            % COVIS_VARS.correct_rule = VISUAL.RULES(RULE(1).INVERSE);
             [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             if CONFIGURATION == FMRI
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
@@ -498,6 +370,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
+                PFC_A.neuron_iterate_FROST(i, TAU, LAMBDA_PRECALC, NOISE.PFC, PFC_B, PMC_A, MDN_A, AC_A);
+                PFC_B.neuron_iterate_FROST(i, TAU, LAMBDA_PRECALC, NOISE.PFC, PFC_A, PMC_B, MDN_B, AC_B);
                 % PFC A Neuron
                 PFC_A.v(i+1)=(PFC_A.v(i) + TAU*(RSN.k*(PFC_A.v(i)-RSN.rv)*(PFC_A.v(i)-RSN.vt)-PFC_A.u(i)+ RSN.E + MDN_A.W_OUT*MDN_A.out(i) + AC_A.W_OUT*AC_A.out(i) + PFC_A.v_stim + (PMC_A.W_OUT*PMC_A.out(i)) - PFC.W_LI*PFC_B.out(i))/RSN.C) + normrnd(0,NOISE.PFC);
                 PFC_A.u(i+1)=PFC_A.u(i)+TAU*RSN.a*(RSN.b*(PFC_A.v(i)-RSN.rv)-PFC_A.u(i));
@@ -801,7 +675,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA_MC);
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MCAvoltage - Hebbian.AMPA_MC);
             
-            MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCAvoltage*(Hebbian.heb_coef_mc*g_t_1_MCA.*(W_MAX_MC - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
+            MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCAvoltage*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
             MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
@@ -809,7 +683,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA_MC);
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MCBvoltage - Hebbian.AMPA_MC);
             
-            MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCBvoltage*(Hebbian.heb_coef_mc*g_t_1_MCB.*(W_MAX_MC - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
+            MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCBvoltage*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
             MC_B.weights(:,k) = min(max(MC_B.weights(:,k),0),W_MAX);
             
         % Else, if not learning, set new weights to previous weights
