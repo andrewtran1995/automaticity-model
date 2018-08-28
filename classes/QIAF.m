@@ -1,4 +1,4 @@
-classdef QIAF
+classdef QIAF < Neuron
     %Quadratic Integrate and Fire Neuron
     %   Stimulates neurons in the Globus Pallidus. For FROST.
     properties (Constant)

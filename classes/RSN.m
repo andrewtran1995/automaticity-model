@@ -1,4 +1,4 @@
-classdef RSN
+classdef RSN < Neuron
     %Regular Spiking Neuron
     %   Cortical regular spiking neuron.
     properties (Constant)
