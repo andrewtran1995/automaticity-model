@@ -1,4 +1,4 @@
-classdef CNNeuron < Neuron
+classdef CNNeuron < MSN
     %Caudate Nucleus
     %   Caudate nucleus. Input from Driv_PFC neuron. Output to GP neuron. For FROST.
     
@@ -9,17 +9,13 @@ classdef CNNeuron < Neuron
     
     methods
         function obj = CNNeuron(n, TAU, LAMBDA, trials)
-            obj@Neuron(n, TAU, LAMBDA);
-            obj.v = repmat(MSN.rv,n,1);
+            obj@MSN(n, TAU, LAMBDA);
+            obj.v = repmat(obj.rv,n,1);
             obj.activations = zeros(trials,1);
         end
         
         function obj = reset(obj)
-            obj.spikes = 0;
-            obj.v(:) = RSN.rv;
-            obj.u(:) = 0;
-            obj.out(:) = 0;
-            obj.restartTime();
+            obj = reset@MSN(obj);
         end
 
         function obj = iterate(obj, Driv_PFC)
@@ -28,12 +24,12 @@ classdef CNNeuron < Neuron
             n = obj.n;
             TAU = obj.TAU;
             
-            obj.v(i+1)=((obj.v(i) + TAU*(MSN.k*(obj.v(i)-MSN.rv)*(obj.v(i)-MSN.vt)- obj.u(i) + Driv_PFC.W_OUT*Driv_PFC.out(i) + MSN.E ))/MSN.C);
-            obj.u(i+1)= obj.u(i)+TAU*MSN.a*(MSN.b*(obj.v(i)-MSN.rv)-obj.u(i));
-            if obj.v(i+1)>=MSN.vpeak
-                obj.v(i)= MSN.vpeak;
-                obj.v(i+1)= MSN.c;
-                obj.u(i+1)= obj.u(i+1)+ MSN.d;
+            obj.v(i+1)=((obj.v(i) + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)- obj.u(i) + Driv_PFC.W_OUT*Driv_PFC.out(i) + obj.E ))/obj.C);
+            obj.u(i+1)= obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
+            if obj.v(i+1)>=obj.vpeak
+                obj.v(i)= obj.vpeak;
+                obj.v(i+1)= obj.c;
+                obj.u(i+1)= obj.u(i+1)+ obj.d;
                 obj.out(i:n) = obj.out(i:n) + obj.LAMBDA_PRECALC(1:n-i+1);
             end
             

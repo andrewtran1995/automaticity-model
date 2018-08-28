@@ -3,9 +3,6 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    coder.extrinsic('addpath');
-    coder.extrinsic('sprintf', 'imagesc', 'legend', 'scatter')
-    coder.extrinsic('suplabel');
     addpath('libraries');
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 

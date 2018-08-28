@@ -9,5 +9,19 @@ classdef QIAF < Neuron
         vpeak = 35
         vreset = -50
     end
+
+    methods
+        function obj = QIAF(n, TAU, LAMBDA)
+            obj@Neuron(n, TAU, LAMBDA);
+        end
+        
+        function obj = reset(obj)
+            obj.v(:) = obj.rv;
+            obj.u(:) = 0;
+            obj.spikes = 0;
+            obj.out(:) = 0;
+            obj.restartTime();
+        end
+    end
 end
 

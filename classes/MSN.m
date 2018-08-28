@@ -1,4 +1,4 @@
-classdef MSN
+classdef MSN < Neuron
     %Medium Spiny Neuron
     %   Medium spiny neuron in caudate nucleus.
     properties (Constant)
@@ -12,6 +12,19 @@ classdef MSN
         d = 150
         vpeak = 40
         E = 100
+    end
+
+    methods
+        function obj = MSN(n, TAU, LAMBDA)
+            obj@Neuron(n, TAU, LAMBDA);
+        end
+        function obj = reset(obj)
+            obj.v(:) = obj.rv;
+            obj.u(:) = 0;
+            obj.spikes = 0;
+            obj.out(:) = 0;
+            obj.restartTime();
+        end
     end
 end
 

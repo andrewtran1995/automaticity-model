@@ -12,5 +12,18 @@ classdef RSN < Neuron
         d = 100
         vpeak = 35
         E = 60
-    end   
+    end
+
+    methods
+        function obj = RSN(n, TAU, LAMBDA)
+            obj@Neuron(n, TAU, LAMBDA);
+        end
+        function obj = reset(obj)
+            obj.v(:) = obj.rv;
+            obj.u(:) = 0;
+            obj.spikes = 0;
+            obj.out(:) = 0;
+            obj.restartTime();
+        end
+    end
 end
