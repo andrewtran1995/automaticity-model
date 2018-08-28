@@ -22,11 +22,7 @@ classdef PFCNeuron < RSN
         end
         
         function obj = reset(obj)
-            obj.spikes = 0;
-            obj.v(:) = obj.rv;
-            obj.u(:) = 0;
-            obj.out(:) = 0;
-            obj.restartTime();
+            obj = reset@RSN(obj);
         end
         
         function obj = iterate_FROST(obj, NOISE_PFC, PFC_OTHER, PMC, MDN, AC)

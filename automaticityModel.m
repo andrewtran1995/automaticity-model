@@ -275,16 +275,16 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     for j=1:TRIALS
         loopStart = tic;
         %% Initialize each neuron for the trial
-        PFC_A.reset(); PFC_B.reset();
-        PMC_A.reset(); PMC_B.reset();
-        MC_A.reset(); MC_B.reset();
+        PFC_A = PFC_A.reset(); PFC_B = PFC_B.reset();
+        PMC_A = PMC_A.reset(); PMC_B = PMC_B.reset();
+        MC_A = MC_A.reset(); MC_B = MC_B.reset();
         
         if FROST_ENABLED
-            Driv_PFC.reset();
-            CN.reset();
-            GP.reset();
-            MDN_A.reset(); MDN_B.reset();
-            AC_A.reset(); AC_B.reset();
+            Driv_PFC = Driv_PFC.reset();
+            CN = CN.reset();
+            GP = GP.reset();
+            MDN_A = MDN_A.reset(); MDN_B = MDN_B.reset();
+            AC_A = AC_A.reset(); AC_B = AC_B.reset();
         end
         %% Initialize COVIS components (choose a rule)
         if COVIS_ENABLED
@@ -361,38 +361,38 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
-                PFC_A.iterate_FROST(NOISE.PFC, PFC_B, PMC_A, MDN_A, AC_A);
-                PFC_B.iterate_FROST(NOISE.PFC, PFC_A, PMC_B, MDN_B, AC_B);
+                PFC_A = PFC_A.iterate_FROST(NOISE.PFC, PFC_B, PMC_A, MDN_A, AC_A);
+                PFC_B = PFC_B.iterate_FROST(NOISE.PFC, PFC_A, PMC_B, MDN_B, AC_B);
 
-                PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
-                PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
+                PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
+                PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
                 
-                MC_A.iterate(j, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
-                MC_A.iterate(j, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);               
+                MC_A = MC_A.iterate(j, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
+                MC_B = MC_B.iterate(j, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);               
 
-                Driv_PFC.iterate();
+                Driv_PFC = Driv_PFC.iterate();
 
-                CN.iterate(Driv_PFC);
+                CN = CN.iterate(Driv_PFC);
                 
-                GP.iterate(CN);
+                GP = GP.iterate(CN);
 
-                MDN_A.iterate(PFC_A, GP);
-                MDN_B.iterate(PFC_B, GP);
+                MDN_A = MDN_A.iterate(PFC_A, GP);
+                MDN_B = MDN_B.iterate(PFC_B, GP);
 
-                AC_A.iterate(PFC_A);
-                AC_B.iterate(PFC_B);
+                AC_A = AC_A.iterate(PFC_A);
+                AC_B = AC_B.iterate(PFC_B);
             end
         else
             %% Non-FROST Calculation
             for i=1:n-1
-                PFC_A.iterate(NOISE.PFC, PFC_B, PMC_A);
-                PFC_B.iterate(NOISE.PFC, PFC_A, PMC_B);
+                PFC_A = PFC_A.iterate(NOISE.PFC, PFC_B, PMC_A);
+                PFC_B = PFC_B.iterate(NOISE.PFC, PFC_A, PMC_B);
 
-                PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
-                PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
+                PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
+                PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
                 
-                MC_A.iterate(j, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
-                MC_A.iterate(j, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
+                MC_A = MC_A.iterate(j, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
+                MC_B = MC_B.iterate(j, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             end
         end
         %% Record post-time-loop numbers

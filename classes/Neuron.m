@@ -26,8 +26,11 @@ classdef Neuron
            obj.out = zeros(n,1);
            obj.u = zeros(n,1);
         end
-        function obj = restartTime(obj)
+        function obj = reset(obj)
             obj.i = 1;
+            obj.out(:) = 0;
+            obj.u(:) = 0;
+            obj.spikes = 0;
         end
         function arr = pos_volt(obj)
             arr = obj.v;

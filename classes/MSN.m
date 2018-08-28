@@ -20,10 +20,7 @@ classdef MSN < Neuron
         end
         function obj = reset(obj)
             obj.v(:) = obj.rv;
-            obj.u(:) = 0;
-            obj.spikes = 0;
-            obj.out(:) = 0;
-            obj.restartTime();
+            obj = reset@Neuron(obj);
         end
     end
 end
