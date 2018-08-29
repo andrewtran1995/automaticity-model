@@ -61,7 +61,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         rows = 7; columns = 2;
 
         subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
-        axis([0 n -100 100]); title('Driv_PFC Voltage');
+        axis([0 n -100 100]); title('Driv PFC Voltage');
 
         subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
         axis([0 n -100 100]); title('CN Voltage');
@@ -82,7 +82,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         axis([0 n -100 100]); title('AC_B Voltage');
 
         subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
-        axis([0 n 0 30]); title('Driv_PFC Output');
+        axis([0 n 0 30]); title('Driv PFC Output');
 
         subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
         axis([0 n 0 30]); title('CN Output');
@@ -308,7 +308,6 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 end
 
 % Handles the slider functionality for the synaptic weight heatmaps
-% REMOVE FOR CODEGEN
 function synaptic_slider_callback(src, ~, position, data, neuron_name)
     subplot(1, 2, position, 'replace');
     trial_num = round(get(src, 'value'));
@@ -321,7 +320,6 @@ end
 
 % Find the hazard function as defined by Hazard = f(t)/S(t),
 % where f(t) is the PDF and S(t) is the survivor function
-% REMOVE FOR CODEGEN
 function [f] = get_hazard_estimate(x, pts)
     [f_pdf, ~] = ksdensity(x, pts, 'function', 'pdf');
     [f_sur, ~] = ksdensity(x, pts, 'function', 'survivor');

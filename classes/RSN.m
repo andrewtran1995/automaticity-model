@@ -22,5 +22,8 @@ classdef RSN < Neuron
             obj.v(:) = obj.rv;
             obj = reset@Neuron(obj);
         end
+        function num = spikes(obj)
+            num = nnz(obj.v > obj.vpeak);
+        end
     end
 end

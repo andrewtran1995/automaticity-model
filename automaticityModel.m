@@ -83,7 +83,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     FROST_ENABLED         = 1;
     COVIS_ENABLED         = 1;
     BUTTON_SWITCH_ENABLED = 1;
-    PERF_OUTPUT           = 0;
+    PERF_OUTPUT           = 1;
     
     % Validate any supplied arguments
     if nargin >= 1
@@ -167,10 +167,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     W_MAX = PARAMS.W_MAX;         % Maximum possible weight for Hebbian Synapses
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
-    
-    % Calculate lambda values for individual trials
-    t = (0:n)';
-    LAMBDA_PRECALC = (t/LAMBDA).*exp((LAMBDA-t)/LAMBDA);
     
     % Performance parameters
     loop_times    = zeros(1, TRIALS); % Time needed for each loop (outer loop)
@@ -296,6 +292,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
             end
             RULE = VISUAL.RULES(chosen_rule);
+            COVIS_VARS.rule_log(j) = chosen_rule;
         end
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && j == TRIALS - BUTTON_SWITCH.TRIALS + 1
@@ -396,9 +393,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             end
         end
         %% Record post-time-loop numbers
-        % Count number of spikes
-        PFC_A.spikes = nnz(PFC_A.v >= RSN.vpeak); PFC_B.spikes = nnz(PFC_B.v >= RSN.vpeak);
-        PMC_A.spikes = nnz(PMC_A.v >= RSN.vpeak); PMC_B.spikes = nnz(PMC_B.v >= RSN.vpeak);
         % Record "alpha" function, summing PMC A and PMC B output
         PMC.alpha(j,:) = PMC_A.out + PMC_B.out;
         % Record total neuron activations
@@ -479,7 +473,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MCAvoltage - Hebbian.AMPA_MC);
             
             MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCAvoltage*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
-            MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),W_MAX);
+            MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),MC_A.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
             integral_MCBvoltage = trapz(MC_B.pos_volt());
@@ -487,7 +481,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MCBvoltage - Hebbian.AMPA_MC);
             
             MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCBvoltage*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
-            MC_B.weights(:,k) = min(max(MC_B.weights(:,k),0),W_MAX);
+            MC_B.weights(:,k) = min(max(MC_B.weights(:,k),0),MC_B.W_MAX);
             
         % Else, if not learning, set new weights to previous weights
         else
@@ -524,8 +518,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
             % Step 3: calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
-
-            COVIS_VARS.rule_log(j) = chosen_rule;
         end
 
         %% Print data to console
@@ -583,10 +575,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-%         testFunction(PFC_A);
-%         testFunction(PMC_A);
-%         testFunction(GP);
-%         testFunction(Neuron(1,1,1));
         displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
     end
     return;
