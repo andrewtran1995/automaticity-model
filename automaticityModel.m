@@ -435,9 +435,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if LEARNING(j)
             %% Calculation of Hebbian Weight for PMC_A
             % Visual input to PMC_A neuron (presynaptic)
-            integral_visinputA   = trapz(PFC_A.pos_volt());
+            integral_visinputA   = PFC_A.integralPosVolt();
             % Activation of PMC_A neuron   (post-synaptic)
-            integral_PMCAvoltage = trapz(PMC_A.pos_volt());
+            integral_PMCAvoltage = PMC_A.integralPosVolt();
 
             % Ensure g(t)-1 and g(2)-2 are never less than zero
             g_t_1_A = max(0, integral_PMCAvoltage - Hebbian.NMDA);
@@ -448,13 +448,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             PMC_A.weights(:,:,k,el) = PMC_A_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),W_MAX);
+            PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),PMC_A.W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
-            integral_visinputB   = trapz(PFC_B.pos_volt());
+            integral_visinputB   = PFC_B.integralPosVolt();
             % Activation of PMC_B neuron   (post-synaptic)
-            integral_PMCBvoltage = trapz(PMC_B.pos_volt());
+            integral_PMCBvoltage = PMC_B.integralPosVolt();
 
             % Ensures g(t)-1 and g(2)-2 are never less than zero
             g_t_1_B = max(0, integral_PMCBvoltage - Hebbian.NMDA);
@@ -465,10 +465,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             PMC_B.weights(:,:,k,el) = PMC_B_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),W_MAX);
+            PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),PMC_B.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_A
-            integral_MCAvoltage = trapz(MC_A.pos_volt());
+            integral_MCAvoltage = MC_A.integralPosVolt();
             g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA_MC);
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MCAvoltage - Hebbian.AMPA_MC);
             
@@ -476,7 +476,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),MC_A.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
-            integral_MCBvoltage = trapz(MC_B.pos_volt());
+            integral_MCBvoltage = MC_B.integralPosVolt();
             g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA_MC);
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MCBvoltage - Hebbian.AMPA_MC);
             

@@ -13,6 +13,10 @@ classdef Neuron
 		spikes = 0 % spiking rate per trial
     end
     
+    properties (Abstract, Constant)
+        rv
+    end
+    
     methods
         function obj = Neuron(n, TAU, LAMBDA)
            obj.n = n;
@@ -29,12 +33,16 @@ classdef Neuron
         function obj = reset(obj)
             obj.i = 1;
             obj.out(:) = 0;
+            obj.v(:) = obj.rv;
             obj.u(:) = 0;
             obj.spikes = 0;
         end
-        function arr = pos_volt(obj)
-            arr = obj.v;
+        function arr = posVolt(obj)
+            arr = zeros(obj.n,1);
             arr(obj.v > 0) = obj.v(obj.v > 0);
+        end
+        function val = integralPosVolt(obj)
+            val = trapz(obj.posVolt());
         end
     end
 end
