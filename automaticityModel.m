@@ -112,31 +112,31 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Random Visual Input
     if 0
         loaded_input = load('datasets/randomVisualInput.mat');
-        r_x_vals = loaded_input.r_x_mat;
-        r_y_vals = loaded_input.r_y_mat;
+        x_coordinates = loaded_input.r_x_mat;
+        y_coordinates = loaded_input.r_y_mat;
     % Visual Input Matrix from optional_parms struct
     elseif VIS_INPUT_FROM_PARM
-        r_x_vals = optional_parms.visualinput(:,1);
-        r_y_vals = optional_parms.visualinput(:,2);
-        r_groups = zeros(1, length(r_x_vals));
+        x_coordinates = optional_parms.visualinput(:,1);
+        y_coordinates = optional_parms.visualinput(:,2);
+        coordinate_groups = zeros(1, length(x_coordinates));
     elseif CONFIGURATION == MADDOX
     % MADDOX
         loaded_input = load('datasets/maddoxVisualInput.mat');
-        r_x_vals = loaded_input.maddoxVisualInput(:, 1);
-        r_y_vals = loaded_input.maddoxVisualInput(:, 2);
-        r_groups = loaded_input.maddoxVisualInput(:, 3);
+        x_coordinates = loaded_input.maddoxVisualInput(:, 1);
+        y_coordinates = loaded_input.maddoxVisualInput(:, 2);
+        coordinate_groups = loaded_input.maddoxVisualInput(:, 3);
     elseif CONFIGURATION == WALLIS
     % WALLIS
         loaded_input = load('datasets/wallisVisualInput.mat');
-        r_x_vals = loaded_input.wallisVisualInput5(:,1);
-        r_y_vals = loaded_input.wallisVisualInput5(:,2);
-        r_groups = zeros(1, length(r_x_vals));
+        x_coordinates = loaded_input.wallisVisualInput5(:,1);
+        y_coordinates = loaded_input.wallisVisualInput5(:,2);
+        coordinate_groups = zeros(1, length(x_coordinates));
     elseif CONFIGURATION == FMRI
     % FMRI
         loaded_input = load('datasets/fMRI_data.mat');
-        r_x_vals = loaded_input.r_x_mat;
-        r_y_vals = loaded_input.r_y_mat;
-        r_groups = zeros(1, length(r_x_vals));
+        x_coordinates = loaded_input.r_x_mat;
+        y_coordinates = loaded_input.r_y_mat;
+        coordinate_groups = zeros(1, length(x_coordinates));
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
@@ -179,7 +179,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     			  'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
     			  'ALL', 1:GRID_SIZE);
     VISUAL = struct('STIM', 50, ...
-                    'r_x', 0, 'r_y', 0, 'r_group', 0, ...
+                    'x_coord', 0, 'y_coord', 0, 'r_group', 0, ...
                     'RULES', [ ...
                         struct('A_X', AREA.LOWER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.UPPER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 2); ...
                         struct('A_X', AREA.UPPER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.LOWER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 1); ...
@@ -334,13 +334,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
-        VISUAL.r_y = r_y_vals(trial) + BORDER_SIZE;
-        VISUAL.r_x = r_x_vals(trial) + BORDER_SIZE;
-        VISUAL.r_group = r_groups(trial);
+        VISUAL.y_coord = y_coordinates(trial) + BORDER_SIZE;
+        VISUAL.x_coord = x_coordinates(trial) + BORDER_SIZE;
+        VISUAL.r_group = coordinate_groups(trial);
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:,:) = exp( -(sqrt((VISUAL.r_y-RBF.Y).^2 + (VISUAL.r_x-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        RBF.rbv(:,:) = exp( -(sqrt((VISUAL.y_coord-RBF.Y).^2 + (VISUAL.x_coord-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
@@ -416,22 +416,22 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         MC.rx_matrix(trial,:) = [neuron_id_MC, latency, VISUAL.r_group];
         % Determine accuracy
         if COVIS_ENABLED
-            accuracy(trial) = double((any(VISUAL.r_x == COVIS_VARS.correct_rule.B_X) && any(VISUAL.r_y == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
+            accuracy(trial) = double((any(VISUAL.x_coord == COVIS_VARS.correct_rule.B_X) && any(VISUAL.y_coord == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
         else
-            accuracy(trial) = double((any(VISUAL.r_x == RULE.B_X) && any(VISUAL.r_y == RULE.B_Y)) + 1) == neuron_id_MC;
+            accuracy(trial) = double((any(VISUAL.x_coord == RULE.B_X) && any(VISUAL.y_coord == RULE.B_Y)) + 1) == neuron_id_MC;
         end
         rt_calc_times(trial) = toc(rt_start_time);
 
         %% Weight change calculations
         if CONFIGURATION == FMRI
-            k = 1;
+            idx_weight = 1;
         else
-            k = trial;
+            idx_weight = trial;
         end
         if COVIS_ENABLED
-            el = chosen_rule;
+            idx_rule = chosen_rule;
         else
-            el = 1;
+            idx_rule = 1;
         end
         if IS_LEARNING(trial)
             %% Calculate and store activation integrals (for performance reasons)
@@ -447,45 +447,39 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_1_A = max(0, integral_PMC_A - Hebbian.NMDA);
             g_t_2_A = max(0, Hebbian.NMDA - integral_PMC_A - Hebbian.AMPA);
 
-            % Determine new weights of visual PMC_A synapses
+            % Determine new weights of visual PMC_A synapses (limit values to range of [0, W_MAX])
             PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_A*g_t_1_A.*(W_MAX - PMC_A_weights) - Hebbian.anti_heb*integral_PFC_A*g_t_2_A.*PMC_A_weights);
-            PMC_A.weights(:,:,k,el) = PMC_A_weights;
-
-            % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),W_MAX);
+            PMC_A.weights(:,:,idx_weight,idx_rule) = min(max(PMC_A_weights,0),W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Ensures g(t)-1 and g(2)-2 are never less than zero
             g_t_1_B = max(0, integral_PMC_B - Hebbian.NMDA);
             g_t_2_B = max(0, Hebbian.NMDA - integral_PMC_B - Hebbian.AMPA);
 
-            % Determine new weights of visual PMC_B synapses
+            % Determine new weights of visual PMC_B synapses (limit values to range of [0, W_MAX])
             PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_B*g_t_1_B.*(W_MAX - PMC_B_weights) - Hebbian.anti_heb*integral_PFC_B*g_t_2_B.*PMC_B_weights);
-            PMC_B.weights(:,:,k,el) = PMC_B_weights;
-
-            % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),W_MAX);
+            PMC_B.weights(:,:,idx_weight,idx_rule) = min(max(PMC_B_weights,0),W_MAX);
             
             %% Calculation of Hebbian Weights for MC_A
             g_t_1_MCA = max(0, integral_MC_A - Hebbian.NMDA_MC);
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MC_A - Hebbian.AMPA_MC);
             
-            MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
-            MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),MC_A.W_MAX);
+            MC_A.weights(:,idx_weight) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
+            MC_A.weights(:,idx_weight) = min(max(MC_A.weights(:,idx_weight),0),MC_A.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
             g_t_1_MCB = max(0, integral_MC_B - Hebbian.NMDA_MC);
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MC_B - Hebbian.AMPA_MC);
             
-            MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
-            MC_B.weights(:,k) = min(max(MC_B.weights(:,k),0),MC_B.W_MAX);
+            MC_B.weights(:,idx_weight) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
+            MC_B.weights(:,idx_weight) = min(max(MC_B.weights(:,idx_weight),0),MC_B.W_MAX);
             
         % Else, if not learning, set new weights to previous weights
         else
-            PMC_A.weights(:,:,k,el) = PMC_A_weights;
-            PMC_B.weights(:,:,k,el) = PMC_B_weights;
-            MC_A.weights(:,k) = MC_A_weights;
-            MC_B.weights(:,k) = MC_B_weights;
+            PMC_A.weights(:,:,idx_weight,idx_rule) = PMC_A_weights;
+            PMC_B.weights(:,:,idx_weight,idx_rule) = PMC_B_weights;
+            MC_A.weights(:,idx_weight) = MC_A_weights;
+            MC_B.weights(:,idx_weight) = MC_B_weights;
         end
         
         % If COVIS is enabled and weight matrix has time dimension, update
@@ -496,8 +490,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         
         % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,k,CORRECT_RULE)));
-        PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,k,CORRECT_RULE)));
+        PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,idx_weight,CORRECT_RULE)));
+        PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,idx_weight,CORRECT_RULE)));
         
         %% COVIS Calculations - readjusting saliences, weights
         if COVIS_ENABLED && trial < PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
