@@ -3,4 +3,3 @@ function [ params_valid ] = areparamsvalid( param_struct )
     params_valid = all(structfun(@(x) x >= 0, param_struct));
     return;
 end
-
