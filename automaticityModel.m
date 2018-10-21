@@ -118,7 +118,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     elseif VIS_INPUT_FROM_PARM
         x_coordinates = optional_parms.visualinput(:,1);
         y_coordinates = optional_parms.visualinput(:,2);
-        coordinate_groups = zeros(1, length(x_coordinates));
+        coordinate_groups = zeros(length(x_coordinates), 1);
     elseif CONFIGURATION == MADDOX
     % MADDOX
         loaded_input = load('datasets/maddoxVisualInput.mat');
@@ -130,7 +130,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         loaded_input = load('datasets/wallisVisualInput.mat');
         x_coordinates = loaded_input.wallisVisualInput5(:,1);
         y_coordinates = loaded_input.wallisVisualInput5(:,2);
-        coordinate_groups = zeros(1, length(x_coordinates));
+        coordinate_groups = zeros(length(x_coordinates), 1);
     elseif CONFIGURATION == FMRI
     % FMRI
         loaded_input = load('datasets/fMRI_data.mat');
@@ -141,13 +141,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
     % Set properties of grid
-    STIM_GRID_SIZE = 100;                          % Length of side of square grid used for visual input; should be an even number
-    BORDER_SIZE    = 20;                           % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
-    GRID_SIZE      = STIM_GRID_SIZE+2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
-    
+    STIMULUS_GRID_SIZE = 100;                              % Length of side of square grid used for visual input; should be an even number
+    BORDER_SIZE        = 20;                               % Width of border used to pad the grid such that visual stimulus on the edge still has an appropriate effect
+    GRID_SIZE          = STIMULUS_GRID_SIZE+2*BORDER_SIZE; % Total length of grid, i.e., the stimulus grid size and the border
+
     % Button switch must be initialized before TRIALS
     BUTTON_SWITCH = struct('TRIALS', 600, 'PMC_A_weights', ones(GRID_SIZE,GRID_SIZE,1,4), 'PMC_B_weights', ones(GRID_SIZE,GRID_SIZE,1,4));
-    
+
     % Set behavior and number of trials
     PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;  % Number of control trials run before learning trials
     LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;      % Number of learning trials in automaticity experiment
@@ -159,7 +159,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         TRIALS           = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS;
         IS_LEARNING      = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
     end
-    
+
     % Other parameters
     n = 1000;                     % Time period for one trial (in milliseconds)
     TAU = 1;
@@ -167,16 +167,16 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     W_MAX = PARAMS.W_MAX;         % Maximum weight for Hebbian Synapses
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
     NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
-    
+
     % Performance parameters
-    loop_times    = zeros(1, TRIALS); % Time needed for each loop (outer loop)
-    trial_times   = zeros(1, TRIALS); % Time required to run each time loop (inner loop)
-    rt_calc_times = zeros(1, TRIALS); % Time required to run reaction time calculation
+    loop_times    = zeros(TRIALS, 1); % Time needed for each loop (outer loop)
+    trial_times   = zeros(TRIALS, 1); % Time required to run each time loop (inner loop)
+    rt_calc_times = zeros(TRIALS, 1); % Time required to run reaction time calculation
 
     % Quantity of Visual Stimulus
     AREA = struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
-    			  'OUTER', [1:STIM_GRID_SIZE/4+BORDER_SIZE, STIM_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
-    			  'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
+    			  'OUTER', [1:STIMULUS_GRID_SIZE/4+BORDER_SIZE, STIMULUS_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
+    			  'INNER', STIMULUS_GRID_SIZE/4+BORDER_SIZE+1:STIMULUS_GRID_SIZE*3/4+BORDER_SIZE, ...
     			  'ALL', 1:GRID_SIZE);
     VISUAL = struct('STIM', 50, ...
                     'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
@@ -201,9 +201,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %% COVIS Model
     COVIS_PARMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, ...
                          'LAMBDA', PARAMS.COVIS_LAMBDA, 'NUM_GUESS', 5, 'NUM_RULES', 4);
-    COVIS_VARS = struct('correct_rule', VISUAL.RULES(CORRECT_RULE), 'rules', 1:COVIS_PARMS.NUM_RULES, 'saliences', ones(1,COVIS_PARMS.NUM_RULES), ...
-                        'rule_weights', ones(1,COVIS_PARMS.NUM_RULES), 'rule_prob', ones(1,COVIS_PARMS.NUM_RULES), ...
-                        'rule_log', ones(1,TRIALS));
+    COVIS_VARS = struct('correct_rule', VISUAL.RULES(CORRECT_RULE), 'rules', 1:COVIS_PARMS.NUM_RULES, 'saliences', ones(COVIS_PARMS.NUM_RULES,1), ...
+                        'rule_weights', ones(COVIS_PARMS.NUM_RULES,1), 'rule_prob', ones(COVIS_PARMS.NUM_RULES,1), ...
+                        'rule_log', ones(TRIALS,1));
     
     %% General settings for PFC, PMC, and MC neurons
     % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
