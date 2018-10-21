@@ -47,11 +47,11 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
     subplot(rows,columns,11);
     x_axis = linspace(1, TRIALS, TRIALS);
-    PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
+    PMC_A_Rx = PMC.reactions(:,1) == 1;
     PMC_B_Rx = ~PMC_A_Rx;
-    scatter(find(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
+    scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
-    scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
+    scatter(find(PMC_B_Rx), PMC.reactions(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
     suplabel('PMC_A & PMC_B Reaction Time', 't');
 
@@ -61,7 +61,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         rows = 7; columns = 2;
 
         subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
-        axis([0 n -100 100]); title('Driv PFC Voltage');
+        axis([0 n -100 100]); title('Driv_PFC Voltage');
 
         subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
         axis([0 n -100 100]); title('CN Voltage');
@@ -101,7 +101,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
         subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
         axis([0 n 0 30]); title('AC_B Output');
-        
+
         suplabel('Neuron Information from Last Trial, Rx Times, Etc.');
     end
 
@@ -190,16 +190,16 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         %% Figure 3
         % CDFs of RTs (reaction times) dependent on stimulus type — Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
-        PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
-        PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
-        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';
+        PMC_S = PMC.reactions(LEARNING_IDX,3) == 'S';
+        PMC_M = PMC.reactions(LEARNING_IDX,3) == 'M';
+        PMC_L = PMC.reactions(LEARNING_IDX,3) == 'L';
 
         figure;
-        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2)); set(p1, 'Color', 'r');
+        p1 = cdfplot(PMC.reactions(PMC_S, 2)); set(p1, 'Color', 'r');
         hold on;
-        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2)); set(p2, 'Color', 'b');
+        p2 = cdfplot(PMC.reactions(PMC_M, 2)); set(p2, 'Color', 'b');
         hold on;
-        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2)); set(p3, 'Color', 'g');
+        p3 = cdfplot(PMC.reactions(PMC_L, 2)); set(p3, 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         suplabel('CDFs of PMC Rx Times (Grouped by Distance)');
 
@@ -209,12 +209,12 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         figure; title('PMC Rx Times Hazard Functions');
 
         % Reuse vars from CDF plot
-        pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
+        pts = (min(PMC.reactions(LEARNING_IDX, 2)):0.25:max(PMC.reactions(LEARNING_IDX, 2)));
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_S, 2), pts), 'Color', 'r');
         hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_M, 2), pts), 'Color', 'b');
         hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_L, 2), pts), 'Color', 'g');
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_L, 2), pts), 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         title('Hazard Functions');
     end
@@ -222,12 +222,12 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     %% Figure 5 - Reaction Latency
     % Histograms of reaction latencies by neuron and trial subsets
     figure;
-    latencies = {PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PFC Latencies (Pre-Learning)'; ...
-                 PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PMC Latencies (Pre-Learning)'; ...
-                 PFC.rx_matrix(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
-                 PMC.rx_matrix(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
-                 PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
-                 PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PMC Latencies (Post-Learning'};
+    latencies = {PFC.reactions(1:PRE_LEARNING_TRIALS,2), 'PFC Latencies (Pre-Learning)'; ...
+                 PMC.reactions(1:PRE_LEARNING_TRIALS,2), 'PMC Latencies (Pre-Learning)'; ...
+                 PFC.reactions(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
+                 PMC.reactions(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
+                 PFC.reactions(end-POST_LEARNING_TRIALS+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
+                 PMC.reactions(end-POST_LEARNING_TRIALS+1:end, 2), 'PMC Latencies (Post-Learning'};
     latencies(cellfun(@isempty, latencies(:,1)), :) = [];
     rows = length(latencies(:,1))/2; columns = 2;
     numBins = 20;
@@ -243,7 +243,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     %% Figure 6 — Reaction Plots
     figure;
     rows = 3; columns = 1;
-    latencies = {PFC.rx_matrix(:,2), PMC.rx_matrix(:,2), MC.rx_matrix(:,2)};
+    latencies = {PFC.reactions(:,2), PMC.reactions(:,2), MC.reactions(:,2)};
     latencyTitles = {'PFC Reaction Time', 'PMC Reaction Time', 'MC Reaction Time'};
     for i=1:3
         subplot(rows,columns,i);
