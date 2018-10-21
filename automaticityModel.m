@@ -434,54 +434,50 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             el = 1;
         end
         if IS_LEARNING(trial)
-            %% Calculation of Hebbian Weight for PMC_A
-            % Visual input to PMC_A neuron (presynaptic)
-            integral_visinputA   = PFC_A.integralPosVolt();
-            % Activation of PMC_A neuron   (postsynpatic)
-            integral_PMCAvoltage = PMC_A.integralPosVolt();
+            %% Calculate and store activation integrals (for performance reasons)
+            integral_PFC_A = PFC_A.integralPosVolt(); % visual input to PMC_A neuron (presynaptic)
+            integral_PMC_A = PMC_A.integralPosVolt(); % activation of PMC_A neuron (postsynaptic)
+            integral_PFC_B = PFC_B.integralPosVolt(); % visual input to PMC_B neuron (presynaptic)
+            integral_PMC_B = PMC_B.integralPosVolt(); % activation of PMC_B neuron (postsynaptic)
+            integral_MC_A = MC_A.integralPosVolt(); % activation of MC_A neuron
+            integral_MC_B = MC_B.integralPosVolt(); % activation of MC_B neuron
 
+            %% Calculation of Hebbian Weight for PMC_A
             % Ensure g(t)-1 and g(2)-2 are never less than zero
-            g_t_1_A = max(0, integral_PMCAvoltage - Hebbian.NMDA);
-            g_t_2_A = max(0, Hebbian.NMDA - integral_PMCAvoltage - Hebbian.AMPA);
+            g_t_1_A = max(0, integral_PMC_A - Hebbian.NMDA);
+            g_t_2_A = max(0, Hebbian.NMDA - integral_PMC_A - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_A synapses
-            PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_visinputA*g_t_1_A.*(W_MAX - PMC_A_weights) - Hebbian.anti_heb*integral_visinputA*g_t_2_A.*PMC_A_weights);
+            PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_A*g_t_1_A.*(W_MAX - PMC_A_weights) - Hebbian.anti_heb*integral_PFC_A*g_t_2_A.*PMC_A_weights);
             PMC_A.weights(:,:,k,el) = PMC_A_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
             PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),PMC_A.W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
-            % Visual input to PMC_B neuron (presynaptic)
-            integral_visinputB   = PFC_B.integralPosVolt();
-            % Activation of PMC_B neuron   (postsynaptic)
-            integral_PMCBvoltage = PMC_B.integralPosVolt();
-
             % Ensures g(t)-1 and g(2)-2 are never less than zero
-            g_t_1_B = max(0, integral_PMCBvoltage - Hebbian.NMDA);
-            g_t_2_B = max(0, Hebbian.NMDA - integral_PMCBvoltage - Hebbian.AMPA);
+            g_t_1_B = max(0, integral_PMC_B - Hebbian.NMDA);
+            g_t_2_B = max(0, Hebbian.NMDA - integral_PMC_B - Hebbian.AMPA);
 
             % Determine new weights of visual PMC_B synapses
-            PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_visinputB*g_t_1_B.*(W_MAX - PMC_B_weights) - Hebbian.anti_heb*integral_visinputB*g_t_2_B.*PMC_B_weights);
+            PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_B*g_t_1_B.*(W_MAX - PMC_B_weights) - Hebbian.anti_heb*integral_PFC_B*g_t_2_B.*PMC_B_weights);
             PMC_B.weights(:,:,k,el) = PMC_B_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
             PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),PMC_B.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_A
-            integral_MCAvoltage = MC_A.integralPosVolt();
-            g_t_1_MCA = max(0, integral_MCAvoltage - Hebbian.NMDA_MC);
-            g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MCAvoltage - Hebbian.AMPA_MC);
+            g_t_1_MCA = max(0, integral_MC_A - Hebbian.NMDA_MC);
+            g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MC_A - Hebbian.AMPA_MC);
             
-            MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCAvoltage*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
+            MC_A.weights(:,k) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
             MC_A.weights(:,k) = min(max(MC_A.weights(:,k),0),MC_A.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
-            integral_MCBvoltage = MC_B.integralPosVolt();
-            g_t_1_MCB = max(0, integral_MCBvoltage - Hebbian.NMDA_MC);
-            g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MCBvoltage - Hebbian.AMPA_MC);
+            g_t_1_MCB = max(0, integral_MC_B - Hebbian.NMDA_MC);
+            g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MC_B - Hebbian.AMPA_MC);
             
-            MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMCBvoltage*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
+            MC_B.weights(:,k) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
             MC_B.weights(:,k) = min(max(MC_B.weights(:,k),0),MC_B.W_MAX);
             
         % Else, if not learning, set new weights to previous weights
