@@ -448,7 +448,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             PMC_A.weights(:,:,k,el) = PMC_A_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),PMC_A.W_MAX);
+            PMC_A.weights(:,:,k,el) = min(max(PMC_A.weights(:,:,k,el),0),W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Visual input to PMC_B neuron (presynaptic)
@@ -465,7 +465,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             PMC_B.weights(:,:,k,el) = PMC_B_weights;
 
             % Limit values of PMC_A.weights to be in range [0,W_MAX]
-            PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),PMC_B.W_MAX);
+            PMC_B.weights(:,:,k,el) = min(max(PMC_B.weights(:,:,k,el),0),W_MAX);
             
             %% Calculation of Hebbian Weights for MC_A
             integral_MCAvoltage = MC_A.integralPosVolt();

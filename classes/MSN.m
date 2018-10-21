@@ -18,10 +18,6 @@ classdef MSN < Neuron
         function obj = MSN(n, TAU, LAMBDA)
             obj@Neuron(n, TAU, LAMBDA);
         end
-        function obj = reset(obj)
-            obj.v(:) = obj.rv;
-            obj = reset@Neuron(obj);
-        end
     end
 end
 

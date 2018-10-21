@@ -14,11 +14,6 @@ classdef QIAF < Neuron
         function obj = QIAF(n, TAU, LAMBDA)
             obj@Neuron(n, TAU, LAMBDA);
         end
-        
-        function obj = reset(obj)
-            obj.v(:) = obj.rv;
-            obj = reset@Neuron(obj);
-        end
     end
 end
 
