@@ -112,8 +112,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Random Visual Input
     if 0
         loaded_input = load('datasets/randomVisualInput.mat');
-        x_coordinates = loaded_input.r_x_mat;
-        y_coordinates = loaded_input.r_y_mat;
+        x_coordinates = loaded_input.x_coordinates;
+        y_coordinates = loaded_input.y_coordinates;
     % Visual Input Matrix from optional_parms struct
     elseif VIS_INPUT_FROM_PARM
         x_coordinates = optional_parms.visualinput(:,1);
@@ -134,9 +134,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     elseif CONFIGURATION == FMRI
     % FMRI
         loaded_input = load('datasets/fMRI_data.mat');
-        x_coordinates = loaded_input.r_x_mat;
-        y_coordinates = loaded_input.r_y_mat;
-        coordinate_groups = zeros(1, length(x_coordinates));
+        x_coordinates = loaded_input.x_coordinates;
+        y_coordinates = loaded_input.y_coordinates;
+        coordinate_groups = zeros(length(x_coordinates), 1);
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
@@ -179,7 +179,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     			  'INNER', STIM_GRID_SIZE/4+BORDER_SIZE+1:STIM_GRID_SIZE*3/4+BORDER_SIZE, ...
     			  'ALL', 1:GRID_SIZE);
     VISUAL = struct('STIM', 50, ...
-                    'x_coord', 0, 'y_coord', 0, 'r_group', 0, ...
+                    'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
                     'RULES', [ ...
                         struct('A_X', AREA.LOWER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.UPPER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 2); ...
                         struct('A_X', AREA.UPPER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.LOWER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 1); ...
@@ -206,18 +206,18 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                         'rule_log', ones(1,TRIALS));
     
     %% General settings for PFC, PMC, and MC neurons
-    % Note that rx_matrix is big enough for both learning trials and no-learning trials to allow for comparisons
+    % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
     % PFC general information
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
+        'reactions', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
     % PMC general information
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
-        'rx_matrix', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
+        'reactions', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
         'alpha', zeros(TRIALS,n), ...                % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
@@ -225,7 +225,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % MC general parameters
     MC = struct( ...
         'DECISION_PT', PARAMS.MC_DECISION_PT, ...
-        'rx_matrix', zeros(TRIALS,3), ...
+        'reactions', zeros(TRIALS,3), ...
         'activations', zeros(TRIALS,1), ...
         'PRIMARY_WEIGHT', 0.9, ...
         'SECONDARY_WEIGHT', 0.1 ...
@@ -336,7 +336,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         VISUAL.y_coord = y_coordinates(trial) + BORDER_SIZE;
         VISUAL.x_coord = x_coordinates(trial) + BORDER_SIZE;
-        VISUAL.r_group = coordinate_groups(trial);
+        VISUAL.coordinate_group = coordinate_groups(trial);
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
@@ -409,11 +409,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         rt_start_time = tic;
         % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
-        PFC.rx_matrix(trial,:) = [neuron_id_PFC, latency, VISUAL.r_group];
+        PFC.reactions(trial,:) = [neuron_id_PFC, latency, VISUAL.coordinate_group];
         [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
-        PMC.rx_matrix(trial,:) = [neuron_id_PMC, latency, VISUAL.r_group];
+        PMC.reactions(trial,:) = [neuron_id_PMC, latency, VISUAL.coordinate_group];
         [neuron_id_MC, latency] = determine_reacting_neuron(MC_A.out, MC_B.out, MC.DECISION_PT);
-        MC.rx_matrix(trial,:) = [neuron_id_MC, latency, VISUAL.r_group];
+        MC.reactions(trial,:) = [neuron_id_MC, latency, VISUAL.coordinate_group];
         % Determine accuracy
         if COVIS_ENABLED
             accuracy(trial) = double((any(VISUAL.x_coord == COVIS_VARS.correct_rule.B_X) && any(VISUAL.y_coord == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
@@ -495,7 +495,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         
         %% COVIS Calculations - readjusting saliences, weights
         if COVIS_ENABLED && trial < PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
-            % Step 1: Readjust saliences & weights
+            % Step 1: re-adjust saliences & weights
             if accuracy(trial) == 1
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_C;
             else
@@ -539,10 +539,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                               mean(accuracy(FMRI_META.SES_20))];
                 % Calculate Mean Median RT for trials from Session 4, 10, and 20
                 % Reaction times must be converted from ms to seconds
-                norm_output_rt = [median(PMC.rx_matrix(FMRI_META.SES_1,2)), ...
-                                  median(PMC.rx_matrix(FMRI_META.SES_4,2)), ...
-                                  median(PMC.rx_matrix(FMRI_META.SES_10,2)), ...
-                                  median(PMC.rx_matrix(FMRI_META.SES_20,2))]./1000;
+                norm_output_rt = [median(PMC.reactions(FMRI_META.SES_1,2)), ...
+                                  median(PMC.reactions(FMRI_META.SES_4,2)), ...
+                                  median(PMC.reactions(FMRI_META.SES_10,2)), ...
+                                  median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
                 % Weight reaction time greater than accuracy
                 target_diff = [target.means1dCondition(1,:) - output_acc;
                                (target.means1dCondition(2,:) - norm_output_rt)*20];
@@ -575,17 +575,17 @@ end
 %%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
 %  ===============================  %
 % Return what neuron reacts to the stimuli, and the latency
-% Returns neuron_id = 0 for n1, neuron_id = 1 for n2
-function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
-    n1_latency = find(cumtrapz(n1) >= decision_pt, 1);
-    n2_latency = find(cumtrapz(n2) >= decision_pt, 1);
+% Returns neuron_id = 1 for n1, neuron_id = 2 for n2
+function [neuron_id, latency] = determine_reacting_neuron(neuron_1, neuron_2, decision_pt)
+    n1_latency = find(cumtrapz(neuron_1) >= decision_pt, 1);
+    n2_latency = find(cumtrapz(neuron_2) >= decision_pt, 1);
     % n1_latency or n2_latency could be empty if the decision_pt was never reached
     % If so, set it to the maximum allowed value
     if isempty(n1_latency)
-        n1_latency = length(n1);
+        n1_latency = length(neuron_1);
     end
     if isempty(n2_latency)
-        n2_latency = length(n2);
+        n2_latency = length(neuron_2);
     end
     % Else, both n1 and n2 have valid values -- compare latencies
     if n2_latency < n1_latency
@@ -597,8 +597,8 @@ function [neuron_id, latency] = determine_reacting_neuron(n1, n2, decision_pt)
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = double(trapz(n1) < trapz(n2));
-        latency = length(n1);
+        neuron_id = double(trapz(neuron_1) < trapz(neuron_2));
+        latency = length(neuron_1);
     end
 end
 

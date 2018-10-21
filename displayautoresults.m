@@ -37,7 +37,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.r_y, VISUAL.r_x, VISUAL.STIM));
+    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.y_coord, VISUAL.x_coord, VISUAL.STIM));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
