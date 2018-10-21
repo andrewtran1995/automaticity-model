@@ -2,7 +2,7 @@
 Automaticity model for the Ashby lab.
 
 ### Using the model
-The model's main entry point is automaticityModel.m. For performance reasons, it has been written to be compatible with code generation.
+The model's main entry point is `automaticityModel.m`. For performance reasons, it has been written to be compatible with code generation.
 
 ### Requirements
 * MATLAB R2018A
@@ -24,7 +24,7 @@ The model's main entry point is automaticityModel.m. For performance reasons, it
 	* reference: Old/experimental code kept for reference, but not used in the current code
 	* scripts: One-off scripts
 	* visinputgen: Functions to be used for generating visual input matrices
-* .gitignore: Informs version control software what files/paths to ignore when updating code repositories
+* `.gitignore`: Informs version control software what files/paths to ignore when updating code repositories
 * absorbstruct.m
 
 ### Referenced papers
