@@ -259,7 +259,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     
     %% Figure 7 - Accuracy
     figure;
-    plot(smooth(accuracy, 11), 'b');
+    plot(smooth(accuracy, 30), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
     if BUTTON_SWITCH_ENABLED
        hold on;
@@ -279,31 +279,6 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
-    %% Following code can be run (copy-paste in terminal should work) to generate heat maps
-    % Without border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    % With border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(:,:,1,chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(:,:,1,chosen_rule));
-    colorbar;
 
 end
 
