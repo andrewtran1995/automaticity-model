@@ -418,7 +418,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if COVIS_ENABLED
             accuracy(trial) = double((any(VISUAL.x_coord == COVIS_VARS.correct_rule.B_X) && any(VISUAL.y_coord == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
         else
-            accuracy(trial) = double((any(VISUAL.x_coord == RULE.B_X) && any(VISUAL.y_coord == RULE.B_Y)) + 1) == neuron_id_MC;
+            accuracy(trial) = double((any(VISUAL.x_coord == RULE(1).B_X) && any(VISUAL.y_coord == RULE(1).B_Y)) + 1) == neuron_id_MC;
         end
         rt_calc_times(trial) = toc(rt_start_time);
 
@@ -490,8 +490,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         
         % Record average weight for PMC_A and PMC_B
-        PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,idx_weight,CORRECT_RULE)));
-        PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,idx_weight,CORRECT_RULE)));
+        if COVIS_ENABLED
+            PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,idx_weight,CORRECT_RULE)));
+            PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,idx_weight,CORRECT_RULE)));
+        else
+            PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,idx_weight,1)));
+            PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,idx_weight,1)));
+        end
         
         %% COVIS Calculations - readjusting saliences, weights
         if COVIS_ENABLED && trial < PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
