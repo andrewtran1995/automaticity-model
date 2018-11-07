@@ -1,0 +1,5 @@
+classdef AutomaticityConfiguration
+    enumeration
+        WALLIS, MADDOX, FMRI
+    end
+end
