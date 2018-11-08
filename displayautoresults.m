@@ -1,9 +1,9 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    addpath('libraries');
+    addpath('classes','libraries');
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
     %% Figure 1 - neuron information from last trial or throughout trials
@@ -116,7 +116,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     % Only relevant if any learning trials were conducted
     if LEARNING_TRIALS > 0
         % If not FMRI, assume there is a record for the weights for each trial
-        if CONFIGURATION ~= FMRI
+        if configuration ~= AutomaticityConfiguration.FMRI
             figure;
             rows = 1; columns = 2;
             % Force slider to integer/discrete value:
@@ -152,7 +152,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             
             suplabel('Synaptic Heatmaps');
         % Create figures for button switch
-        elseif CONFIGURATION == FMRI && BUTTON_SWITCH_ENABLED
+        elseif configuration == AutomaticityConfiguration.FMRI && BUTTON_SWITCH_ENABLED
             rows = 2; columns = 4;
             figure;
             for i=1:4
@@ -186,9 +186,9 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         end
     end
 
-    if CONFIGURATION == MADDOX
+    if configuration == AutomaticityConfiguration.MADDOX
         %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type — Short, Medium, or Long
+        % CDFs of RTs (reaction times) dependent on stimulus type ï¿½ Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
         PMC_S = PMC.reactions(LEARNING_IDX,3) == 'S';
         PMC_M = PMC.reactions(LEARNING_IDX,3) == 'M';
@@ -240,7 +240,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     suplabel('Reaction Latency Histograms', 't');
     
-    %% Figure 6 — Reaction Plots
+    %% Figure 6 ï¿½ Reaction Plots
     figure;
     rows = 3; columns = 1;
     latencies = {PFC.reactions(:,2), PMC.reactions(:,2), MC.reactions(:,2)};
@@ -267,7 +267,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     title('Accuracy');
 
-    %% Figure 8 — Performance Tests
+    %% Figure 8 ï¿½ Performance Tests
     % Information regarding the run-time of this program
     if PERF_OUTPUT
         elapsedTime = toc(start_time);

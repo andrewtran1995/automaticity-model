@@ -63,13 +63,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     addpath('classes');
     
     % Load configuration and config parameters
-    MADDOX = 1; WALLIS = 2; FMRI = 3;
-    CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    CONFIGURATION = FMRI;
+    % MADDOX = 1; WALLIS = 2; FMRI = 3;
+    % CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
+    % configuration = FMRI;
+    configuration = AutomaticityConfiguration.FMRI;
     
     % Get parameters
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
-    PARAMS = getautoparams(CONFIGURATIONS{CONFIGURATION});
+    PARAMS = getautoparams(configuration);
     
     % Struct to contain meta-data of FMRI configuration
     FMRI_META = struct('NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
@@ -81,9 +82,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
     FROST_ENABLED         = 1;
-    COVIS_ENABLED         = 1;
-    BUTTON_SWITCH_ENABLED = 1;
-    PERF_OUTPUT           = 1;
+    COVIS_ENABLED         = configuration == AutomaticityConfiguration.FMRI;
+    BUTTON_SWITCH_ENABLED = configuration == AutomaticityConfiguration.FMRI;
+    PERF_OUTPUT           = 0;
     
     % Validate any supplied arguments
     if nargin >= 1
@@ -119,19 +120,19 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         x_coordinates = optional_parms.visualinput(:,1);
         y_coordinates = optional_parms.visualinput(:,2);
         coordinate_groups = zeros(length(x_coordinates), 1);
-    elseif CONFIGURATION == MADDOX
+    elseif configuration == AutomaticityConfiguration.MADDOX
     % MADDOX
         loaded_input = load('datasets/maddoxVisualInput.mat');
         x_coordinates = loaded_input.maddoxVisualInput(:, 1);
         y_coordinates = loaded_input.maddoxVisualInput(:, 2);
         coordinate_groups = loaded_input.maddoxVisualInput(:, 3);
-    elseif CONFIGURATION == WALLIS
+    elseif configuration == AutomaticityConfiguration.WALLIS
     % WALLIS
         loaded_input = load('datasets/wallisVisualInput.mat');
         x_coordinates = loaded_input.wallisVisualInput5(:,1);
         y_coordinates = loaded_input.wallisVisualInput5(:,2);
         coordinate_groups = zeros(length(x_coordinates), 1);
-    elseif CONFIGURATION == FMRI
+    elseif configuration == AutomaticityConfiguration.FMRI
     % FMRI
         loaded_input = load('datasets/fMRI_data.mat');
         x_coordinates = loaded_input.x_coordinates;
@@ -245,8 +246,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     PFC_A = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_A_W_OUT_MDN);
     PFC_B = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_B_W_OUT_MDN);
 
-    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, CONFIGURATION == FMRI, COVIS_ENABLED, GRID_SIZE);
-    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, CONFIGURATION == FMRI, COVIS_ENABLED, GRID_SIZE);
+    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, configuration == AutomaticityConfiguration.FMRI, COVIS_ENABLED, GRID_SIZE);
+    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, configuration == AutomaticityConfiguration.FMRI, COVIS_ENABLED, GRID_SIZE);
 
     MC_A = MCNeuron(n, TAU, LAMBDA, TRIALS);
     MC_B = MCNeuron(n, TAU, LAMBDA, TRIALS);
@@ -298,7 +299,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && trial == TRIALS - BUTTON_SWITCH.TRIALS + 1
             [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
-            if CONFIGURATION == FMRI
+            if configuration == AutomaticityConfiguration.FMRI
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
                 BUTTON_SWITCH.PMC_B_weights(:,:,1,:) = PMC_B.weights(:,:,1,:);
             else
@@ -309,7 +310,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Set PMC weights, potentially dependent on COVIS
         % If first trial, set to initial weights
-        if CONFIGURATION == FMRI || trial==1
+        if configuration == AutomaticityConfiguration.FMRI || trial==1
             if COVIS_ENABLED
                 PMC_A_weights = PMC_A.weights(:,:,1,chosen_rule);
                 PMC_B_weights = PMC_B.weights(:,:,1,chosen_rule);
@@ -423,7 +424,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         rt_calc_times(trial) = toc(rt_start_time);
 
         %% Weight change calculations
-        if CONFIGURATION == FMRI
+        if configuration == AutomaticityConfiguration.FMRI
             idx_weight = 1;
         else
             idx_weight = trial;
@@ -484,7 +485,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         
         % If COVIS is enabled and weight matrix has time dimension, update
         % all other weight matrices for this iteration
-        if COVIS_ENABLED && CONFIGURATION ~= FMRI
+        if COVIS_ENABLED && configuration ~= AutomaticityConfiguration.FMRI
             PMC_A.weights(:,:,trial,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_A.weights(:,:,trial-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
             PMC_B.weights(:,:,trial,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_B.weights(:,:,trial-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
         end
@@ -530,11 +531,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     opt_val_2 = zeros(4,4);
     % Calculate Sum of Squared Errors of Prediction (SSE)
     if OPTIMIZATION_CALC
-        if CONFIGURATION == MADDOX
+        if configuration == AutomaticityConfiguration.MADDOX
             opt_val_1 = 0;
-        elseif CONFIGURATION == WALLIS
+        elseif configuration == AutomaticityConfiguration.WALLIS
             opt_val_1 = 0;
-        elseif CONFIGURATION == FMRI
+        elseif configuration == AutomaticityConfiguration.FMRI
             if ~FMRI_META.GROUP_RUN
                 target = load('fmri/targetMeans1dCondition.mat');
                 % Calculate Mean Accuracy for trials from Session 4, 10, and 20
@@ -571,7 +572,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-        displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
+        displayautoresults(FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule);
     end
     return;
 end
