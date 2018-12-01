@@ -108,7 +108,16 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     %% Figure 1C - COVIS
     if COVIS_ENABLED
         figure;
-        scatter(1:max(size(COVIS_VARS.rule_log)), COVIS_VARS.rule_log);
+        rules = { COVIS_VARS.rule_log == 1, 'r', 'Rule 1'; ...
+                  COVIS_VARS.rule_log == 2, 'b', 'Rule 2'; ...
+                  COVIS_VARS.rule_log == 3, 'g', 'Rule 3'; ...
+                  COVIS_VARS.rule_log == 4, 'm', 'Rule 4' ...
+        };
+        for i=1:4
+            plot(smooth(rules{i,1}, 500), rules{i,2}); hold on;
+        end
+        xlim([0, TRIALS]);
+        legend(rules{:,3});
         title('COVIS Information');
     end
 

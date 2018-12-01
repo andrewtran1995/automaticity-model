@@ -17,3 +17,6 @@ data
 # Ignore codegen directory and files
 codegen
 *.mexw64
+
+# Ignore temporarily created files made for testing purposes
+temp*
