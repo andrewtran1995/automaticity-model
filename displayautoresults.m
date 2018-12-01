@@ -1,9 +1,9 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, CONFIGURATION, MADDOX, WALLIS, FMRI, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    addpath('libraries');
+    addpath('classes','libraries');
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
     %% Figure 1 - neuron information from last trial or throughout trials
@@ -37,7 +37,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.r_y, VISUAL.r_x, VISUAL.STIM));
+    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.y_coord, VISUAL.x_coord, VISUAL.STIM));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -47,11 +47,11 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
     subplot(rows,columns,11);
     x_axis = linspace(1, TRIALS, TRIALS);
-    PMC_A_Rx = PMC.rx_matrix(:,1) == 1;
+    PMC_A_Rx = PMC.reactions(:,1) == 1;
     PMC_B_Rx = ~PMC_A_Rx;
-    scatter(find(PMC_A_Rx), PMC.rx_matrix(PMC_A_Rx,2), 10, 'r', 'filled');
+    scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled');
     hold on;
-    scatter(find(PMC_B_Rx), PMC.rx_matrix(PMC_B_Rx,2), 10, 'b', 'filled');
+    scatter(find(PMC_B_Rx), PMC.reactions(PMC_B_Rx,2), 10, 'b', 'filled');
     legend('PMC_A', 'PMC_B');
     suplabel('PMC_A & PMC_B Reaction Time', 't');
 
@@ -82,7 +82,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         axis([0 n -100 100]); title('AC_B Voltage');
 
         subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
-        axis([0 n 0 30]); title('Driv_PFC Output');
+        axis([0 n 0 30]); title('Driv PFC Output');
 
         subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
         axis([0 n 0 30]); title('CN Output');
@@ -101,7 +101,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
         subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
         axis([0 n 0 30]); title('AC_B Output');
-        
+
         suplabel('Neuron Information from Last Trial, Rx Times, Etc.');
     end
 
@@ -116,7 +116,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     % Only relevant if any learning trials were conducted
     if LEARNING_TRIALS > 0
         % If not FMRI, assume there is a record for the weights for each trial
-        if CONFIGURATION ~= FMRI
+        if configuration ~= AutomaticityConfiguration.FMRI
             figure;
             rows = 1; columns = 2;
             % Force slider to integer/discrete value:
@@ -152,7 +152,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             
             suplabel('Synaptic Heatmaps');
         % Create figures for button switch
-        elseif CONFIGURATION == FMRI && BUTTON_SWITCH_ENABLED
+        elseif configuration == AutomaticityConfiguration.FMRI && BUTTON_SWITCH_ENABLED
             rows = 2; columns = 4;
             figure;
             for i=1:4
@@ -186,20 +186,20 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         end
     end
 
-    if CONFIGURATION == MADDOX
+    if configuration == AutomaticityConfiguration.MADDOX
         %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type — Short, Medium, or Long
+        % CDFs of RTs (reaction times) dependent on stimulus type ï¿½ Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
-        PMC_S = PMC.rx_matrix(LEARNING_IDX,3) == 'S';
-        PMC_M = PMC.rx_matrix(LEARNING_IDX,3) == 'M';
-        PMC_L = PMC.rx_matrix(LEARNING_IDX,3) == 'L';
+        PMC_S = PMC.reactions(LEARNING_IDX,3) == 'S';
+        PMC_M = PMC.reactions(LEARNING_IDX,3) == 'M';
+        PMC_L = PMC.reactions(LEARNING_IDX,3) == 'L';
 
         figure;
-        p1 = cdfplot(PMC.rx_matrix(PMC_S, 2)); set(p1, 'Color', 'r');
+        p1 = cdfplot(PMC.reactions(PMC_S, 2)); set(p1, 'Color', 'r');
         hold on;
-        p2 = cdfplot(PMC.rx_matrix(PMC_M, 2)); set(p2, 'Color', 'b');
+        p2 = cdfplot(PMC.reactions(PMC_M, 2)); set(p2, 'Color', 'b');
         hold on;
-        p3 = cdfplot(PMC.rx_matrix(PMC_L, 2)); set(p3, 'Color', 'g');
+        p3 = cdfplot(PMC.reactions(PMC_L, 2)); set(p3, 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         suplabel('CDFs of PMC Rx Times (Grouped by Distance)');
 
@@ -209,12 +209,12 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         figure; title('PMC Rx Times Hazard Functions');
 
         % Reuse vars from CDF plot
-        pts = (min(PMC.rx_matrix(LEARNING_IDX, 2)):0.25:max(PMC.rx_matrix(LEARNING_IDX, 2)));
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_S, 2), pts), 'Color', 'r');
+        pts = (min(PMC.reactions(LEARNING_IDX, 2)):0.25:max(PMC.reactions(LEARNING_IDX, 2)));
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_S, 2), pts), 'Color', 'r');
         hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_M, 2), pts), 'Color', 'b');
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_M, 2), pts), 'Color', 'b');
         hold on;
-        plot(pts, get_hazard_estimate(PMC.rx_matrix(PMC_L, 2), pts), 'Color', 'g');
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_L, 2), pts), 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         title('Hazard Functions');
     end
@@ -222,12 +222,12 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     %% Figure 5 - Reaction Latency
     % Histograms of reaction latencies by neuron and trial subsets
     figure;
-    latencies = {PFC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PFC Latencies (Pre-Learning)'; ...
-                 PMC.rx_matrix(1:PRE_LEARNING_TRIALS,2), 'PMC Latencies (Pre-Learning)'; ...
-                 PFC.rx_matrix(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
-                 PMC.rx_matrix(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
-                 PFC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
-                 PMC.rx_matrix(end-POST_LEARNING_TRIALS+1:end, 2), 'PMC Latencies (Post-Learning'};
+    latencies = {PFC.reactions(1:PRE_LEARNING_TRIALS,2), 'PFC Latencies (Pre-Learning)'; ...
+                 PMC.reactions(1:PRE_LEARNING_TRIALS,2), 'PMC Latencies (Pre-Learning)'; ...
+                 PFC.reactions(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
+                 PMC.reactions(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
+                 PFC.reactions(end-POST_LEARNING_TRIALS+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
+                 PMC.reactions(end-POST_LEARNING_TRIALS+1:end, 2), 'PMC Latencies (Post-Learning'};
     latencies(cellfun(@isempty, latencies(:,1)), :) = [];
     rows = length(latencies(:,1))/2; columns = 2;
     numBins = 20;
@@ -240,10 +240,10 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     suplabel('Reaction Latency Histograms', 't');
     
-    %% Figure 6 — Reaction Plots
+    %% Figure 6 ï¿½ Reaction Plots
     figure;
     rows = 3; columns = 1;
-    latencies = {PFC.rx_matrix(:,2), PMC.rx_matrix(:,2), MC.rx_matrix(:,2)};
+    latencies = {PFC.reactions(:,2), PMC.reactions(:,2), MC.reactions(:,2)};
     latencyTitles = {'PFC Reaction Time', 'PMC Reaction Time', 'MC Reaction Time'};
     for i=1:3
         subplot(rows,columns,i);
@@ -259,7 +259,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     
     %% Figure 7 - Accuracy
     figure;
-    plot(smooth(accuracy, 11), 'b');
+    plot(smooth(accuracy, 30), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
     if BUTTON_SWITCH_ENABLED
        hold on;
@@ -267,7 +267,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     title('Accuracy');
 
-    %% Figure 8 — Performance Tests
+    %% Figure 8 ï¿½ Performance Tests
     % Information regarding the run-time of this program
     if PERF_OUTPUT
         elapsedTime = toc(start_time);
@@ -279,36 +279,10 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
-    %% Following code can be run (copy-paste in terminal should work) to generate heat maps
-    % Without border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, chosen_rule));
-    colorbar;
-    % With border, COVIS_ENABLED
-    figure;
-    title('Synaptic Heatmaps');
-    rows = 1; columns = 2;
-    subplot(rows,columns,1);
-    colormap('hot');
-    imagesc(PMC_A.weights(:,:,1,chosen_rule));
-    colorbar;
-    subplot(rows,columns,2);
-    colormap('hot');
-    imagesc(PMC_B.weights(:,:,1,chosen_rule));
-    colorbar;
 
 end
 
 % Handles the slider functionality for the synaptic weight heatmaps
-% REMOVE FOR CODEGEN
 function synaptic_slider_callback(src, ~, position, data, neuron_name)
     subplot(1, 2, position, 'replace');
     trial_num = round(get(src, 'value'));
@@ -321,7 +295,6 @@ end
 
 % Find the hazard function as defined by Hazard = f(t)/S(t),
 % where f(t) is the PDF and S(t) is the survivor function
-% REMOVE FOR CODEGEN
 function [f] = get_hazard_estimate(x, pts)
     [f_pdf, ~] = ksdensity(x, pts, 'function', 'pdf');
     [f_sur, ~] = ksdensity(x, pts, 'function', 'survivor');

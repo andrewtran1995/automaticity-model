@@ -3,17 +3,19 @@ function [param_struct] = getautoparams(configuration)
 %   Get parameters for automaticityModel. Parameters initialized here are
 %   either dependent on the chosen configuration or are exposed in the
 %   param_struct for the purpose of optimizing their value.
+    % Load dependencies
+    addpath('classes');
     % Initialize parameters that depend on configuration
     param_names   = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'; 'MC_DECISION_PT'};
     MADDOX_CONFIG = {                    0;               500;                      0;                 4;                 4;                4};
     WALLIS_CONFIG = {                  100;               200;                    100;               400;               400;              400};
     FMRI_CONFIG   = {                    0;             11520;                      0;               700;               700;              700};
     switch configuration
-        case 'MADDOX'
+        case AutomaticityConfiguration.MADDOX
             param_vals = MADDOX_CONFIG;
-        case 'WALLIS'
+        case AutomaticityConfiguration.WALLIS
             param_vals = WALLIS_CONFIG;
-        case 'FMRI'
+        case AutomaticityConfiguration.FMRI
             param_vals = FMRI_CONFIG;
         otherwise
             error('Improper configuration requested in get_parameters(configuration): %s!', configuration);
