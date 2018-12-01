@@ -63,9 +63,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     addpath('classes');
     
     % Load configuration and config parameters
-    % MADDOX = 1; WALLIS = 2; FMRI = 3;
-    % CONFIGURATIONS = {'MADDOX', 'WALLIS', 'FMRI'};
-    % configuration = FMRI;
     configuration = AutomaticityConfiguration.FMRI;
     
     % Get parameters
@@ -179,8 +176,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     			  'OUTER', [1:STIMULUS_GRID_SIZE/4+BORDER_SIZE, STIMULUS_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
     			  'INNER', STIMULUS_GRID_SIZE/4+BORDER_SIZE+1:STIMULUS_GRID_SIZE*3/4+BORDER_SIZE, ...
     			  'ALL', 1:GRID_SIZE);
-    VISUAL = struct('STIM', 50, ...
-                    'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
+    VISUAL = struct('STIM', 50, 'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
                     'RULES', [ ...
                         struct('A_X', AREA.LOWER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.UPPER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 2); ...
                         struct('A_X', AREA.UPPER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.LOWER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 1); ...
@@ -196,8 +192,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     RULE = VISUAL.RULES(chosen_rule);
 
     % Radial Basis Function
-    [X, Y] = meshgrid(1:GRID_SIZE, 1:GRID_SIZE);
-    RBF = struct('RADIUS', 0.8, 'rbv', zeros(GRID_SIZE), 'X', X, 'Y', Y);
+    RBF = RadialBasisFunction(GRID_SIZE, VISUAL.STIM);
 
     %% COVIS Model
     COVIS_PARMS = struct('DELTA_C', PARAMS.COVIS_DELTA_C, 'DELTA_E', PARAMS.COVIS_DELTA_E, 'PERSEV', PARAMS.COVIS_PERSEV, ...
@@ -341,7 +336,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF.rbv(:,:) = exp( -(sqrt((VISUAL.y_coord-RBF.Y).^2 + (VISUAL.x_coord-RBF.X).^2))/RBF.RADIUS ) * VISUAL.STIM;
+        RBF = RBF.resolvestimulus(VISUAL.x_coord, VISUAL.y_coord);
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
@@ -451,7 +446,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
             % Determine new weights of visual PMC_A synapses (limit values to range of [0, W_MAX])
             PMC_A_weights(:,:,1,1) = PMC_A_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_A*g_t_1_A.*(W_MAX - PMC_A_weights) - Hebbian.anti_heb*integral_PFC_A*g_t_2_A.*PMC_A_weights);
-            PMC_A.weights(:,:,idx_weight,idx_rule) = min(max(PMC_A_weights,0),W_MAX);
+            PMC_A.weights(:,:,idx_weight,idx_rule) = bound_array(PMC_A_weights, 0, W_MAX);
 
             %% Calculation of Hebbian Weight for PMC_B
             % Ensures g(t)-1 and g(2)-2 are never less than zero
@@ -460,21 +455,21 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
             % Determine new weights of visual PMC_B synapses (limit values to range of [0, W_MAX])
             PMC_B_weights(:,:,1,1) = PMC_B_weights + RBF.rbv(:,:).*(Hebbian.heb_coef*integral_PFC_B*g_t_1_B.*(W_MAX - PMC_B_weights) - Hebbian.anti_heb*integral_PFC_B*g_t_2_B.*PMC_B_weights);
-            PMC_B.weights(:,:,idx_weight,idx_rule) = min(max(PMC_B_weights,0),W_MAX);
+            PMC_B.weights(:,:,idx_weight,idx_rule) = bound_array(PMC_B_weights, 0, W_MAX);
             
             %% Calculation of Hebbian Weights for MC_A
             g_t_1_MCA = max(0, integral_MC_A - Hebbian.NMDA_MC);
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MC_A - Hebbian.AMPA_MC);
             
-            MC_A.weights(:,idx_weight) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
-            MC_A.weights(:,idx_weight) = min(max(MC_A.weights(:,idx_weight),0),MC_A.W_MAX);
+            MC_A.weights(:,trial) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
+            MC_A.weights(:,trial) = bound_array(MC_A.weights(:,trial), 0, MC_A.W_MAX);
             
             %% Calculation of Hebbian Weights for MC_B
             g_t_1_MCB = max(0, integral_MC_B - Hebbian.NMDA_MC);
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MC_B - Hebbian.AMPA_MC);
             
-            MC_B.weights(:,idx_weight) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
-            MC_B.weights(:,idx_weight) = min(max(MC_B.weights(:,idx_weight),0),MC_B.W_MAX);
+            MC_B.weights(:,trial) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
+            MC_B.weights(:,trial) = bound_array(MC_B.weights(:,trial), 0, MC_B.W_MAX);
             
         % Else, if not learning, set new weights to previous weights
         else
@@ -614,6 +609,11 @@ end
 function [idx] = rand_discrete(distr)
     cum_distr = cumsum(distr);
     idx = find(rand<cum_distr, 1);
+end
+
+% Bound the input to the given range, inclusive
+function [bounded_array] = bound_array(num, lower_bound, upper_bound)
+    bounded_array = min(max(num, lower_bound), upper_bound);
 end
 
 % Finds correlation between different neurons and accuracy

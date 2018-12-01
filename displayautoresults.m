@@ -37,7 +37,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d); Weight: %d', VISUAL.y_coord, VISUAL.x_coord, VISUAL.STIM));
+    title(sprintf('Stimulus: (%d,%d)', VISUAL.y_coord, VISUAL.x_coord));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -184,21 +184,41 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             end
             suplabel('Final Heatmaps', 't');
         end
+        % MC Weights
+        figure;
+        rows = 2; columns = 1;
+        subplot(rows,columns,1);
+        plot(smooth(MC_A.weights(1,:),50), 'r'); hold on;
+        plot(smooth(MC_A.weights(2,:),50), 'b');
+        if BUTTON_SWITCH_ENABLED
+            hold on;
+            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+        end
+        legend('Weight to PMC_A', 'Weight to PMC_B');
+        title('MC_A');
+        subplot(rows,columns,2);
+        plot(smooth(MC_B.weights(1,:),50), 'r'); hold on;
+        plot(smooth(MC_B.weights(2,:),50), 'b');
+        if BUTTON_SWITCH_ENABLED
+            hold on;
+            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+        end
+        legend('Weight to PMC_B', 'Weight to PMC_A');
+        title('MC_B');
+        suplabel('MC Weights', 't');
     end
 
     if configuration == AutomaticityConfiguration.MADDOX
         %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type � Short, Medium, or Long
+        % CDFs of RTs (reaction times) dependent on stimulus type - Short, Medium, or Long
         % CDF = P(RT <= t), for each specific value t
         PMC_S = PMC.reactions(LEARNING_IDX,3) == 'S';
         PMC_M = PMC.reactions(LEARNING_IDX,3) == 'M';
         PMC_L = PMC.reactions(LEARNING_IDX,3) == 'L';
 
         figure;
-        p1 = cdfplot(PMC.reactions(PMC_S, 2)); set(p1, 'Color', 'r');
-        hold on;
-        p2 = cdfplot(PMC.reactions(PMC_M, 2)); set(p2, 'Color', 'b');
-        hold on;
+        p1 = cdfplot(PMC.reactions(PMC_S, 2)); set(p1, 'Color', 'r'); hold on;
+        p2 = cdfplot(PMC.reactions(PMC_M, 2)); set(p2, 'Color', 'b'); hold on;
         p3 = cdfplot(PMC.reactions(PMC_L, 2)); set(p3, 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         suplabel('CDFs of PMC Rx Times (Grouped by Distance)');
@@ -210,10 +230,8 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
 
         % Reuse vars from CDF plot
         pts = (min(PMC.reactions(LEARNING_IDX, 2)):0.25:max(PMC.reactions(LEARNING_IDX, 2)));
-        plot(pts, get_hazard_estimate(PMC.reactions(PMC_S, 2), pts), 'Color', 'r');
-        hold on;
-        plot(pts, get_hazard_estimate(PMC.reactions(PMC_M, 2), pts), 'Color', 'b');
-        hold on;
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_S, 2), pts), 'Color', 'r'); hold on;
+        plot(pts, get_hazard_estimate(PMC.reactions(PMC_M, 2), pts), 'Color', 'b'); hold on;
         plot(pts, get_hazard_estimate(PMC.reactions(PMC_L, 2), pts), 'Color', 'g');
         legend('S', 'M', 'L', 'Location', 'southeast');
         title('Hazard Functions');
@@ -240,7 +258,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     suplabel('Reaction Latency Histograms', 't');
     
-    %% Figure 6 � Reaction Plots
+    %% Figure 6 - Reaction Plots
     figure;
     rows = 3; columns = 1;
     latencies = {PFC.reactions(:,2), PMC.reactions(:,2), MC.reactions(:,2)};
@@ -259,7 +277,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     
     %% Figure 7 - Accuracy
     figure;
-    plot(smooth(accuracy, 30), 'b');
+    plot(smooth(accuracy, 50), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
     if BUTTON_SWITCH_ENABLED
        hold on;
@@ -267,7 +285,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
     title('Accuracy');
 
-    %% Figure 8 � Performance Tests
+    %% Figure 8 - Performance Tests
     % Information regarding the run-time of this program
     if PERF_OUTPUT
         elapsedTime = toc(start_time);
