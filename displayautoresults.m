@@ -49,9 +49,9 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     x_axis = linspace(1, TRIALS, TRIALS);
     PMC_A_Rx = PMC.reactions(:,1) == 1;
     PMC_B_Rx = ~PMC_A_Rx;
-    scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled');
-    hold on;
+    scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled'); hold on;
     scatter(find(PMC_B_Rx), PMC.reactions(PMC_B_Rx,2), 10, 'b', 'filled');
+    xlim([0, TRIALS]);
     legend('PMC_A', 'PMC_B');
     suplabel('PMC_A & PMC_B Reaction Time', 't');
 
@@ -102,23 +102,28 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
         axis([0 n 0 30]); title('AC_B Output');
 
-        suplabel('Neuron Information from Last Trial, Rx Times, Etc.');
+        suplabel('Neuron Information from Last Trial, Rx Times, Etc.', 't');
     end
 
-    %% Figure 1C - COVIS
+    %% COVIS Figures
     if COVIS_ENABLED
         figure;
-        rules = { COVIS_VARS.rule_log == 1, 'r', 'Rule 1'; ...
-                  COVIS_VARS.rule_log == 2, 'b', 'Rule 2'; ...
-                  COVIS_VARS.rule_log == 3, 'g', 'Rule 3'; ...
-                  COVIS_VARS.rule_log == 4, 'm', 'Rule 4' ...
+        rule_legend = { 'r', 'Rule 1'; ...
+                        'b', 'Rule 2'; ...
+                        'g', 'Rule 3'; ...
+                        'm', 'Rule 4' ...
+        };
+        rules = { COVIS_VARS.rule_log == 1; ...
+                  COVIS_VARS.rule_log == 2; ...
+                  COVIS_VARS.rule_log == 3; ...
+                  COVIS_VARS.rule_log == 4 ...
         };
         for i=1:4
-            plot(smooth(rules{i,1}, 500), rules{i,2}); hold on;
+            plot(smooth(rules{i}, 500), rule_legend{i,1}); hold on;
         end
         xlim([0, TRIALS]);
-        legend(rules{:,3});
-        title('COVIS Information');
+        legend(rule_legend{:,2});
+        title('COVIS Rule Log Frequency');
     end
 
     %% Figure 2 - Synaptic Weight Heatmaps
@@ -159,7 +164,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
                                      'Position', [500 50 300 20]);
             set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
             
-            suplabel('Synaptic Heatmaps');
+            suplabel('Synaptic Heatmaps', 't');
         % Create figures for button switch
         elseif configuration == AutomaticityConfiguration.FMRI && BUTTON_SWITCH_ENABLED
             rows = 2; columns = 4;
@@ -203,6 +208,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             hold on;
             plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
         end
+        xlim([0, TRIALS]);
         legend('Weight to PMC_A', 'Weight to PMC_B');
         title('MC_A');
         subplot(rows,columns,2);
@@ -212,6 +218,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             hold on;
             plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
         end
+        xlim([0, TRIALS]);
         legend('Weight to PMC_B', 'Weight to PMC_A');
         title('MC_B');
         suplabel('MC Weights', 't');
@@ -286,7 +293,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     
     %% Figure 7 - Accuracy
     figure;
-    plot(smooth(accuracy, 50), 'b');
+    plot(smooth(accuracy, 500), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
     if BUTTON_SWITCH_ENABLED
        hold on;

@@ -283,7 +283,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if COVIS_ENABLED
             if trial <= COVIS_PARMS.NUM_GUESS
                 chosen_rule = randi(length(COVIS_VARS.rules));
-            elseif accuracy(trial-1) == 1
+            elseif accuracy(trial-1) == 1 || trial > PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
                 chosen_rule = COVIS_VARS.rule_log(trial-1);
             else
                 chosen_rule = rand_discrete(COVIS_VARS.rule_prob);
@@ -497,20 +497,25 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         
         %% COVIS Calculations - readjusting saliences, weights
-        if COVIS_ENABLED && trial < PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
-            % Step 1: re-adjust saliences & weights
+        if COVIS_ENABLED && trial <= PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
+            % Step 1: re-adjust saliences
             if accuracy(trial) == 1
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_C;
             else
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_E;
             end
-            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.rule_weights(chosen_rule) + COVIS_PARMS.PERSEV;
+
+            % Step 2: produce weight according to salience
+            COVIS_VARS.rule_weights(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.PERSEV;
             
-            % Step 2: updating of randomly chosen rule
+            % Step 3: updating of randomly chosen rule
             random_rule = randi(4);
             COVIS_VARS.rule_weights(random_rule) = COVIS_VARS.rule_weights(random_rule) + poissrnd(COVIS_PARMS.LAMBDA);
 
-            % Step 3: calculate rule probabilities for next trial
+            % Step 4: all other saliences carry over into weights
+            COVIS_VARS.rule_weights(~ismember(COVIS_VARS.rules, [chosen_rule, random_rule])) = COVIS_VARS.saliences(~ismember(COVIS_VARS.rules, [chosen_rule, random_rule]));
+
+            % Step 5: calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
         end
 
