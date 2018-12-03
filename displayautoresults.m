@@ -297,7 +297,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     xlim([0, TRIALS]); ylim([0, 1]);
     if BUTTON_SWITCH_ENABLED
        hold on;
-       plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r'); 
+       plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
     end
     title('Accuracy');
 

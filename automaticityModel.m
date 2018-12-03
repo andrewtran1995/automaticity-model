@@ -502,7 +502,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             if accuracy(trial) == 1
                 COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_C;
             else
-                COVIS_VARS.saliences(chosen_rule) = COVIS_VARS.saliences(chosen_rule) + COVIS_PARMS.DELTA_E;
+                COVIS_VARS.saliences(chosen_rule) = max(COVIS_VARS.saliences(chosen_rule) - COVIS_PARMS.DELTA_E, 1);
             end
 
             % Step 2: produce weight according to salience

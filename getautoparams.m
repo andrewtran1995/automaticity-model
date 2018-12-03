@@ -28,7 +28,7 @@ function [param_struct] = getautoparams(configuration)
     frost_vals  = {                1;                1;               1;            1;            1};
     % COVIS Params
     covis_names = {'COVIS_DELTA_C';'COVIS_DELTA_E';'COVIS_PERSEV';'COVIS_LAMBDA'};
-    covis_vals  = {             10;              1;             5;             1};
+    covis_vals  = {              8;              1;             5;             1};
     param_struct = cell2struct(vertcat( param_vals,  agn_vals,  frost_vals, covis_vals), ...  % Parameter values
                                vertcat(param_names, agn_names, frost_names, covis_names), ... % Parameter names
                                1);
