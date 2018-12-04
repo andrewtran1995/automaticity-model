@@ -313,8 +313,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 PMC_A_weights = PMC_A.weights(:,:,1);
                 PMC_B_weights = PMC_B.weights(:,:,1);
             end
-            MC_A_weights = MC_A.weights(:,1);
-            MC_B_weights = MC_B.weights(:,1);
         % Else, set weights to results of previous trial
         else
             if COVIS_ENABLED
@@ -324,6 +322,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 PMC_A_weights = PMC_A.weights(:,:,trial-1);
                 PMC_B_weights = PMC_B.weights(:,:,trial-1);
             end
+        end
+        
+        %% Set MC weights
+        if trial==1
+            MC_A_weights = MC_A.weights(:,1);
+            MC_B_weights = MC_B.weights(:,1);
+        else
             MC_A_weights = MC_A.weights(:,trial-1);
             MC_B_weights = MC_B.weights(:,trial-1);
         end
