@@ -44,6 +44,15 @@ classdef MCNeuron < RSN
             % Increment time
             obj.i = obj.i + 1;
         end
+
+        function weights = previousweights(obj, trial)
+            if trial == 1
+                previous_trial = 1;
+            else
+                previous_trial = trial - 1;
+            end
+            weights = obj.weights(:, previous_trial);
+        end
     end
     
 end

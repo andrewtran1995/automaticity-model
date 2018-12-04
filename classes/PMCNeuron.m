@@ -21,7 +21,7 @@ classdef PMCNeuron < RSN
             obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,n,1);
             
-            % Create weights matrix condiitonally
+            % Create weights matrix conditionally
             if SAVE_MEM
                 weight_length = 1;
             else

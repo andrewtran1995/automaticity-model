@@ -323,15 +323,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 PMC_B_weights = PMC_B.weights(:,:,trial-1);
             end
         end
-        
-        %% Set MC weights
-        if trial==1
-            MC_A_weights = MC_A.weights(:,1);
-            MC_B_weights = MC_B.weights(:,1);
-        else
-            MC_A_weights = MC_A.weights(:,trial-1);
-            MC_B_weights = MC_B.weights(:,trial-1);
-        end
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
@@ -466,22 +457,23 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             g_t_1_MCA = max(0, integral_MC_A - Hebbian.NMDA_MC);
             g_t_2_MCA = max(0, Hebbian.NMDA_MC - integral_MC_A - Hebbian.AMPA_MC);
             
-            MC_A.weights(:,trial) = MC_A_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A_weights) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A_weights));
+            MC_A.weights(:,trial) = MC_A.previousweights(trial) + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_A*(Hebbian.heb_coef_mc*g_t_1_MCA.*(MC_A.W_MAX - MC_A.previousweights(trial)) - Hebbian.anti_heb_mc*g_t_2_MCA.*MC_A.previousweights(trial)));
             MC_A.weights(:,trial) = bound_array(MC_A.weights(:,trial), 0, MC_A.W_MAX);
+            
             
             %% Calculation of Hebbian Weights for MC_B
             g_t_1_MCB = max(0, integral_MC_B - Hebbian.NMDA_MC);
             g_t_2_MCB = max(0, Hebbian.NMDA_MC - integral_MC_B - Hebbian.AMPA_MC);
             
-            MC_B.weights(:,trial) = MC_B_weights + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B_weights) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B_weights));
+            MC_B.weights(:,trial) = MC_B.previousweights(trial) + [MC.PRIMARY_WEIGHT; MC.SECONDARY_WEIGHT].*(integral_PMC_B*(Hebbian.heb_coef_mc*g_t_1_MCB.*(MC_B.W_MAX - MC_B.previousweights(trial)) - Hebbian.anti_heb_mc*g_t_2_MCB.*MC_B.previousweights(trial)));
             MC_B.weights(:,trial) = bound_array(MC_B.weights(:,trial), 0, MC_B.W_MAX);
             
         % Else, if not learning, set new weights to previous weights
         else
             PMC_A.weights(:,:,idx_weight,idx_rule) = PMC_A_weights;
             PMC_B.weights(:,:,idx_weight,idx_rule) = PMC_B_weights;
-            MC_A.weights(:,idx_weight) = MC_A_weights;
-            MC_B.weights(:,idx_weight) = MC_B_weights;
+            MC_A.weights(:,trial) = MC_A.previousweights(trial);
+            MC_B.weights(:,trial) = MC_B.previousweights(trial);
         end
         
         % If COVIS is enabled and weight matrix has time dimension, update
