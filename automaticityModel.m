@@ -515,6 +515,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             % Step 5: calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
         end
+        
+        if BUTTON_SWITCH_ENABLED && trial == TRIALS - BUTTON_SWITCH.TRIALS + 1
+            MC_A.weights(2,trial) = 0;
+            MC_B.weights(2,trial) = 0;
+        end
 
         %% Print data to console
         if not(SUPPRESS_UI)
