@@ -6,6 +6,9 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     addpath('classes','libraries');
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
+    %% Starts debug mode if you want to view the variables before executing code
+    % keyboard;
+
     %% Figure 1 - neuron information from last trial or throughout trials
     figure;
     rows = 3; columns = 4;
