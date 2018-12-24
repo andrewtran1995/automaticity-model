@@ -408,10 +408,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         MC.reactions(trial,:) = [neuron_id_MC, latency, VISUAL.coordinate_group];
         % Determine accuracy
         if COVIS_ENABLED
-            accuracy(trial) = double((any(VISUAL.x_coord == COVIS_VARS.correct_rule.B_X) && any(VISUAL.y_coord == COVIS_VARS.correct_rule.B_Y)) + 1) == neuron_id_MC;
+            accuracy(trial) = determinecorrectneuron(VISUAL.x_coord, VISUAL.y_coord, COVIS_VARS.correct_rule) == neuron_id_MC;
         else
-            accuracy(trial) = double((any(VISUAL.x_coord == RULE(1).B_X) && any(VISUAL.y_coord == RULE(1).B_Y)) + 1) == neuron_id_MC;
-
+            accuracy(trial) = determinecorrectneuron(VISUAL.x_coord, VISUAL.y_coord, RULE(1)) == neuron_id_MC;
         end
         rt_calc_times(trial) = toc(rt_start_time);
 
@@ -610,6 +609,14 @@ function [neuron_id, latency] = determine_reacting_neuron(neuron_1, neuron_2, de
         neuron_id = double(trapz(neuron_1) < trapz(neuron_2));
         latency = length(neuron_1);
     end
+end
+
+function [neuron_id] = determinecorrectneuron(x, y, rule)
+    % If x and y are found in "B", the boolean will evaluate to true.
+    equalsNeuron2 = any(x == rule.B_X) && any(y == rule.B_Y);
+    % Add one to the result, since neuron IDs are 1-indexed, and cast the result
+    % to a double for code-generation compatibility.
+    neuron_id = double(equalsNeuron2 + 1);
 end
 
 % Given discrete distribution, return index of chosen index
