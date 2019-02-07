@@ -4,4 +4,4 @@ optional_parms = struct('FMRI_META_GROUP_RUN', 0, ...
 
 % automaticityModel(getautoparams('FMRI'), optional_parms);
 % automaticityModel(getautoparams(AutomaticityConfiguration.FMRI, optional_parms));
-automaticityModel_mex(getautoparams(AutomaticityConfiguration.FMRI), optional_parms);
+automaticityModel_mex(getautoparams(AutomaticityConfiguration.WALLIS), optional_parms);
