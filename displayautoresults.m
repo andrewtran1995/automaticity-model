@@ -1,4 +1,4 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule )
+function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule, y_coordinates, x_coordinates )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
@@ -313,6 +313,21 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         plot(trial_times, 'r'); hold on;
         plot(rt_calc_times, 'g');
     end
+    
+    %% Utility matrix that holds:
+    % x-coordinates (padded with border size)
+    % y-coordinates (padded with border size)
+    % PFC neuron ID
+    % PMC neuron ID
+    % MC neuron ID
+    % accuracy
+    reactioninfo = [x_coordinates(1:TRIALS) + BORDER_SIZE, ...
+                    y_coordinates(1:TRIALS) + BORDER_SIZE, ...
+                    PFC.reactions(:,1), ...
+                    PMC.reactions(:,1), ...
+                    MC.reactions(:,1), ...
+                    accuracy ...
+    ];
 
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
