@@ -63,7 +63,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     addpath('classes');
     
     % Load configuration and config parameters
-    configuration = AutomaticityConfiguration.WALLIS;
+    configuration = AutomaticityConfiguration.FMRI;
     
     % Get parameters
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
@@ -351,8 +351,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
-                PFC_A = PFC_A.iterate_FROST(NOISE.PFC, PFC_B, PMC_A, MDN_A, AC_A);
-                PFC_B = PFC_B.iterate_FROST(NOISE.PFC, PFC_A, PMC_B, MDN_B, AC_B);
+                PFC_A = PFC_A.iterate_FROST(NOISE.PFC, PFC_B, MDN_A, AC_A);
+                PFC_B = PFC_B.iterate_FROST(NOISE.PFC, PFC_A, MDN_B, AC_B);
 
                 PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
                 PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
@@ -375,8 +375,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         else
             %% Non-FROST Calculation
             for i=1:n-1
-                PFC_A = PFC_A.iterate(NOISE.PFC, PFC_B, PMC_A);
-                PFC_B = PFC_B.iterate(NOISE.PFC, PFC_A, PMC_B);
+                PFC_A = PFC_A.iterate(NOISE.PFC, PFC_B);
+                PFC_B = PFC_B.iterate(NOISE.PFC, PFC_A);
 
                 PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
                 PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
