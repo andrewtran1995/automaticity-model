@@ -201,16 +201,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                         'rule_weights', ones(COVIS_PARMS.NUM_RULES,1), 'rule_prob', ones(COVIS_PARMS.NUM_RULES,1), ...
                         'rule_log', ones(TRIALS,1));
     
-    %% General settings for PFC, PMC, and MC neurons
+    %% General settings for neurons
     % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
-    % PFC general information
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
         'reactions', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
-    % PMC general information
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
         'reactions', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
@@ -218,7 +216,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'activations', zeros(TRIALS,1) ...
     );
 
-    % MC general parameters
     MC = struct( ...
         'DECISION_PT', PARAMS.MC_DECISION_PT, ...
         'reactions', zeros(TRIALS,3), ...
@@ -228,6 +225,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'A_area', zeros(TRIALS,1), ...
         'B_area', zeros(TRIALS,1) ...
     );
+
+    MDN = struct('activations', zeros(TRIALS,1));
 
     %% Hebbian Constants (determine the subtle attributes of learning at the Hebbian synapses)
     %{
@@ -255,7 +254,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     
     GP = GPNeuron(n, TAU, LAMBDA, TRIALS);
 
-    MDN = struct('activations', zeros(TRIALS,1));
     MDN_A = MDNNeuron(n, TAU, LAMBDA, PARAMS.MDN_A_W_OUT);
     MDN_B = MDNNeuron(n, TAU, LAMBDA, PARAMS.MDN_B_W_OUT);
 
