@@ -47,8 +47,7 @@ ARGS{1}{2}.visualinput = coder.typeof(0,[Inf  2],[1 0]);
 ARGS{1}{2} = coder.typeof(ARGS{1}{2});
 
 %% Add necessary folders to path
-addpath('libraries');
-addpath('classes');
+addpath('classes', 'functions', 'libraries');
 
 %% Invoke MATLAB Coder.
 codegen -config cfg automaticityModel -args ARGS{1}

@@ -55,13 +55,13 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
     % Code-generation declarations
-    coder.extrinsic('getautoparams','displayautoresults');
     coder.extrinsic('tic','toc','struct2table','addpath');
     coder.varsize('chosen_rule');
     
     % Load dependencies
-    addpath('classes');
-    
+    addpath('classes', 'functions');
+    coder.extrinsic('getautoparams','displayautoresults');
+
     % Load configuration and config parameters
     configuration = AutomaticityConfiguration.FMRI;
     
