@@ -13,16 +13,17 @@ classdef PMCNeuron < RSN
         V_SCALE = 1 % can use to scale PMC visual input value if it comes out too high
         W_LI = 2 % lateral inhibition between PMC A / PMC B
         INIT_WEIGHT = 0.08
+        LARGE_TRIAL_BOUNDARY = 2000 % lower bound of number of trials that must be stored alternatively due to memory constraints
     end
     
     methods
-        function obj = PMCNeuron(n, TAU, LAMBDA, trials, W_OUT, SAVE_MEM, COVIS_ENABLED, GRID_SIZE)
+        function obj = PMCNeuron(n, TAU, LAMBDA, trials, W_OUT, COVIS_ENABLED, GRID_SIZE)
             obj@RSN(n, TAU, LAMBDA);
             obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,n,1);
             
             % Create weights matrix conditionally
-            if SAVE_MEM
+            if trials > PMCNeuron.LARGE_TRIAL_BOUNDARY
                 weight_length = 1;
             else
                 weight_length = trials;

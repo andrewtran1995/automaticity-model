@@ -243,8 +243,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     PFC_A = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_A_W_OUT_MDN);
     PFC_B = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_B_W_OUT_MDN);
 
-    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, configuration == AutomaticityConfiguration.FMRI, COVIS_ENABLED, GRID_SIZE);
-    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, configuration == AutomaticityConfiguration.FMRI, COVIS_ENABLED, GRID_SIZE);
+    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, COVIS_ENABLED, GRID_SIZE);
+    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, COVIS_ENABLED, GRID_SIZE);
 
     MC_A = MCNeuron(n, TAU, LAMBDA, TRIALS);
     MC_B = MCNeuron(n, TAU, LAMBDA, TRIALS);
@@ -297,7 +297,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         if BUTTON_SWITCH_ENABLED && trial == TRIALS - BUTTON_SWITCH.TRIALS + 1
             % [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             COVIS_VARS.correct_rule = VISUAL.RULES(COVIS_VARS.correct_rule.INVERSE);
-            if configuration == AutomaticityConfiguration.FMRI
+            if TRIALS > PMCNeuron.LARGE_TRIAL_BOUNDARY
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
                 BUTTON_SWITCH.PMC_B_weights(:,:,1,:) = PMC_B.weights(:,:,1,:);
             else
@@ -308,7 +308,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Set PMC weights, potentially dependent on COVIS
         % If first trial, set to initial weights
-        if configuration == AutomaticityConfiguration.FMRI || trial==1
+        if TRIALS > PMCNeuron.LARGE_TRIAL_BOUNDARY || trial==1
             if COVIS_ENABLED
                 PMC_A_weights = PMC_A.weights(:,:,1,chosen_rule);
                 PMC_B_weights = PMC_B.weights(:,:,1,chosen_rule);
@@ -420,7 +420,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         rt_calc_times(trial) = toc(rt_start_time);
 
         %% Weight change calculations
-        if configuration == AutomaticityConfiguration.FMRI
+        if TRIALS > PMCNeuron.LARGE_TRIAL_BOUNDARY
             idx_weight = 1;
         else
             idx_weight = trial;
@@ -482,7 +482,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         
         % If COVIS is enabled and weight matrix has time dimension, update
         % all other weight matrices for this iteration
-        if COVIS_ENABLED && configuration ~= AutomaticityConfiguration.FMRI
+        if COVIS_ENABLED && TRIALS <= PMCNeuron.LARGE_TRIAL_BOUNDARY
             PMC_A.weights(:,:,trial,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_A.weights(:,:,trial-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
             PMC_B.weights(:,:,trial,1:COVIS_PARMS.NUM_RULES ~= chosen_rule) = PMC_B.weights(:,:,trial-1,1:COVIS_PARMS.NUM_RULES ~= chosen_rule);
         end
@@ -538,42 +538,36 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     opt_val_1 = 0;
     opt_val_2 = zeros(4,4);
     % Calculate Sum of Squared Errors of Prediction (SSE)
-    if OPTIMIZATION_CALC
-        if configuration == AutomaticityConfiguration.MADDOX
-            opt_val_1 = 0;
-        elseif configuration == AutomaticityConfiguration.WALLIS
-            opt_val_1 = 0;
-        elseif configuration == AutomaticityConfiguration.FMRI
-            if ~FMRI_META.GROUP_RUN
-                target = load('fmri/targetMeans1dCondition.mat');
-                % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-                output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
-                              mean(accuracy(FMRI_META.SES_4)), ...
-                              mean(accuracy(FMRI_META.SES_10)), ...
-                              mean(accuracy(FMRI_META.SES_20))];
-                % Calculate Mean Median RT for trials from Session 4, 10, and 20
-                % Reaction times must be converted from ms to seconds
-                norm_output_rt = [median(PMC.reactions(FMRI_META.SES_1,2)), ...
-                                  median(PMC.reactions(FMRI_META.SES_4,2)), ...
-                                  median(PMC.reactions(FMRI_META.SES_10,2)), ...
-                                  median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
-                % Weight reaction time greater than accuracy
-                target_diff = [target.means1dCondition(1,:) - output_acc;
-                               (target.means1dCondition(2,:) - norm_output_rt)*20];
-                opt_val_1 = sum(sum(target_diff.^2));
-            else
-                % Set parameter values of hrf
-                t1 = 1; n = 4; lamda = 2;
-                % Define time axis
-                t = 1:LEARNING_TRIALS;
-                % Create hrf
-                hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
-                % Get value for opt_val_2
-                opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
-                             get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
-                             get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
-                             mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
-            end
+    if OPTIMIZATION_CALC && configuration == AutomaticityConfiguration.FMRI
+        if ~FMRI_META.GROUP_RUN
+            target = load('fmri/targetMeans1dCondition.mat');
+            % Calculate Mean Accuracy for trials from Session 4, 10, and 20
+            output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
+                            mean(accuracy(FMRI_META.SES_4)), ...
+                            mean(accuracy(FMRI_META.SES_10)), ...
+                            mean(accuracy(FMRI_META.SES_20))];
+            % Calculate Mean Median RT for trials from Session 4, 10, and 20
+            % Reaction times must be converted from ms to seconds
+            norm_output_rt = [median(PMC.reactions(FMRI_META.SES_1,2)), ...
+                                median(PMC.reactions(FMRI_META.SES_4,2)), ...
+                                median(PMC.reactions(FMRI_META.SES_10,2)), ...
+                                median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
+            % Weight reaction time greater than accuracy
+            target_diff = [target.means1dCondition(1,:) - output_acc;
+                            (target.means1dCondition(2,:) - norm_output_rt)*20];
+            opt_val_1 = sum(sum(target_diff.^2));
+        else
+            % Set parameter values of hrf
+            t1 = 1; n = 4; lamda = 2;
+            % Define time axis
+            t = 1:LEARNING_TRIALS;
+            % Create hrf
+            hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
+            % Get value for opt_val_2
+            opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
+                            get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
+                            get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
+                            mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
         end
     end
     %% =============================== %%

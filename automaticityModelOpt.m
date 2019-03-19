@@ -2,8 +2,9 @@ function [ opt_val ] = automaticityModelOpt( arg_vector )
 %AUTOMATICITYMODELOPT Cost function for global optimization
 %   Wrapper for automaticityModel with a function signature that adheres to
 %   global optimization function requirements
+    addpath('classes');
     GROUP_SIZE = 12;
-    CONFIG = 'FMRI';
+    CONFIG = AutomaticityConfiguration.FMRI;
     NAN_CEILING = 10;
     CN  = zeros(GROUP_SIZE, 4);
     MDN = zeros(GROUP_SIZE, 4);
