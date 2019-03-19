@@ -2,7 +2,7 @@
 Automaticity model for the Ashby lab.
 
 ### Using the model
-The model's main entry point is `automaticityModel.m`. For performance reasons, it has been written to be compatible with code generation.
+The model's main entry point is `automaticityModel.m`. For performance reasons, it is compatible with code generation.
 
 ### Requirements
 * MATLAB R2018A
@@ -15,17 +15,23 @@ The model's main entry point is `automaticityModel.m`. For performance reasons, 
 * Parallel Computing Toolbox
 * Statistics and Machine Learning Toolbox
 
-### Project structure (at-a-glance)
+### Project structure
 * Directories
-	* codegen: Automatically created directory upon compiling automaticityModel.m
-	* datasets: MAT files containing sample datasets for use with the model
-	* figures
-	* fmri: Files relevant to the FMRI configuration and optimization
-	* reference: Old/experimental code kept for reference, but not used in the current code
-	* scripts: One-off scripts
-	* visinputgen: Functions to be used for generating visual input matrices
-* `.gitignore`: Informs version control software what files/paths to ignore when updating code repositories
-* absorbstruct.m
+	* **classes** - classes and constants used within the model
+	* **codegen** - automatically-created directory upon executing `automaticityModel_script.m`
+	* **datasets** - MAT files containing sample datasets for use with the model
+	* **figures**
+	* **fmri** - files relevant to FMRI configuration and optimization
+	* **libraries** - externally-sourced dependencies
+	* **reference** - old/experimental code kept for reference that is not executed normally
+	* **scripts** - one-off scripts, such as those used to process many files of experimental data
+	* **visinputgen** - functions used for generating visual input matrices
+* `.gitignore` - informs git version control which files/paths to ignore when updating repositories
+* `automaticityModel_script.m` - compiles `automaticityModel.m` into much more performant `mex` code
+* `automaticityModel.m` - the automaticity model
+* `automaticityModel.prj` - GUI-loadable representation of the code-generation
+* `automaticitymodelOpt.m` - wrapper around `automaticityModel.m` for global parameter optimization
+* `particleSwarmOpt.m` - script to run global parameter optimization using particle swarm optimization
 
 ### Referenced papers
 * Helie, S., et al. “Evidence for Cortical Automaticity in Rule-Based Categorization.” Journal of Neuroscience, vol. 30, no. 42, 2010, pp. 14225–14234., doi:10.1523/jneurosci.2393-10.2010. Referenced when working with FMRI data and optimization.

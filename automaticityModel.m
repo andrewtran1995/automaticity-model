@@ -4,24 +4,19 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %{
 # Description
-Run an automaticity model based upon a set of possible configurations:
- 1. WALLIS
- 2. MADDOX
- 3. FMRI
+Run an automaticity model based on configurations defined
+ by AutomaticityConfiguration.
 
 # General Notes
 Variables written in all capital letters are generally meant
- to be constant values, initialized once in the beginning of the program
- and nowhere else.
+ to be constant values, initialized once in the beginning of the program.
 
-Structures are initialized in the program by calling struct(...).
- These structures are meant to group variables that have some
- kind of commonality, e.g., belonging to the same neuron, behavior,
- model, etc. Note that this has a (negligible) effect on performance.
+Structures are meant to group variables that have some commonality.
+ Note that this has a (negligible) effect on performance.
 
-The grid is set up column-major order, with points accessed as
- grid(y,x), with the origin situated at the top-left corner and axes
- increasing right and down for x and y, respectively.
+The grid is column-major order, with points accessed as
+ grid(y,x) The origin is situated at the top-left corner and axes
+ increase right and down for x and y, respectively.
 
 # MATLAB Code Generation
 This file is compatible with MATLAB Code Generation, which greatly improves
@@ -293,7 +288,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         %% Button Switch if enabled and correct trials
         if BUTTON_SWITCH_ENABLED && trial == TRIALS - BUTTON_SWITCH.TRIALS + 1
-            % [MC.SECONDARY_WEIGHT, MC.PRIMARY_WEIGHT] = deal(MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
             COVIS_VARS.correct_rule = VISUAL.RULES(COVIS_VARS.correct_rule.INVERSE);
             if TRIALS > PMCNeuron.LARGE_TRIAL_BOUNDARY
                 BUTTON_SWITCH.PMC_A_weights(:,:,1,:) = PMC_A.weights(:,:,1,:);
@@ -517,11 +511,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             % Step 5: calculate rule probabilities for next trial
             COVIS_VARS.rule_prob = COVIS_VARS.rule_weights./sum(COVIS_VARS.rule_weights);
         end
-        
-        % if BUTTON_SWITCH_ENABLED && trial == TRIALS - BUTTON_SWITCH.TRIALS + 1
-        %     MC_A.weights(2,trial) = 0;
-        %     MC_B.weights(2,trial) = 0;
-        % end
 
         %% Print data to console
         if not(SUPPRESS_UI)
