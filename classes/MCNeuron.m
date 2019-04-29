@@ -31,8 +31,18 @@ classdef MCNeuron < RSN
             i = obj.i;
             n = obj.n;
             TAU = obj.TAU;
+            
+            if TRIAL == 1
+                OBJ_WEIGHT = obj.INIT_WEIGHT;
+                OTHER_WEIGHT = obj.INIT_WEIGHT;
+            else
+                OBJ_WEIGHT = obj.weights(1, TRIAL-1);
+                OTHER_WEIGHT = MC_OTHER.weights(2, TRIAL-1);
+            end
 
-            obj.v(i+1)=(obj.v(i) + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i)+ obj.E + (PMC.W_OUT*MC_PRIMARY_WEIGHT*obj.weights(1,TRIAL)*PMC.out(i) + PMC_OTHER.W_OUT*MC_SECONDARY_WEIGHT*MC_OTHER.weights(2,TRIAL)*PMC_OTHER.out(i)) - obj.W_LI*MC_OTHER.out(i) )/obj.C) + normrnd(0,NOISE_MC);
+            obj.v(i+1)=obj.v(i) ...
+                       + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i) + obj.E + (PMC.W_OUT*MC_PRIMARY_WEIGHT*OBJ_WEIGHT*PMC.out(i) + PMC_OTHER.W_OUT*MC_SECONDARY_WEIGHT*OTHER_WEIGHT*PMC_OTHER.out(i)) - obj.W_LI*MC_OTHER.out(i) )/obj.C ...
+                       + normrnd(0,NOISE_MC);
             obj.u(i+1)=obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
             if obj.v(i+1)>=obj.vpeak
                 obj.v(i)= obj.vpeak;

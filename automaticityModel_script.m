@@ -1,6 +1,6 @@
 % AUTOMATICITYMODEL_SCRIPT   Generate MEX-function automaticityModel_mex from
 %  automaticityModel.
-% 
+% 5
 % Script generated from project 'automaticityModel.prj' on 07-Jan-2018.
 % 
 % See also CODER, CODER.CONFIG, CODER.TYPEOF, CODEGEN.
