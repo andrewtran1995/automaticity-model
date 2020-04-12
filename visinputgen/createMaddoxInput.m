@@ -25,7 +25,5 @@ function [visualInputMatrix] = createMaddoxInput()
     
     scatter(visualInputMatrix(:,1), visualInputMatrix(:,2));
     axis([0 100 0 100]);
-    
-    return;
 end
 

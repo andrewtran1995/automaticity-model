@@ -58,7 +58,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     coder.extrinsic('getautoparams','displayautoresults');
 
     % Load configuration and config parameters
-    configuration = AutomaticityConfiguration.FMRI;
+    configuration = AutomaticityConfiguration.IMAGE;
     
     % Get parameters
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
@@ -73,9 +73,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     VIS_INPUT_FROM_PARM   = 0;
     SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
-    FROST_ENABLED         = 1;
-    COVIS_ENABLED         = configuration == AutomaticityConfiguration.FMRI;
-    BUTTON_SWITCH_ENABLED = configuration == AutomaticityConfiguration.FMRI;
+    FROST_ENABLED         = 0;
+    COVIS_ENABLED         = configuration == AutomaticityConfiguration.FMRI; %% Enable COVIS whenever running FMRI data.
+    BUTTON_SWITCH_ENABLED = 0;
     PERF_OUTPUT           = 0;
     
     % Validate any supplied arguments
@@ -102,13 +102,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
     
     %% Load visual stimulus matrix
-    % Random Visual Input
-    if 0
-        loaded_input = load('datasets/randomVisualInput.mat');
-        x_coordinates = loaded_input.x_coordinates;
-        y_coordinates = loaded_input.y_coordinates;
+    if VIS_INPUT_FROM_PARM
     % Visual Input Matrix from optional_parms struct
-    elseif VIS_INPUT_FROM_PARM
         x_coordinates = optional_parms.visualinput(:,1);
         y_coordinates = optional_parms.visualinput(:,2);
         coordinate_groups = zeros(length(x_coordinates), 1);
@@ -130,6 +125,12 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         x_coordinates = loaded_input.x_coordinates;
         y_coordinates = loaded_input.y_coordinates;
         coordinate_groups = zeros(length(x_coordinates), 1);
+    elseif configuration == AutomaticityConfiguration.IMAGE
+    % IMAGE
+        loaded_input = load('datasets/imageVisualInput.mat');
+        x_coordinates = loaded_input.visualInput.x;
+        y_coordinates = loaded_input.visualInput.y;
+        coordinate_groups = loaded_input.visualInput.groups;
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
@@ -200,25 +201,25 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
-        'reactions', zeros(TRIALS,3), ...            % stores information about PFC neuron reactions during trial
+        'reactions',   zeros(TRIALS,3), ...          % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
-        'reactions', zeros(TRIALS,3), ...            % stores information about PMC neuron reactions during trial
-        'alpha', zeros(TRIALS,n), ...                % PMC_A.out + PMC_B.out
+        'reactions',   zeros(TRIALS,3), ...          % stores information about PMC neuron reactions during trial
+        'alpha',       zeros(TRIALS,n), ...          % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
 
     MC = struct( ...
-        'DECISION_PT', PARAMS.MC_DECISION_PT, ...
-        'reactions', zeros(TRIALS,3), ...
-        'activations', zeros(TRIALS,1), ...
-        'PRIMARY_WEIGHT', 0.9, ...
+        'DECISION_PT',      PARAMS.MC_DECISION_PT, ...
+        'reactions',        zeros(TRIALS,3), ...
+        'activations',      zeros(TRIALS,1), ...
+        'PRIMARY_WEIGHT',   0.9, ...
         'SECONDARY_WEIGHT', 0.1, ...
-        'A_area', zeros(TRIALS,1), ...
-        'B_area', zeros(TRIALS,1) ...
+        'A_area',           zeros(TRIALS,1), ...
+        'B_area',           zeros(TRIALS,1) ...
     );
 
     MDN = struct('activations', zeros(TRIALS,1));
@@ -324,6 +325,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         VISUAL.y_coord = y_coordinates(trial) + BORDER_SIZE;
         VISUAL.x_coord = x_coordinates(trial) + BORDER_SIZE;
         VISUAL.coordinate_group = coordinate_groups(trial);
+       
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid

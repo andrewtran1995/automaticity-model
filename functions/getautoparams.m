@@ -10,6 +10,7 @@ function [param_struct] = getautoparams(configuration)
     MADDOX_CONFIG = {                    0;               500;                      0;                 4;                 4;                4};
     WALLIS_CONFIG = {                  100;               200;                    100;               400;               400;              400};
     FMRI_CONFIG   = {                    0;             11520;                      0;               700;               700;              700};
+    IMAGE_CONFIG  = {                    0;             11520;                      0;               700;               700;              700};
     switch configuration
         case AutomaticityConfiguration.MADDOX
             param_vals = MADDOX_CONFIG;
@@ -17,6 +18,8 @@ function [param_struct] = getautoparams(configuration)
             param_vals = WALLIS_CONFIG;
         case AutomaticityConfiguration.FMRI
             param_vals = FMRI_CONFIG;
+        case AutomaticityConfiguration.IMAGE
+            param_vals = IMAGE_CONFIG;
         otherwise
             error('Improper configuration requested in get_parameters(configuration): %s!', configuration);
     end

@@ -1,6 +1,6 @@
 function [ visualInputMatrix ] = createWallisInput(distance)
-%CREATEWALLISINPUT Summary of this function goes here
-%   Detailed explanation goes here
+%CREATEWALLISINPUT Create valid input for the WALLIS configuration.
+%   Create valid input for the WALLIS configuration.
     x_diff = [-distance, distance];
     
     visualInputMatrix = zeros(6000,3);
