@@ -7,6 +7,7 @@ classdef PMCNeuron < RSN
         v_stim = 0
         weights
         weights_avg
+        NOISE
     end
     
     properties (Constant)
@@ -17,10 +18,11 @@ classdef PMCNeuron < RSN
     end
     
     methods
-        function obj = PMCNeuron(n, TAU, LAMBDA, trials, W_OUT, COVIS_ENABLED, GRID_SIZE)
+        function obj = PMCNeuron(n, TAU, LAMBDA, trials, W_OUT, NOISE, COVIS_ENABLED, GRID_SIZE)
             obj@RSN(n, TAU, LAMBDA);
             obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,n,1);
+            obj.NOISE = NOISE;
             
             % Create weights matrix conditionally
             if trials > PMCNeuron.LARGE_TRIAL_BOUNDARY
@@ -40,13 +42,15 @@ classdef PMCNeuron < RSN
             obj = reset@RSN(obj);
         end
 
-        function obj = iterate(obj, NOISE_PMC, PMC_OTHER, PFC)
+        function obj = iterate(obj, PMC_OTHER, PFC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
             TAU = obj.TAU;
             
-            obj.v(i+1)=(obj.v(i) + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i)+ obj.E + obj.v_stim + PFC.W_OUT*PFC.out(i) - obj.W_LI*PMC_OTHER.out(i) )/obj.C) + normrnd(0,NOISE_PMC);
+            obj.v(i+1) = obj.v(i) ...
+                       + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i) + obj.E + obj.v_stim + PFC.W_OUT*PFC.out(i) - obj.W_LI*PMC_OTHER.out(i))/obj.C ...
+                       + normrnd(0, obj.NOISE);
             obj.u(i+1)=obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
             if obj.v(i+1)>=obj.vpeak
                 obj.v(i)= obj.vpeak;

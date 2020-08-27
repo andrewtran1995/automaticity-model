@@ -6,6 +6,8 @@ classdef MCNeuron < RSN
         W_OUT = 0
         weights
         v_stim = 0
+        NOISE
+        WEIGHT
     end
     
     properties (Constant)
@@ -16,17 +18,19 @@ classdef MCNeuron < RSN
     end
     
     methods
-        function obj = MCNeuron(n, TAU, LAMBDA, trials)
+        function obj = MCNeuron(n, TAU, LAMBDA, trials, NOISE, PRIMARY_WEIGHT, SECONDARY_WEIGHT)
             obj@RSN(n, TAU, LAMBDA);
             obj.v = repmat(obj.rv,n,1);
             obj.weights = obj.INIT_WEIGHT*ones(2,trials);
+            obj.NOISE = NOISE;
+            obj.WEIGHT = struct('PRIMARY', PRIMARY_WEIGHT, 'SECONDARY', SECONDARY_WEIGHT);
         end
         
         function obj = reset(obj)
             obj = reset@RSN(obj);
         end
 
-        function obj = iterate(obj, TRIAL, NOISE_MC, MC_OTHER, PMC, PMC_OTHER, MC_PRIMARY_WEIGHT, MC_SECONDARY_WEIGHT)
+        function obj = iterate(obj, TRIAL, MC_OTHER, PMC, PMC_OTHER)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -40,14 +44,13 @@ classdef MCNeuron < RSN
                 OTHER_WEIGHT = MC_OTHER.weights(2, TRIAL-1);
             end
 
-            obj.v(i+1)=obj.v(i) ...
-                       + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i) + obj.E + (PMC.W_OUT*MC_PRIMARY_WEIGHT*OBJ_WEIGHT*PMC.out(i) + PMC_OTHER.W_OUT*MC_SECONDARY_WEIGHT*OTHER_WEIGHT*PMC_OTHER.out(i)) - obj.W_LI*MC_OTHER.out(i) )/obj.C ...
-                       + normrnd(0,NOISE_MC);
-            obj.u(i+1)=obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
-            if obj.v(i+1)>=obj.vpeak
-                obj.v(i)= obj.vpeak;
-                obj.v(i+1)= obj.c;
-                obj.u(i+1)= obj.u(i+1)+ obj.d;
+            obj.v(i+1) = obj.v(i) ...
+                       + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i) + obj.E + (PMC.W_OUT*obj.WEIGHT.PRIMARY*OBJ_WEIGHT*PMC.out(i) + PMC_OTHER.W_OUT*obj.WEIGHT.SECONDARY*OTHER_WEIGHT*PMC_OTHER.out(i)) - obj.W_LI*MC_OTHER.out(i) )/obj.C ...
+                       + normrnd(0, obj.NOISE);
+            obj.u(i+1) = obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
+            if obj.v(i+1) >= obj.vpeak
+                obj.v(i:i+1) = [obj.vpeak, obj.c];
+                obj.u(i+1) = obj.u(i+1)+ obj.d;
                 obj.out(i:n) = obj.out(i:n) + obj.LAMBDA_PRECALC(1:n-i+1);
             end
             

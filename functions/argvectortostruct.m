@@ -1,7 +1,7 @@
 function [ arg_struct ] = argvectortostruct( arg_vector, configuration )
 %ARGVECTORTOSTRUCT Convert arg_vector into arg_struct compatible w/ automaticityModel
     % Get default parameters for configuration
-    params = getautoparams(configuration);
+    params = getmodelparams(configuration);
 
     % Set static values for base parameters
     params.PMC_DECISION_PT = arg_vector(1);

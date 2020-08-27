@@ -54,11 +54,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     coder.varsize('chosen_rule');
     
     % Load dependencies
-    addpath('classes', 'functions');
+    addpath('classes', 'functions', 'config');
     coder.extrinsic('getautoparams','displayautoresults');
 
     % Load configuration and config parameters
-    configuration = AutomaticityConfiguration.IMAGE;
+    configuration = AutomaticityConfiguration.FMRI;
     
     % Get parameters
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
@@ -71,9 +71,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 0;
+    SUPPRESS_UI           = 1;
     OPTIMIZATION_CALC     = 0;
-    FROST_ENABLED         = 0;
+    FROST_ENABLED         = 1;
     COVIS_ENABLED         = configuration == AutomaticityConfiguration.FMRI; %% Enable COVIS whenever running FMRI data.
     BUTTON_SWITCH_ENABLED = 0;
     PERF_OUTPUT           = 0;
@@ -160,29 +160,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     LAMBDA = 20;
     W_MAX = PARAMS.W_MAX;         % Maximum weight for Hebbian Synapses
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
-    NOISE = struct('PFC', PARAMS.NOISE_PFC, 'PMC', PARAMS.NOISE_PMC, 'MC', PARAMS.NOISE_MC);
 
     % Performance parameters
     loop_times    = zeros(TRIALS, 1); % Time needed for each loop (outer loop)
     trial_times   = zeros(TRIALS, 1); % Time required to run each time loop (inner loop)
     rt_calc_times = zeros(TRIALS, 1); % Time required to run reaction time calculation
 
-    % Quantity of Visual Stimulus
-    AREA = struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
-    			  'OUTER', [1:STIMULUS_GRID_SIZE/4+BORDER_SIZE, STIMULUS_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
-    			  'INNER', STIMULUS_GRID_SIZE/4+BORDER_SIZE+1:STIMULUS_GRID_SIZE*3/4+BORDER_SIZE, ...
-    			  'ALL', 1:GRID_SIZE);
-    VISUAL = struct('STIM', 50, 'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
-                    'RULES', [ ...
-                        struct('A_X', AREA.LOWER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.UPPER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 2); ...
-                        struct('A_X', AREA.UPPER_HALF, 'A_Y', AREA.ALL,        'B_X', AREA.LOWER_HALF, 'B_Y', AREA.ALL,        'INVERSE', 1); ...
-                        struct('A_X', AREA.ALL,        'A_Y', AREA.LOWER_HALF, 'B_X', AREA.ALL,        'B_Y', AREA.UPPER_HALF, 'INVERSE', 4); ...
-                        struct('A_X', AREA.ALL,        'A_Y', AREA.UPPER_HALF, 'B_X', AREA.ALL,        'B_Y', AREA.LOWER_HALF, 'INVERSE', 3); ...
-                        struct('A_X', AREA.OUTER,      'A_Y', AREA.ALL,        'B_X', AREA.INNER,      'B_Y', AREA.ALL,        'INVERSE', 6); ...
-                        struct('A_X', AREA.INNER,      'A_Y', AREA.ALL,        'B_X', AREA.OUTER,      'B_Y', AREA.ALL,        'INVERSE', 5); ...
-                        struct('A_X', AREA.ALL,        'A_Y', AREA.OUTER,      'B_X', AREA.ALL,        'B_Y', AREA.INNER,      'INVERSE', 8); ...
-                        struct('A_X', AREA.ALL,        'A_Y', AREA.INNER,      'B_X', AREA.ALL,        'B_Y', AREA.OUTER,      'INVERSE', 7) ...
-                    ]);
+    % Get visual stimulus variable and establish correct and chosen rules.
+    VISUAL = createvisualstimulusrules(STIMULUS_GRID_SIZE, GRID_SIZE, BORDER_SIZE);
     chosen_rule = 1;
     CORRECT_RULE = 2;
     RULE = VISUAL.RULES(chosen_rule);
@@ -235,14 +220,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                      'heb_coef_mc', PARAMS.HEB_CONSTS, 'anti_heb_mc', PARAMS.HEB_CONSTS, 'NMDA_MC', PARAMS.NMDA, 'AMPA_MC', PARAMS.AMPA);
 
     %% Set up neurons
-    PFC_A = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_A_W_OUT_MDN);
-    PFC_B = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_B_W_OUT_MDN);
+    PFC_A = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_A_W_OUT_MDN, PARAMS.NOISE_PFC);
+    PFC_B = PFCNeuron(n, TAU, LAMBDA, PARAMS.PFC_B_W_OUT_MDN, PARAMS.NOISE_PFC);
 
-    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, COVIS_ENABLED, GRID_SIZE);
-    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, COVIS_ENABLED, GRID_SIZE);
+    PMC_A = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_A_W_OUT, PARAMS.NOISE_PMC, COVIS_ENABLED, GRID_SIZE);
+    PMC_B = PMCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.PMC_B_W_OUT, PARAMS.NOISE_PMC, COVIS_ENABLED, GRID_SIZE);
 
-    MC_A = MCNeuron(n, TAU, LAMBDA, TRIALS);
-    MC_B = MCNeuron(n, TAU, LAMBDA, TRIALS);
+    MC_A = MCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.NOISE_MC, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
+    MC_B = MCNeuron(n, TAU, LAMBDA, TRIALS, PARAMS.NOISE_MC, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
 
     Driv_PFC = Driv_PFCNeuron(n, TAU, LAMBDA, PARAMS.DRIV_PFC_W_OUT);
 
@@ -323,7 +308,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         VISUAL.y_coord = y_coordinates(trial) + BORDER_SIZE;
-        VISUAL.x_coord = x_coordinates(trial) + BORDER_SIZE;
+        VISUAL.x_coord = x_coordinates(trial) + BORDER_SIZE + criterialnoise();
         VISUAL.coordinate_group = coordinate_groups(trial);
        
 
@@ -332,30 +317,25 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         RBF = RBF.resolvestimulus(VISUAL.x_coord, VISUAL.y_coord);
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
-        PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X)));
-        PFC_B.v_stim = sum(sum(RBF.rbv(RULE(1).B_Y, RULE(1).B_X)));
+        PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X))) * PFC_A.V_SCALE;
+        PFC_B.v_stim = sum(sum(RBF.rbv(RULE(1).B_Y, RULE(1).B_X))) * PFC_B.V_SCALE;
         % Scale RBF values by PMC_A and PMC_B weights to find respective v_stim values
-        PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights));
-        PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights));
-        % Scale v_stim values to prevent them from becoming too large
-        PFC_A.v_stim = PFC_A.v_stim * PFC_A.V_SCALE;
-        PFC_B.v_stim = PFC_B.v_stim * PFC_B.V_SCALE;
-        PMC_A.v_stim = PMC_A.v_stim * PMC_A.V_SCALE;
-        PMC_B.v_stim = PMC_B.v_stim * PMC_B.V_SCALE;
+        PMC_A.v_stim = sum(sum(RBF.rbv(:,:).*PMC_A_weights)) * PMC_A.V_SCALE;
+        PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*PMC_B_weights)) * PMC_B.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
         timeTrialStart = tic;
         if FROST_ENABLED
             %% FROST Calculations
             for i=1:n-1
-                PFC_A = PFC_A.iterate_FROST(NOISE.PFC, PFC_B, MDN_A, AC_A);
-                PFC_B = PFC_B.iterate_FROST(NOISE.PFC, PFC_A, MDN_B, AC_B);
+                PFC_A = PFC_A.iterate_FROST(PFC_B, MDN_A, AC_A);
+                PFC_B = PFC_B.iterate_FROST(PFC_A, MDN_B, AC_B);
 
-                PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
-                PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
+                PMC_A = PMC_A.iterate(PMC_B, PFC_A);
+                PMC_B = PMC_B.iterate(PMC_A, PFC_B);
                 
-                MC_A = MC_A.iterate(trial, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
-                MC_B = MC_B.iterate(trial, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);               
+                MC_A = MC_A.iterate(trial, MC_B, PMC_A, PMC_B);
+                MC_B = MC_B.iterate(trial, MC_A, PMC_B, PMC_A);               
 
                 Driv_PFC = Driv_PFC.iterate();
 
@@ -372,14 +352,14 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         else
             %% Non-FROST Calculation
             for i=1:n-1
-                PFC_A = PFC_A.iterate(NOISE.PFC, PFC_B);
-                PFC_B = PFC_B.iterate(NOISE.PFC, PFC_A);
+                PFC_A = PFC_A.iterate(PFC_B);
+                PFC_B = PFC_B.iterate(PFC_A);
 
-                PMC_A = PMC_A.iterate(NOISE.PMC, PMC_B, PFC_A);
-                PMC_B = PMC_B.iterate(NOISE.PMC, PMC_A, PFC_B);
+                PMC_A = PMC_A.iterate(PMC_B, PFC_A);
+                PMC_B = PMC_B.iterate(PMC_A, PFC_B);
                 
-                MC_A = MC_A.iterate(trial, NOISE.MC, MC_B, PMC_A, PMC_B, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
-                MC_B = MC_B.iterate(trial, NOISE.MC, MC_A, PMC_B, PMC_A, MC.PRIMARY_WEIGHT, MC.SECONDARY_WEIGHT);
+                MC_A = MC_A.iterate(trial, MC_B, PMC_A, PMC_B);
+                MC_B = MC_B.iterate(trial, MC_A, PMC_B, PMC_A);
             end
         end
         %% Record post-time-loop numbers
@@ -586,15 +566,15 @@ function [neuron_id, latency] = determine_reacting_neuron(neuron_1, neuron_2, de
     end
     % Else, both n1 and n2 have valid values -- compare latencies
     if n2_latency < n1_latency
-        neuron_id = 2;
+        neuron_id = Area.B.ID;
         latency = n2_latency;
     elseif n1_latency < n2_latency
-        neuron_id = 1;
+        neuron_id = Area.A.ID;
         latency = n1_latency;
     % If latencies are equal (decision point never reached), take the
     % higher integral as the reacting neuron
     else
-        neuron_id = double(trapz(neuron_1) < trapz(neuron_2));
+        neuron_id = double(trapz(neuron_1) < trapz(neuron_2)) + 1;
         latency = length(neuron_1);
     end
 end
