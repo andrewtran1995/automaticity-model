@@ -11,8 +11,7 @@ classdef QIAF < Neuron
     end
 
     methods
-        function obj = QIAF(n, TAU, LAMBDA)
-            obj@Neuron(n, TAU, LAMBDA);
+        function obj = QIAF()
         end
     end
 end

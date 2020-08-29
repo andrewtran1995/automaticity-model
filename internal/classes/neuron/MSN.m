@@ -15,8 +15,7 @@ classdef MSN < Neuron
     end
 
     methods
-        function obj = MSN(n, TAU, LAMBDA)
-            obj@Neuron(n, TAU, LAMBDA);
+        function obj = MSN()
         end
     end
 end

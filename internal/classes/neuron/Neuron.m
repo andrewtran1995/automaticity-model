@@ -1,36 +1,39 @@
-classdef Neuron
+classdef (Abstract) Neuron < handle
 	%Represents a neuron, carrying commonly used properties
 
 	properties
         out % output vector
         v % voltage matrix (positive)
         u % voltage matrix (negative)
-        n % number of iterations (of time) during a trial
         i = 1% time iteration during a trial
-        TAU
-        LAMBDA
         LAMBDA_PRECALC
         spikes = 0 % spiking rate per trial
+    end
+    
+    properties (Constant)
+        n      = 1000  % Number of iterations (of time) during a trial.
+        TAU    = 1
+        LAMBDA = 20
     end
     
     properties (Abstract, Constant)
         rv
     end
     
+    properties (Dependent)
+        integralPosVolt
+    end
+    
     methods
-        function obj = Neuron(n, TAU, LAMBDA)
-            obj.n = n;
-            obj.TAU = TAU;
-            obj.LAMBDA = LAMBDA;
-
+        function obj = Neuron()
             % Pre-calcate the lambda vector for performance reasons
-            t = (0:n)';
-            obj.LAMBDA_PRECALC = (t/LAMBDA).*exp((LAMBDA-t)/LAMBDA);
+            t = (0:obj.n)';
+            obj.LAMBDA_PRECALC = (t/obj.LAMBDA).*exp((obj.LAMBDA-t)/obj.LAMBDA);
 
-            obj.out = zeros(n,1);
-            obj.u = zeros(n,1);
+            obj.out = zeros(obj.n,1);
+            obj.u = zeros(obj.n,1);
         end
-        function obj = reset(obj)
+        function reset(obj)
             obj.i = 1;
             obj.out(:) = 0;
             obj.v(:) = obj.rv;
@@ -41,7 +44,7 @@ classdef Neuron
             arr = zeros(obj.n,1);
             arr(obj.v > 0) = obj.v(obj.v > 0);
         end
-        function val = integralPosVolt(obj)
+        function val = get.integralPosVolt(obj)
             val = trapz(obj.posVolt());
         end
     end

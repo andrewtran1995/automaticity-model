@@ -5,7 +5,7 @@ Automaticity model for the Ashby lab.
 The model's main entry point is `automaticityModel.m`. For performance reasons, it is compatible with code generation.
 
 ### Requirements
-* MATLAB R2018A
+* MATLAB R2020A
 * MATLAB 9.1
 * Curve Fitting Toolbox
 * Global Optimization Toolbox
@@ -34,6 +34,6 @@ The model's main entry point is `automaticityModel.m`. For performance reasons, 
 * `particleSwarmOpt.m` - script to run global parameter optimization using particle swarm optimization
 
 ### Referenced papers
-* Helie, S., et al. “Evidence for Cortical Automaticity in Rule-Based Categorization.” Journal of Neuroscience, vol. 30, no. 42, 2010, pp. 14225–14234., doi:10.1523/jneurosci.2393-10.2010. Referenced when working with FMRI data and optimization.
-* Maddox, W. Todd, et al. “Response Time Distributions in Multidimensional Perceptual Categorization.” Perception &amp; Psychophysics, vol. 60, no. 4, June 1998, pp. 620–637., doi:10.3758/bf03206050.
 * Wallis, Jonathan D., and Earl K. Miller. “From Rule to Response: Neuronal Processes in the Premotor and Prefrontal Cortex.” Journal of Neurophysiology, vol. 90, no. 3, 7 May 2003, pp. 1790–1806., doi:10.1152/jn.00086.2003.
+* Helie, S., et al. “Evidence for Cortical Automaticity in Rule-Based Categorization.” Journal of Neuroscience, vol. 30, no. 42, 2010, pp. 14225–14234., doi:10.1523/jneurosci.2393-10.2010. Referenced when working with FMRI data and optimization.
+* Zeithamova, Dagmar, and W. Todd Maddox. “Dual-Task Interference in Perceptual Category Learning.” Memory &amp; Cognition, vol. 34, no. 2, 2006, pp. 387–398., doi:10.3758/bf03193416.

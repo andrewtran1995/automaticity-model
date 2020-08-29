@@ -1,4 +1,4 @@
-classdef RadialBasisFunction
+classdef RadialBasisFunction < handle
     % Radial Basis Function
     %   Utility class that applies a Radial Basis Function to a visual
     %   stimulus input
@@ -25,7 +25,7 @@ classdef RadialBasisFunction
             obj.rbv = zeros(GRID_SIZE);
         end
         
-        function obj = resolvestimulus(obj, x, y)
+        function resolvestimulus(obj, x, y)
             obj.rbv = exp( -(sqrt((y-obj.Y).^2 + (x-obj.X).^2))/obj.RADIUS ) * obj.stimulus_weight;
         end
     end

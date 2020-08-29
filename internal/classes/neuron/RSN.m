@@ -15,8 +15,7 @@ classdef RSN < Neuron
     end
 
     methods
-        function obj = RSN(n, TAU, LAMBDA)
-            obj@Neuron(n, TAU, LAMBDA);
+        function obj = RSN()
         end
         function num = spikes(obj)
             num = nnz(obj.v > obj.vpeak);

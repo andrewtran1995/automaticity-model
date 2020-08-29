@@ -7,27 +7,22 @@ classdef PFCNeuron < RSN
         W_OUT_MDN
         W_OUT_AC = 1
         v_stim = 0
-        NOISE
     end
     
     properties (Constant)
         V_SCALE = 1 % scaling factor for visual input into PFC neurons
         W_LI = 2 % lateral inhibition between PFC A / PFC B
+        NOISE = getconstants().NOISE_PFC
     end
     
     methods
-        function obj = PFCNeuron(n, TAU, LAMBDA, W_OUT_MDN, NOISE)
-            obj@RSN(n, TAU, LAMBDA);
+        function obj = PFCNeuron(W_OUT_MDN)
+            obj@RSN();
             obj.W_OUT_MDN = W_OUT_MDN;
-            obj.v = repmat(obj.rv,n,1);
-            obj.NOISE = NOISE;
+            obj.v = repmat(obj.rv,obj.n,1);
         end
         
-        function obj = reset(obj)
-            obj = reset@RSN(obj);
-        end
-        
-        function obj = iterate_FROST(obj, PFC_OTHER, MDN, AC)
+        function iterate_FROST(obj, PFC_OTHER, MDN, AC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -47,7 +42,7 @@ classdef PFCNeuron < RSN
             obj.i = obj.i + 1;
         end
         
-        function obj = iterate(obj, PFC_OTHER)
+        function iterate(obj, PFC_OTHER)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

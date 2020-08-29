@@ -8,17 +8,13 @@ classdef GPNeuron < QIAF
     end
     
     methods
-        function obj = GPNeuron(n, TAU, LAMBDA, trials)
-            obj@QIAF(n, TAU, LAMBDA);
-            obj.v = repmat(obj.rv,n,1);
+        function obj = GPNeuron(trials)
+            obj@QIAF();
+            obj.v = repmat(obj.rv,obj.n,1);
             obj.activations = zeros(trials,1);
         end
-        
-        function obj = reset(obj)
-            obj = reset@QIAF(obj);
-        end
 
-        function obj = iterate(obj, CN)
+        function iterate(obj, CN)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

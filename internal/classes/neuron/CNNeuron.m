@@ -8,17 +8,13 @@ classdef CNNeuron < MSN
     end
     
     methods
-        function obj = CNNeuron(n, TAU, LAMBDA, trials)
-            obj@MSN(n, TAU, LAMBDA);
-            obj.v = repmat(obj.rv,n,1);
+        function obj = CNNeuron(trials)
+            obj@MSN();
+            obj.v = repmat(obj.rv,obj.n,1);
             obj.activations = zeros(trials,1);
         end
-        
-        function obj = reset(obj)
-            obj = reset@MSN(obj);
-        end
 
-        function obj = iterate(obj, Driv_PFC)
+        function iterate(obj, Driv_PFC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

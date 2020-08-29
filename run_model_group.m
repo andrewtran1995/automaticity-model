@@ -1,5 +1,5 @@
 % Add createFMRIInput function to path
-addpath('visinputgen', 'functions', 'classes');
+addpath(genpath('.'));
 
 % Set number of subjects and result matrix
 GROUP_SIZE = 12;
@@ -8,7 +8,7 @@ results = zeros(4,4,GROUP_SIZE);
 % Get parameters for automaticityModel
 loaded = load('fmri/particleswarm_target_17_12_14.mat');
 arg_vector = loaded.x;
-CONFIG = AutomaticityConfiguration.FMRI;
+CONFIG = ModelConfig.BUTTON_SWITCH;
 
 % Create parallel pool
 tic;

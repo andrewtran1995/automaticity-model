@@ -1,31 +1,29 @@
-classdef PMCNeuron < RSN
+classdef PMCNeuron < RSN & HebbianLearningNeuron
     %Primary Motor Cortex Neuron
     %   This class represents a neuron from the Primary Motor Cortex (PMC).
     
     properties
         W_OUT
         v_stim = 0
-        weights
         weights_avg
-        NOISE
     end
     
     properties (Constant)
         V_SCALE = 1 % can use to scale PMC visual input value if it comes out too high
         W_LI = 2 % lateral inhibition between PMC A / PMC B
         INIT_WEIGHT = 0.08
-        LARGE_TRIAL_BOUNDARY = 2000 % lower bound of number of trials that must be stored alternatively due to memory constraints
+        NOISE = getconstants().NOISE_PMC
     end
     
     methods
-        function obj = PMCNeuron(n, TAU, LAMBDA, trials, W_OUT, NOISE, COVIS_ENABLED, GRID_SIZE)
-            obj@RSN(n, TAU, LAMBDA);
+        function obj = PMCNeuron(trials, W_OUT, max_weight, COVIS_ENABLED, GRID_SIZE, hebbianConsts)
+            obj@RSN();
+            obj@HebbianLearningNeuron(hebbianConsts, max_weight);
             obj.W_OUT = W_OUT;
-            obj.v = repmat(obj.rv,n,1);
-            obj.NOISE = NOISE;
+            obj.v = repmat(obj.rv,obj.n,1);
             
             % Create weights matrix conditionally
-            if trials > PMCNeuron.LARGE_TRIAL_BOUNDARY
+            if trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY
                 weight_length = 1;
             else
                 weight_length = trials;
@@ -37,12 +35,8 @@ classdef PMCNeuron < RSN
             end
             obj.weights_avg = zeros(trials,1);
         end
-        
-        function obj = reset(obj)
-            obj = reset@RSN(obj);
-        end
 
-        function obj = iterate(obj, PMC_OTHER, PFC)
+        function iterate(obj, PMC_OTHER, PFC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -61,6 +55,38 @@ classdef PMCNeuron < RSN
             
             % Increment time
             obj.i = obj.i + 1;
+        end
+        
+        function doHebbianLearning(obj, config, scalar, inputNeuron)
+            w = obj.calcHebbianWeights(config, scalar, inputNeuron);
+            if config.isCOVISEnabled
+                obj.weights(:,:,config.weightIdx,config.COVISRules.chosen) = w;
+            else
+                obj.weights(:,:,config.weightIdx,1) = w;
+            end
+        end
+        
+        function w = weightsForTrial(obj, config)
+            arguments
+                obj
+                config (1,1) ModelConfig
+            end
+            % If first trial, or weights have no time dimension, set to
+            % initial weights.
+            if config.trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY || config.trial==1
+                if config.isCOVISEnabled
+                    w = obj.weights(:,:,1,config.COVISRules.chosen);
+                else
+                    w = obj.weights(:,:,1);
+                end
+            % Else, set weights to results of previous trial.    
+            else
+                if config.isCOVISEnabled
+                    w = obj.weights(:,:,obj.trial-1,config.COVIS.rule.chosen);
+                else
+                    w = obj.weights(:,:,obj.trial-1);
+                end
+            end
         end
     end
     

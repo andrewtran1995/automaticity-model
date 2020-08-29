@@ -1,4 +1,4 @@
-function [VISUAL] = createvisualstimulusrules(STIMULUS_GRID_SIZE, GRID_SIZE, BORDER_SIZE)
+function [VISUAL] = createvisualstimulusrules()
 %CREATEVISUALSTIMULUSRULES Create a set of visual stimlus rules.
     %% Create the AREA variable.
     %{
@@ -16,6 +16,9 @@ function [VISUAL] = createvisualstimulusrules(STIMULUS_GRID_SIZE, GRID_SIZE, BOR
     - INNER: The area between the 1/4 and 3/4 marks of a dimension of the stimulus grid.
     - ALL: The full length of a dimension of the whole grid.
     %}
+    STIMULUS_GRID_SIZE = ModelConfig.STIMULUS_GRID_SIZE;
+    GRID_SIZE = ModelConfig.GRID_SIZE;
+    BORDER_SIZE = ModelConfig.BORDER_SIZE;
     
     AREA = struct('LOWER_HALF', 1:GRID_SIZE/2, 'UPPER_HALF', GRID_SIZE/2+1:GRID_SIZE, ...
     			  'OUTER', [1:STIMULUS_GRID_SIZE/4+BORDER_SIZE, STIMULUS_GRID_SIZE*3/4+BORDER_SIZE+1:GRID_SIZE], ...
@@ -29,6 +32,7 @@ function [VISUAL] = createvisualstimulusrules(STIMULUS_GRID_SIZE, GRID_SIZE, BOR
     - Describe a set of visual stimulus rules.
     %}
     VISUAL = struct('STIM', 50, 'x_coord', 0, 'y_coord', 0, 'coordinate_group', 0, ...
+                    'COORD', struct('x', 0, 'y', 0, 'group', 0), ...
                     'RULES', [ ...
                         %% Continuous rules
                         % The left half is A. The right half is B.

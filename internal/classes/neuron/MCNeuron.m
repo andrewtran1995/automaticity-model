@@ -1,13 +1,10 @@
-classdef MCNeuron < RSN
+classdef MCNeuron < RSN & HebbianLearningNeuron
     %Motor Cortex Neuron
     %   This class represents a neuron from the motor cortex (MC).
     
     properties
         W_OUT = 0
-        weights
         v_stim = 0
-        NOISE
-        WEIGHT
     end
     
     properties (Constant)
@@ -15,22 +12,19 @@ classdef MCNeuron < RSN
         W_LI = 2
         INIT_WEIGHT = 1
         W_MAX = 100;
+        NOISE = getconstants().NOISE_MC
+        WEIGHT = struct('PRIMARY', 0.9, 'SECONDARY', 0.1)
     end
     
     methods
-        function obj = MCNeuron(n, TAU, LAMBDA, trials, NOISE, PRIMARY_WEIGHT, SECONDARY_WEIGHT)
-            obj@RSN(n, TAU, LAMBDA);
-            obj.v = repmat(obj.rv,n,1);
+        function obj = MCNeuron(trials, max_weight, hebbianConsts)
+            obj@RSN();
+            obj@HebbianLearningNeuron(hebbianConsts, max_weight);
+            obj.v = repmat(obj.rv,obj.n,1);
             obj.weights = obj.INIT_WEIGHT*ones(2,trials);
-            obj.NOISE = NOISE;
-            obj.WEIGHT = struct('PRIMARY', PRIMARY_WEIGHT, 'SECONDARY', SECONDARY_WEIGHT);
-        end
-        
-        function obj = reset(obj)
-            obj = reset@RSN(obj);
         end
 
-        function obj = iterate(obj, TRIAL, MC_OTHER, PMC, PMC_OTHER)
+        function iterate(obj, TRIAL, MC_OTHER, PMC, PMC_OTHER)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -65,6 +59,24 @@ classdef MCNeuron < RSN
                 previous_trial = trial - 1;
             end
             weights = obj.weights(:, previous_trial);
+        end
+        
+        function doHebbianLearning(obj, config, PMC)
+            % Default the scalar matrix to the constant weight values.
+            obj.weights(:,config.trial) = calcHebbianWeights( ...
+                obj, ...
+                config, ...
+                [obj.WEIGHT.PRIMARY; obj.WEIGHT.SECONDARY], ...
+                PMC ...
+            );
+        end
+        
+        function w = weightsForTrial(obj, config)
+            arguments
+                obj
+                config (1,1) ModelConfig
+            end
+            w = obj.weights(:,config.trial);
         end
     end
     

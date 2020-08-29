@@ -1,9 +1,9 @@
-function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED, BUTTON_SWITCH, COVIS_VARS, FMRI_META, configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, PERF_OUTPUT, start_time, loop_times, trial_times, rt_calc_times, chosen_rule, y_coordinates, x_coordinates )
+function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, chosen_rule, y_coordinates, x_coordinates )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    addpath('classes','libraries');
+    addpath(genpath('.'));
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
     %% Starts debug mode if you want to view the variables before executing code
@@ -59,7 +59,7 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     suplabel('PMC_A & PMC_B Reaction Time', 't');
 
     %% Figure 1B - neuron information from last trial or throughout trials
-    if FROST_ENABLED
+    if configuration.isFROSTEnabled
         figure;
         rows = 7; columns = 2;
 
@@ -109,17 +109,17 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     end
 
     %% COVIS Figures
-    if COVIS_ENABLED
+    if configuration.isCOVISEnabled
         figure;
         rule_legend = { 'r', 'Rule 1'; ...
                         'b', 'Rule 2'; ...
                         'g', 'Rule 3'; ...
                         'm', 'Rule 4' ...
         };
-        rules = { COVIS_VARS.rule_log == 1; ...
-                  COVIS_VARS.rule_log == 2; ...
-                  COVIS_VARS.rule_log == 3; ...
-                  COVIS_VARS.rule_log == 4 ...
+        rules = { configuration.COVISRules.log == 1; ...
+                  configuration.COVISRules.log == 2; ...
+                  configuration.COVISRules.log == 3; ...
+                  configuration.COVISRules.log == 4 ...
         };
         for i=1:4
             plot(smooth(rules{i}, 500), rule_legend{i,1}); hold on;
@@ -132,8 +132,8 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     %% Figure 2 - Synaptic Weight Heatmaps
     % Only relevant if any learning trials were conducted
     if LEARNING_TRIALS > 0
-        % If not FMRI, assume there is a record for the weights for each trial
-        if configuration ~= AutomaticityConfiguration.FMRI
+        % If not BUTTONS_SWITCH, assume there is a record for the weights for each trial
+        if configuration ~= ModelConfig.BUTTON_SWITCH
             figure;
             rows = 1; columns = 2;
             % Force slider to integer/discrete value:
@@ -169,19 +169,19 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
             
             suplabel('Synaptic Heatmaps', 't');
         % Create figures for button switch
-        elseif configuration == AutomaticityConfiguration.FMRI && BUTTON_SWITCH_ENABLED
+        elseif configuration == ModelConfig.BUTTON_SWITCH
             rows = 2; columns = 4;
             figure;
             for i=1:4
                 subplot(rows,columns,i);
                 colormap('hot');
-                imagesc(BUTTON_SWITCH.PMC_A_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                imagesc(configuration.meta.PMC_A_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_A Rule %d', i));
             end
             for i=1:4
                 subplot(rows,columns,i + 4);
                 colormap('hot');
-                imagesc(BUTTON_SWITCH.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                imagesc(configuration.meta.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_B Rule %d', i));
             end
             suplabel('Initial Heatmaps (Upon Button Switch)', 't');
@@ -207,9 +207,9 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         subplot(rows,columns,1);
         plot(smooth(MC_A.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_A.weights(2,:),50), 'b');
-        if BUTTON_SWITCH_ENABLED
+        if configuration == ModelConfig.BUTTON_SWITCH
             hold on;
-            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_A', 'Weight to PMC_B');
@@ -217,43 +217,14 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         subplot(rows,columns,2);
         plot(smooth(MC_B.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_B.weights(2,:),50), 'b');
-        if BUTTON_SWITCH_ENABLED
+        if configuration == ModelConfig.BUTTON_SWITCH
             hold on;
-            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_B', 'Weight to PMC_A');
         title('MC_B');
         suplabel('MC Weights', 't');
-    end
-
-    if configuration == AutomaticityConfiguration.MADDOX
-        %% Figure 3
-        % CDFs of RTs (reaction times) dependent on stimulus type - Short, Medium, or Long
-        % CDF = P(RT <= t), for each specific value t
-        PMC_S = PMC.reactions(LEARNING_IDX,3) == 'S';
-        PMC_M = PMC.reactions(LEARNING_IDX,3) == 'M';
-        PMC_L = PMC.reactions(LEARNING_IDX,3) == 'L';
-
-        figure;
-        p1 = cdfplot(PMC.reactions(PMC_S, 2)); set(p1, 'Color', 'r'); hold on;
-        p2 = cdfplot(PMC.reactions(PMC_M, 2)); set(p2, 'Color', 'b'); hold on;
-        p3 = cdfplot(PMC.reactions(PMC_L, 2)); set(p3, 'Color', 'g');
-        legend('S', 'M', 'L', 'Location', 'southeast');
-        suplabel('CDFs of PMC Rx Times (Grouped by Distance)');
-
-        %% Figure 4 - Hazard Functions
-        % Hazard Function = f(t)/[1-F(t)], where f(t) = PDF, F(t) = CDF
-        % https://www.mathworks.com/help/stats/survival-analysis.html#btnxirj-1
-        figure; title('PMC Rx Times Hazard Functions');
-
-        % Reuse vars from CDF plot
-        pts = (min(PMC.reactions(LEARNING_IDX, 2)):0.25:max(PMC.reactions(LEARNING_IDX, 2)));
-        plot(pts, get_hazard_estimate(PMC.reactions(PMC_S, 2), pts), 'Color', 'r'); hold on;
-        plot(pts, get_hazard_estimate(PMC.reactions(PMC_M, 2), pts), 'Color', 'b'); hold on;
-        plot(pts, get_hazard_estimate(PMC.reactions(PMC_L, 2), pts), 'Color', 'g');
-        legend('S', 'M', 'L', 'Location', 'southeast');
-        title('Hazard Functions');
     end
 
     %% Figure 5 - Reaction Latency
@@ -286,9 +257,9 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
         subplot(rows,columns,i);
         plot(smooth(latencies{i},30));
         xlim([0, TRIALS]);
-        if BUTTON_SWITCH_ENABLED
+        if configuration == ModelConfig.BUTTON_SWITCH
             hold on;
-            plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         title(latencyTitles{i});
     end
@@ -298,21 +269,11 @@ function displayautoresults( FROST_ENABLED, COVIS_ENABLED, BUTTON_SWITCH_ENABLED
     figure;
     plot(smooth(accuracy, 200), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
-    if BUTTON_SWITCH_ENABLED
+    if configuration == ModelConfig.BUTTON_SWITCH
        hold on;
-       plot([TRIALS - BUTTON_SWITCH.TRIALS; TRIALS - BUTTON_SWITCH.TRIALS], get(gca,'ylim'), 'r');
+       plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
     end
     title('Accuracy');
-
-    %% Figure 8 - Performance Tests
-    % Information regarding the run-time of this program
-    if PERF_OUTPUT
-        elapsedTime = toc(start_time);
-        figure; title(sprintf('TOTAL: %d, MEAN(LOOP): %d', elapsedTime, mean(loop_times))); hold on;
-        plot(loop_times, 'b'); hold on;
-        plot(trial_times, 'r'); hold on;
-        plot(rt_calc_times, 'g');
-    end
     
     %% Utility matrix that holds:
     % x-coordinates (padded with border size)
