@@ -1,4 +1,4 @@
-classdef ModelConfig < handle
+classdef ModelConfig
     properties (SetAccess = immutable)
         isFROSTEnabled
         isCOVISEnabled
@@ -10,17 +10,15 @@ classdef ModelConfig < handle
         GRID_SIZE          = 100+2*20; % Total length of grid, i.e., the stimulus grid size and the border
     end
     
-    properties (SetAccess = private)
-        trials (1,1) {mustBeNumeric} % Number of trials for the configuration.
+    properties
+        trials (1,1) {mustBeNumeric} % Number of trials for the configuration.3
+        trial (1,1) {mustBeNumeric,mustBeNonzero} = 1
         accuracy (:,1) {mustBeNumeric} % Boolean array recording if the reacting neuron is correct or not.
-        visual = createvisualstimulusrules() % Struct containing information on visual stimulus and rules.
-        RBF    = RadialBasisFunction(ModelConfig.GRID_SIZE, createvisualstimulusrules().STIM)
+        
+        visual (1,1) VisualStimulus % Struct containing information on visual stimulus and rules.
+        RBF (1,1) RadialBasisFunction
         COVISRules (1,1) COVISRuleSet % Struct for information related to COVIS.
         meta % Struct for metadata related to a specific configuration.
-    end
-    
-    properties
-        trial (1,1) {mustBeNumeric,mustBeNonzero} = 1
     end
     
     properties (Dependent)
@@ -30,72 +28,38 @@ classdef ModelConfig < handle
     end
     
     methods
-        function c = ModelConfig(isFROSTEnabled, isCOVISEnabled, metadata)
+        function c = ModelConfig(isFROSTEnabled, isCOVISEnabled)
             c.isFROSTEnabled = isFROSTEnabled;
             c.isCOVISEnabled = isCOVISEnabled;
-            c.meta = metadata;
+            c.visual = VisualStimulus();
+            c.RBF = RadialBasisFunction(ModelConfig.GRID_SIZE, VisualStimulus.STIM);
+            c.COVISRules = COVISRuleSet();
+%             c.meta = metadata;
         end
     end
     
-    enumeration
-        %{
-        Corresponds to the Helie, S. paper.
-        Observes a button switch effect with some late-stage dual-task
-        constraints.
-        %}
-        BUTTON_SWITCH(false, true, struct( ...
-            'trialsAfterSwitch', 600, ...
-            'PMC_A_weights', ones(ModelConfig.GRID_SIZE,ModelConfig.GRID_SIZE,1,4), ...
-            'PMC_B_weights', ones(ModelConfig.GRID_SIZE,ModelConfig.GRID_SIZE, 1,4), ...
-            'optimization', struct( ...
-                'NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
-                'SES_1',      1:480, 'SES_4',    1681:2160, ...
-                'SES_10', 5161:5640, 'SES_20', 11041:11520 ...
-            ) ...
-        )),
-        %{
-        Corresponds to the Wallis, Jonathan D. paper.
-        Observes image correlation effects.
-        %}
-        IMAGE_CORR   (false, false, struct()),
-        %{
-        Corresponds to the Zeithamova, D. paper.
-        Observes dual task interference in category learning.
-        %}
-        DUAL_TASK    (true, true, struct())
-    end
-    
     methods
-        function setTrials(obj, trials)
+        function obj = setTrials(obj, trials)
             obj.trials = trials;
             obj.accuracy = zeros(trials,1);
         end
         
         function tf = shouldButtonSwitch(obj)
-            arguments
-                obj
-            end
-            tf = obj == ModelConfig.BUTTON_SWITCH && ...
-                 obj.trial == obj.meta.trialsAfterSwitch + 1;
+            tf = isa(obj, 'ModelConfigButtonSwitch') && ...
+                 obj.trial == (obj.trials - obj.meta.trialsAfterSwitch + 1);
         end
         
-        function doButtonSwitch(obj, pmcA, pmcB)
-            arguments
-                obj
-                pmcA (1,1) PMCNeuron
-                pmcB (1,1) PMCNeuron
-            end
+        function obj = doButtonSwitch(obj, pmcA, pmcB)
             % Switch the "correct" rule to its inverse.
-            ruleProps = obj.visual.RULES(obj.COVIS.rule.correct);
-            obj.COVIS.rule.correct = obj.visual.RULES(ruleProps.INVERSE);
+            obj.COVISRules.correct = obj.visual.RULES(obj.COVISRules.correct).INVERSE;
             
             % Record the PMC weights at this instant.
-            obj.meta.PMC_A_weights(:,:,1,:) = pmcA.weights(:,:,obj.weightIndex(obj.trial),:);
-            obj.meta.PMC_B_weights(:,:,1,:) = pmcB.weights(:,:,obj.weightIndex(obj.trial),:);
+            obj.meta.PMC_A_weights(:,:,1,:) = pmcA.weights(:,:,obj.weightIdx,:);
+            obj.meta.PMC_B_weights(:,:,1,:) = pmcB.weights(:,:,obj.weightIdx,:);
         end
         
         function idx = get.weightIdx(obj)
-            if obj.trials > PMCNeuron.LARGE_TRIAL_BOUNDARY
+            if obj.trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY
                 idx = 1;
             else
                 idx = obj.trial;
@@ -121,7 +85,7 @@ classdef ModelConfig < handle
     end
     
     methods
-        function initCOVISRules(obj, params, chosen_rule, correct_rule, trials)
+        function obj = initCOVISRules(obj, params, chosen_rule, correct_rule, trials)
             obj.COVISRules = COVISRuleSet(params, 4, chosen_rule, correct_rule, trials);
         end
     end

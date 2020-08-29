@@ -1,4 +1,4 @@
-classdef HebbianConst < handle
+classdef HebbianConst
     %HEBBIANCONSTANTS Class holding all Hebbian constants that can be
     %specified per type of neuron that engages in learning.
     % Strengthening occurs if "[voltage integral] > [NMDA]".

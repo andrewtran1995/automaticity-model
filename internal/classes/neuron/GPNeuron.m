@@ -14,7 +14,7 @@ classdef GPNeuron < QIAF
             obj.activations = zeros(trials,1);
         end
 
-        function iterate(obj, CN)
+        function obj = iterate(obj, CN)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

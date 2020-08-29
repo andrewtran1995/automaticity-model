@@ -1,4 +1,4 @@
-function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, chosen_rule, y_coordinates, x_coordinates )
+function displayautoresults(config, TAU, n, RBF, BORDER_SIZE, VISUAL, TRIALS, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, chosen_rule, y_coordinates, x_coordinates )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
@@ -40,7 +40,7 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d)', VISUAL.y_coord, VISUAL.x_coord));
+    title(sprintf('Stimulus: (%d,%d)', VISUAL.coord.y, VISUAL.coord.x));
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -59,7 +59,7 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
     suplabel('PMC_A & PMC_B Reaction Time', 't');
 
     %% Figure 1B - neuron information from last trial or throughout trials
-    if configuration.isFROSTEnabled
+    if config.isFROSTEnabled
         figure;
         rows = 7; columns = 2;
 
@@ -109,17 +109,17 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
     end
 
     %% COVIS Figures
-    if configuration.isCOVISEnabled
+    if config.isCOVISEnabled
         figure;
         rule_legend = { 'r', 'Rule 1'; ...
                         'b', 'Rule 2'; ...
                         'g', 'Rule 3'; ...
                         'm', 'Rule 4' ...
         };
-        rules = { configuration.COVISRules.log == 1; ...
-                  configuration.COVISRules.log == 2; ...
-                  configuration.COVISRules.log == 3; ...
-                  configuration.COVISRules.log == 4 ...
+        rules = { config.COVISRules.log == 1; ...
+                  config.COVISRules.log == 2; ...
+                  config.COVISRules.log == 3; ...
+                  config.COVISRules.log == 4 ...
         };
         for i=1:4
             plot(smooth(rules{i}, 500), rule_legend{i,1}); hold on;
@@ -133,7 +133,7 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
     % Only relevant if any learning trials were conducted
     if LEARNING_TRIALS > 0
         % If not BUTTONS_SWITCH, assume there is a record for the weights for each trial
-        if configuration ~= ModelConfig.BUTTON_SWITCH
+        if not(isa(config, 'ModelConfigButtonSwitch'))
             figure;
             rows = 1; columns = 2;
             % Force slider to integer/discrete value:
@@ -169,19 +169,19 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
             
             suplabel('Synaptic Heatmaps', 't');
         % Create figures for button switch
-        elseif configuration == ModelConfig.BUTTON_SWITCH
+        elseif isa(config, 'ModelConfigButtonSwitch')
             rows = 2; columns = 4;
             figure;
             for i=1:4
                 subplot(rows,columns,i);
                 colormap('hot');
-                imagesc(configuration.meta.PMC_A_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                imagesc(config.meta.PMC_A_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_A Rule %d', i));
             end
             for i=1:4
                 subplot(rows,columns,i + 4);
                 colormap('hot');
-                imagesc(configuration.meta.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
+                imagesc(config.meta.PMC_B_weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, 1, i));
                 title(sprintf('PMC_B Rule %d', i));
             end
             suplabel('Initial Heatmaps (Upon Button Switch)', 't');
@@ -207,9 +207,9 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
         subplot(rows,columns,1);
         plot(smooth(MC_A.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_A.weights(2,:),50), 'b');
-        if configuration == ModelConfig.BUTTON_SWITCH
+        if isa(config, 'ModelConfigButtonSwitch')
             hold on;
-            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_A', 'Weight to PMC_B');
@@ -217,9 +217,9 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
         subplot(rows,columns,2);
         plot(smooth(MC_B.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_B.weights(2,:),50), 'b');
-        if configuration == ModelConfig.BUTTON_SWITCH
+        if isa(config, 'ModelConfigButtonSwitch')
             hold on;
-            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_B', 'Weight to PMC_A');
@@ -257,9 +257,9 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
         subplot(rows,columns,i);
         plot(smooth(latencies{i},30));
         xlim([0, TRIALS]);
-        if configuration == ModelConfig.BUTTON_SWITCH
+        if isa(config, 'ModelConfigButtonSwitch')
             hold on;
-            plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
         end
         title(latencyTitles{i});
     end
@@ -269,9 +269,9 @@ function displayautoresults(configuration, TAU, n, RBF, BORDER_SIZE, VISUAL, TRI
     figure;
     plot(smooth(accuracy, 200), 'b');
     xlim([0, TRIALS]); ylim([0, 1]);
-    if configuration == ModelConfig.BUTTON_SWITCH
+    if isa(config, 'ModelConfigButtonSwitch')
        hold on;
-       plot([TRIALS - configuration.meta.trialsAfterSwitch; TRIALS - configuration.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+       plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
     end
     title('Accuracy');
     

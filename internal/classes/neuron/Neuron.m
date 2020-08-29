@@ -1,4 +1,4 @@
-classdef (Abstract) Neuron < handle
+classdef (Abstract) Neuron
 	%Represents a neuron, carrying commonly used properties
 
 	properties
@@ -33,7 +33,7 @@ classdef (Abstract) Neuron < handle
             obj.out = zeros(obj.n,1);
             obj.u = zeros(obj.n,1);
         end
-        function reset(obj)
+        function obj = reset(obj)
             obj.i = 1;
             obj.out(:) = 0;
             obj.v(:) = obj.rv;

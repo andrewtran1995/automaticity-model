@@ -13,7 +13,7 @@ classdef MDNNeuron < RSN
             obj.v = repmat(obj.rv,obj.n,1);
         end
 
-        function iterate(obj, PFC, GP)
+        function obj = iterate(obj, PFC, GP)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

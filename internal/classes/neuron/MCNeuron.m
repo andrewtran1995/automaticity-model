@@ -1,4 +1,4 @@
-classdef MCNeuron < RSN & HebbianLearningNeuron
+classdef MCNeuron < HebbianLearningNeuron
     %Motor Cortex Neuron
     %   This class represents a neuron from the motor cortex (MC).
     
@@ -18,13 +18,12 @@ classdef MCNeuron < RSN & HebbianLearningNeuron
     
     methods
         function obj = MCNeuron(trials, max_weight, hebbianConsts)
-            obj@RSN();
             obj@HebbianLearningNeuron(hebbianConsts, max_weight);
             obj.v = repmat(obj.rv,obj.n,1);
             obj.weights = obj.INIT_WEIGHT*ones(2,trials);
         end
 
-        function iterate(obj, TRIAL, MC_OTHER, PMC, PMC_OTHER)
+        function obj = iterate(obj, TRIAL, MC_OTHER, PMC, PMC_OTHER)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -61,7 +60,7 @@ classdef MCNeuron < RSN & HebbianLearningNeuron
             weights = obj.weights(:, previous_trial);
         end
         
-        function doHebbianLearning(obj, config, PMC)
+        function obj = doHebbianLearning(obj, config, PMC)
             % Default the scalar matrix to the constant weight values.
             obj.weights(:,config.trial) = calcHebbianWeights( ...
                 obj, ...
@@ -72,10 +71,6 @@ classdef MCNeuron < RSN & HebbianLearningNeuron
         end
         
         function w = weightsForTrial(obj, config)
-            arguments
-                obj
-                config (1,1) ModelConfig
-            end
             w = obj.weights(:,config.trial);
         end
     end

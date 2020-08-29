@@ -1,22 +1,20 @@
 classdef ModelConfigButtonSwitch < ModelConfig
-    %MODELCONFIGBUTTONSWITCH Summary of this class goes here
-    %   Detailed explanation goes here
-    
-    properties
-        Property1
-    end
+    % Corresponds to the Helie, S. paper.
+    % Observes a button switch effect with some late-stage dual-task
+    % constraints.
     
     methods
-        function obj = ModelConfigButtonSwitch(inputArg1,inputArg2)
-            %MODELCONFIGBUTTONSWITCH Construct an instance of this class
-            %   Detailed explanation goes here
-            obj.Property1 = inputArg1 + inputArg2;
-        end
-        
-        function outputArg = method1(obj,inputArg)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
-            outputArg = obj.Property1 + inputArg;
+        function obj = ModelConfigButtonSwitch()
+            obj@ModelConfig(false, true);
+            obj.meta = struct( ...
+            'trialsAfterSwitch', 600, ...
+            'PMC_A_weights', ones(ModelConfig.GRID_SIZE,ModelConfig.GRID_SIZE,1,4), ...
+            'PMC_B_weights', ones(ModelConfig.GRID_SIZE,ModelConfig.GRID_SIZE, 1,4), ...
+            'optimization', struct( ...
+                'NUM_TRIALS', 11520, 'GROUP_RUN', 0, ...
+                'SES_1',      1:480, 'SES_4',    1681:2160, ...
+                'SES_10', 5161:5640, 'SES_20', 11041:11520 ...
+            ));
         end
     end
 end

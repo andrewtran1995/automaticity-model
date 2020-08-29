@@ -1,4 +1,4 @@
-classdef COVISRuleSet < handle
+classdef COVISRuleSet
     %COVISRULESET Contains stored data and other information regarding
     %COVIS rulesets and neuron-specific information per rule.
     
@@ -57,11 +57,7 @@ classdef COVISRuleSet < handle
             prob = obj.weights./sum(obj.weights);
         end
         
-        function processRuleAttempt(obj, is_accurate)
-            arguments
-                obj
-                is_accurate {mustBeLogical}
-            end
+        function obj = processRuleAttempt(obj, is_accurate)
             % Step 1: Re-adjust saliences.
             if is_accurate
                 obj.saliences(obj.chosen) = obj.saliences(obj.chosen) + obj.DELTA_C;

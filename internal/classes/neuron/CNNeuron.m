@@ -14,7 +14,7 @@ classdef CNNeuron < MSN
             obj.activations = zeros(trials,1);
         end
 
-        function iterate(obj, Driv_PFC)
+        function obj = iterate(obj, Driv_PFC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

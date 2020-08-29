@@ -4,12 +4,12 @@ function [params] = getconfigparams(configuration)
     IMAGE_CORR_CONFIG    = {                  100;               200;                    100;               400;               400;              400};
     BUTTON_SWITCH_CONFIG = {                    0;             11520;                      0;               700;               700;              700};
     DUAL_TASK_CONFIG     = {                    0;             11520;                      0;               700;               700;              700};
-    switch configuration
-        case ModelConfig.IMAGE_CORR
+    switch class(configuration)
+        case 'ModelConfigImageCorr'
             param_vals = IMAGE_CORR_CONFIG;
-        case ModelConfig.BUTTON_SWITCH
+        case 'ModelConfigButtonSwitch'
             param_vals = BUTTON_SWITCH_CONFIG;
-        case ModelConfig.DUAL_TASK
+        case 'ModelConfigDualTask'
             param_vals = DUAL_TASK_CONFIG;
         otherwise
             error('Improper configuration requested in get_parameters(configuration): %s!', configuration);

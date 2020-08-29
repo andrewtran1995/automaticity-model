@@ -1,4 +1,4 @@
-classdef PMCNeuron < RSN & HebbianLearningNeuron
+classdef PMCNeuron < HebbianLearningNeuron
     %Primary Motor Cortex Neuron
     %   This class represents a neuron from the Primary Motor Cortex (PMC).
     
@@ -17,7 +17,6 @@ classdef PMCNeuron < RSN & HebbianLearningNeuron
     
     methods
         function obj = PMCNeuron(trials, W_OUT, max_weight, COVIS_ENABLED, GRID_SIZE, hebbianConsts)
-            obj@RSN();
             obj@HebbianLearningNeuron(hebbianConsts, max_weight);
             obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,obj.n,1);
@@ -36,7 +35,7 @@ classdef PMCNeuron < RSN & HebbianLearningNeuron
             obj.weights_avg = zeros(trials,1);
         end
 
-        function iterate(obj, PMC_OTHER, PFC)
+        function obj = iterate(obj, PMC_OTHER, PFC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -57,7 +56,7 @@ classdef PMCNeuron < RSN & HebbianLearningNeuron
             obj.i = obj.i + 1;
         end
         
-        function doHebbianLearning(obj, config, scalar, inputNeuron)
+        function obj = doHebbianLearning(obj, config, scalar, inputNeuron)
             w = obj.calcHebbianWeights(config, scalar, inputNeuron);
             if config.isCOVISEnabled
                 obj.weights(:,:,config.weightIdx,config.COVISRules.chosen) = w;
@@ -67,10 +66,6 @@ classdef PMCNeuron < RSN & HebbianLearningNeuron
         end
         
         function w = weightsForTrial(obj, config)
-            arguments
-                obj
-                config (1,1) ModelConfig
-            end
             % If first trial, or weights have no time dimension, set to
             % initial weights.
             if config.trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY || config.trial==1
@@ -82,9 +77,9 @@ classdef PMCNeuron < RSN & HebbianLearningNeuron
             % Else, set weights to results of previous trial.    
             else
                 if config.isCOVISEnabled
-                    w = obj.weights(:,:,obj.trial-1,config.COVIS.rule.chosen);
+                    w = obj.weights(:,:,config.trial-1,config.COVISRules.chosen);
                 else
-                    w = obj.weights(:,:,obj.trial-1);
+                    w = obj.weights(:,:,config.trial-1);
                 end
             end
         end

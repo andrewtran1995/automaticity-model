@@ -1,4 +1,4 @@
-classdef (Abstract) HebbianLearningNeuron < Neuron
+classdef (Abstract) HebbianLearningNeuron < RSN
     %HEBBIANLEARNINGNEURON A neuron that engages in learning per Hebbian
     %theory.
     
@@ -39,12 +39,6 @@ classdef (Abstract) HebbianLearningNeuron < Neuron
     
     methods     
         function w = calcHebbianWeights(obj, config, scalar, inputNeuron)
-            arguments
-                obj
-                config (1,1) ModelConfig
-                scalar (:,:) {mustBeNumeric}
-                inputNeuron (1,1) Neuron
-            end
             w = obj.weightsForTrial(config);
             w = w + scalar.*( ...
                 obj.HEBBIAN.COEF * inputNeuron.integralPosVolt * obj.g_t_1.*(obj.MAX_WEIGHT - w) ...

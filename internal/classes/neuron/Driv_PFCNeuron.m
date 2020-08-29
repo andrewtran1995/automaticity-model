@@ -14,7 +14,7 @@ classdef Driv_PFCNeuron < RSN
             obj.v = repmat(obj.rv,obj.n,1);
         end
 
-        function iterate(obj)
+        function obj = iterate(obj)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;

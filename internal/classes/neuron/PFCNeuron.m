@@ -22,7 +22,7 @@ classdef PFCNeuron < RSN
             obj.v = repmat(obj.rv,obj.n,1);
         end
         
-        function iterate_FROST(obj, PFC_OTHER, MDN, AC)
+        function obj = iterate_FROST(obj, PFC_OTHER, MDN, AC)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
@@ -42,7 +42,7 @@ classdef PFCNeuron < RSN
             obj.i = obj.i + 1;
         end
         
-        function iterate(obj, PFC_OTHER)
+        function obj = iterate(obj, PFC_OTHER)
             % Create local variables for readability
             i = obj.i;
             n = obj.n;
