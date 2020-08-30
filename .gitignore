@@ -4,15 +4,8 @@
 # Ignore Windows desktop.ini
 *desktop.ini
 
-# Ignore Google Doc files
-*.gdoc
-Reference\ Papers/
-
 # Ignore IDE-related files
 .idea
-
-# Ignore data directory
-data
 
 # Ignore codegen directory and files
 codegen

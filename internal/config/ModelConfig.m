@@ -1,7 +1,9 @@
 classdef ModelConfig
-    properties (SetAccess = immutable)
+    properties (Abstract, Constant)
         isFROSTEnabled
         isCOVISEnabled
+        isMCLearningEnabled
+        hasCriterialNoise
     end
     
     properties (Constant)
@@ -12,7 +14,7 @@ classdef ModelConfig
     
     properties
         trials (1,1) {mustBeNumeric} % Number of trials for the configuration.3
-        trial (1,1) {mustBeNumeric,mustBeNonzero} = 1
+        trial (1,1) {mustBeNonzero} = 1
         accuracy (:,1) {mustBeNumeric} % Boolean array recording if the reacting neuron is correct or not.
         
         visual (1,1) VisualStimulus % Struct containing information on visual stimulus and rules.
@@ -28,13 +30,10 @@ classdef ModelConfig
     end
     
     methods
-        function c = ModelConfig(isFROSTEnabled, isCOVISEnabled)
-            c.isFROSTEnabled = isFROSTEnabled;
-            c.isCOVISEnabled = isCOVISEnabled;
+        function c = ModelConfig()
             c.visual = VisualStimulus();
             c.RBF = RadialBasisFunction(ModelConfig.GRID_SIZE, VisualStimulus.STIM);
             c.COVISRules = COVISRuleSet();
-%             c.meta = metadata;
         end
     end
     

@@ -27,7 +27,9 @@ classdef RadialBasisFunction
             end
         end
         
-        function obj = resolvestimulus(obj, x, y)
+        function obj = resolvestimulus(obj, coord)
+            x = coord.x;
+            y = coord.y;
             obj.rbv = exp( -(sqrt((y-obj.Y).^2 + (x-obj.X).^2))/obj.RADIUS ) * obj.stimulus_weight;
         end
     end

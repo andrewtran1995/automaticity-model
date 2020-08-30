@@ -90,22 +90,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
     
     %% Load visual stimulus matrix
-%     if VIS_INPUT_FROM_PARM
-%     % Visual Input Matrix from optional_parms struct
-%         x_coordinates = optional_parms.visualinput(:,1);
-%         y_coordinates = optional_parms.visualinput(:,2);
-%         coordinate_groups = zeros(length(x_coordinates), 1);
-% %     elseif config == ModelConfig.IMAGE_CORR
-% %         loaded_input = load('datasets/imageVisualInput.mat');
-% %         x_coordinates = loaded_input.visualInput.x;
-% %         y_coordinates = loaded_input.visualInput.y;
-% %         coordinate_groups = loaded_input.visualInput.groups;
-%     elseif isa(config, 'ModelConfigButtonSwitch')
-%         loaded_input = load('datasets/fMRI_data.mat');
-%         x_coordinates = loaded_input.x_coordinates;
-%         y_coordinates = loaded_input.y_coordinates;
-%         coordinate_groups = zeros(length(x_coordinates), 1);
-%     end
     if VIS_INPUT_FROM_PARM
         x_coordinates = optional_parms.visualinput(:,1);
         y_coordinates = optional_parms.visualinput(:,2);
@@ -231,14 +215,16 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
-        VISUAL.coord.x = x_coordinates(trial) + config.BORDER_SIZE + criterialnoise();
-        VISUAL.coord.y = y_coordinates(trial) + config.BORDER_SIZE;
-        VISUAL.coord.group = coordinate_groups(trial);
+        VISUAL.coord = Coord( ...
+            x_coordinates(trial) + config.BORDER_SIZE + config.hasCriterialNoise * criterialnoise(), ...
+            y_coordinates(trial) + config.BORDER_SIZE, ...
+            coordinate_groups(trial) ...
+        );
        
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF = RBF.resolvestimulus(VISUAL.coord.x, VISUAL.coord.y);
+        RBF = RBF.resolvestimulus(VISUAL.coord);
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X))) * PFC_A.V_SCALE;
@@ -318,8 +304,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             PMC_A = PMC_A.doHebbianLearning(config, RBF.rbv, PFC_A);
             PMC_B = PMC_B.doHebbianLearning(config, RBF.rbv, PFC_B);
             
-            MC_A = MC_A.doHebbianLearning(config, PMC_A);
-            MC_B = MC_B.doHebbianLearning(config, PMC_B);
+            if config.isMCLearningEnabled
+                MC_A = MC_A.doHebbianLearning(config, PMC_A);
+                MC_B = MC_B.doHebbianLearning(config, PMC_B);
+            end
         % Else, if not learning, set new weights to previous weights
         else
             PMC_A.weights(:,:,config.weightIdx,config.chosenRuleIdx) = PMC_A.weightsForTrial(config);
@@ -442,12 +430,6 @@ function [neuron_id] = determinecorrectneuron(x, y, rule)
     neuron_id = double(equalsNeuron2 + 1);
 end
 
-% Given discrete distribution, return index of chosen index
-function [idx] = rand_discrete(distr)
-    cum_distr = cumsum(distr);
-    idx = find(rand<cum_distr, 1);
-end
-
 % Finds correlation between different neurons and accuracy
 function [corr_vec] = get_FMRI_corr_data(activations, FMRI_META, hrf)
     % Compute convolution for each trial
@@ -456,38 +438,4 @@ function [corr_vec] = get_FMRI_corr_data(activations, FMRI_META, hrf)
                 mean(boldPMC(FMRI_META.SES_4)), ...
                 mean(boldPMC(FMRI_META.SES_10)), ...
                 mean(boldPMC(FMRI_META.SES_20))];
-end
-
-% Console progress bar
-% Resources used:
-% https://www.mathworks.com/matlabcentral/fileexchange/28067-text-progress-bar
-% https://www.mathworks.com/matlabcentral/fileexchange/30297-consoleprogressbar
-function consoleprogressbar(str, iter, total)
-    % Constants and variable initialization
-    coder.extrinsic('num2str');
-    coder.varsize('STR_CR');
-    BAR_LENGTH = 40;
-    persistent STR_CR_COUNT;
-    if isempty(STR_CR_COUNT)
-        STR_CR_COUNT = 0;
-    end
-    
-    % Create progress bar
-    percentage = iter/total;
-    fullbar = repmat('.', [1, BAR_LENGTH]);
-    completedbar = round(percentage * BAR_LENGTH);
-    fullbar(1:completedbar) = '#';
-    fullbar = ['[', fullbar, ']'];
-    
-    strout = [fullbar, ' ', num2str(iter), '/', num2str(total), ' ', str];
-    
-    % Print bar
-    if iter == 1
-        fprintf(strout);
-    else
-        fprintf([repmat('\b', 1, STR_CR_COUNT), strout]);
-    end
-    
-    % Update carriage return
-    STR_CR_COUNT = length(strout);
 end

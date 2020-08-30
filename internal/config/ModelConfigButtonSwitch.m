@@ -2,10 +2,16 @@ classdef ModelConfigButtonSwitch < ModelConfig
     % Corresponds to the Helie, S. paper.
     % Observes a button switch effect with some late-stage dual-task
     % constraints.
+    properties (Constant)
+        isFROSTEnabled = false
+        isCOVISEnabled = true
+        isMCLearningEnabled = true
+        hasCriterialNoise = false
+    end
     
     methods
         function obj = ModelConfigButtonSwitch()
-            obj@ModelConfig(false, true);
+            obj@ModelConfig();
             obj.meta = struct( ...
             'trialsAfterSwitch', 600, ...
             'PMC_A_weights', ones(ModelConfig.GRID_SIZE,ModelConfig.GRID_SIZE,1,4), ...
@@ -18,13 +24,14 @@ classdef ModelConfigButtonSwitch < ModelConfig
         end
         
         function [x_coords, y_coords, coord_groups] = loadCoords(~)
-            loaded_input = load('datasets/fMRI_data.mat');
+            loaded_input = load('data/buttonSwitch/coords.mat');
             x_coords = loaded_input.x_coordinates;
             y_coords = loaded_input.y_coordinates;
             coord_groups = zeros(length(x_coords), 1);
         end
         
-        function config = doPreprocessing(obj)
+        function config = doPreprocessing(~)
+            return
         end
     end
 end

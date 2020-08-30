@@ -2,7 +2,7 @@ classdef VisualStimulus
     %VISUALSTIMULUS A set of visuaul stimulus rules.
     
     properties
-        coord = struct('x', 0, 'y', 0, 'group', 0)
+        coord (1,1) Coord
         RULES
     end
     
@@ -12,6 +12,8 @@ classdef VisualStimulus
     
     methods
         function obj = VisualStimulus()
+            obj.coord = Coord();
+            
             AREA = obj.AREA();
             obj.RULES = [ ...
                 %% One-dimensional rules

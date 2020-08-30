@@ -1,4 +1,4 @@
-classdef Area < uint32
+classdef Area < uint8
     %AREA Enum that maps areas to the IDs of the neurons associated to
     %those areas.
     enumeration
@@ -7,7 +7,7 @@ classdef Area < uint32
     
     methods
         function ret = ID(obj)
-            ret = uint32(obj);
+            ret = uint8(obj);
         end
     end
 end

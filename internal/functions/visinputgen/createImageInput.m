@@ -3,7 +3,7 @@ function [visualInput] = createImageInput()
     TRIALS = 15000;
 
     %% Load the image vectors.
-    loadedInput = load('datasets/imageVectors.mat');
+    loadedInput = load('data/imageCorr/imageVectors.mat');
     imageVectors = loadedInput.imageVectors;
     
     %% Create correlation matrix.
