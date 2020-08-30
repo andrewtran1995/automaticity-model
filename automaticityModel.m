@@ -90,21 +90,28 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     end
     
     %% Load visual stimulus matrix
+%     if VIS_INPUT_FROM_PARM
+%     % Visual Input Matrix from optional_parms struct
+%         x_coordinates = optional_parms.visualinput(:,1);
+%         y_coordinates = optional_parms.visualinput(:,2);
+%         coordinate_groups = zeros(length(x_coordinates), 1);
+% %     elseif config == ModelConfig.IMAGE_CORR
+% %         loaded_input = load('datasets/imageVisualInput.mat');
+% %         x_coordinates = loaded_input.visualInput.x;
+% %         y_coordinates = loaded_input.visualInput.y;
+% %         coordinate_groups = loaded_input.visualInput.groups;
+%     elseif isa(config, 'ModelConfigButtonSwitch')
+%         loaded_input = load('datasets/fMRI_data.mat');
+%         x_coordinates = loaded_input.x_coordinates;
+%         y_coordinates = loaded_input.y_coordinates;
+%         coordinate_groups = zeros(length(x_coordinates), 1);
+%     end
     if VIS_INPUT_FROM_PARM
-    % Visual Input Matrix from optional_parms struct
         x_coordinates = optional_parms.visualinput(:,1);
         y_coordinates = optional_parms.visualinput(:,2);
         coordinate_groups = zeros(length(x_coordinates), 1);
-%     elseif config == ModelConfig.IMAGE_CORR
-%         loaded_input = load('datasets/imageVisualInput.mat');
-%         x_coordinates = loaded_input.visualInput.x;
-%         y_coordinates = loaded_input.visualInput.y;
-%         coordinate_groups = loaded_input.visualInput.groups;
-    elseif isa(config, 'ModelConfigButtonSwitch')
-        loaded_input = load('datasets/fMRI_data.mat');
-        x_coordinates = loaded_input.x_coordinates;
-        y_coordinates = loaded_input.y_coordinates;
-        coordinate_groups = zeros(length(x_coordinates), 1);
+    else
+        [x_coordinates, y_coordinates, coordinate_groups] = config.loadCoords();
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)

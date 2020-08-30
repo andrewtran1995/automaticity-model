@@ -16,6 +16,16 @@ classdef ModelConfigButtonSwitch < ModelConfig
                 'SES_10', 5161:5640, 'SES_20', 11041:11520 ...
             ));
         end
+        
+        function [x_coords, y_coords, coord_groups] = loadCoords(~)
+            loaded_input = load('datasets/fMRI_data.mat');
+            x_coords = loaded_input.x_coordinates;
+            y_coords = loaded_input.y_coordinates;
+            coord_groups = zeros(length(x_coords), 1);
+        end
+        
+        function config = doPreprocessing(obj)
+        end
     end
 end
 

@@ -38,10 +38,27 @@ classdef ModelConfig
         end
     end
     
+    methods (Abstract)
+        [x_coords, y_coords, coord_groups] = loadCoords(obj)
+        config = doPreprocessing(obj)
+    end
+    
     methods
         function obj = setTrials(obj, trials)
             obj.trials = trials;
             obj.accuracy = zeros(trials,1);
+        end
+        
+        function [config, RULE] = chooseCOVISRule(obj)
+            if obj.trial <= obj.COVISRules.GUESSES
+                config.COVISRules.chosen = randi(obj.COVISRules.NUM);
+            elseif obj.accuracy(obj.trial-1) == 1 || obj.trial > PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
+                config.COVISRules.chosen = obj.COVISRules.log(obj.trial-1);
+            else
+                config.COVISRules.chosen = rand_discrete(obj.COVISRules.prob);
+            end
+            RULE = VISUAL.RULES(config.COVISRules.chosen);
+            config.COVISRules.log(config.trial) = config.COVISRules.chosen;
         end
         
         function tf = shouldButtonSwitch(obj)
