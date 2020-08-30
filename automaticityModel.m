@@ -112,7 +112,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     config = config.setTrials(TRIALS);
 
     % Other parameters
-    n = Neuron.n;                 % Time period for one trial (in milliseconds)
     W_MAX = PARAMS.W_MAX;         % Maximum weight for Hebbian Synapses
     accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
 
@@ -120,7 +119,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     VISUAL = config.visual;
     chosen_rule = 1;
     correct_rule = 2;
-    RULE = VISUAL.RULES(chosen_rule);
+    RULE = config.visual.RULES(chosen_rule);
 
     % Radial Basis Function
     RBF = RadialBasisFunction(config.GRID_SIZE, VISUAL.STIM);
@@ -139,7 +138,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
         'reactions',   zeros(TRIALS,2), ...          % stores information about PMC neuron reactions during trial
-        'alpha',       zeros(TRIALS,n), ...          % PMC_A.out + PMC_B.out
+        'alpha',       zeros(TRIALS,Neuron.n), ...          % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
 
@@ -204,7 +203,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             else
                 config.COVISRules.chosen = rand_discrete(config.COVISRules.prob);
             end
-            RULE = VISUAL.RULES(config.COVISRules.chosen);
+            RULE = config.visual.RULES(config.COVISRules.chosen);
             config.COVISRules.log(trial) = config.COVISRules.chosen;
         end
         %% Button Switch if enabled and correct trials
@@ -214,7 +213,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
-        VISUAL.coord = Coord( ...
+        config.visual.coord = Coord( ...
             x_coords(trial) + config.BORDER_SIZE + config.hasCriterialNoise * criterialnoise(), ...
             y_coords(trial) + config.BORDER_SIZE ...
         );
@@ -222,7 +221,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
-        RBF = RBF.resolvestimulus(VISUAL.coord);
+        RBF = RBF.resolvestimulus(config.visual.coord);
         % Sum RBF values depending on rule to find PFC_A and PFC_B v_stim values
         % Note that stim matrices are row-major order (e.g., indexed by y, then x)
         PFC_A.v_stim = sum(sum(RBF.rbv(RULE(1).A_Y, RULE(1).A_X))) * PFC_A.V_SCALE;
@@ -234,7 +233,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Individual Time Trial Loop (iterating through n)
         if config.isFROSTEnabled
             %% FROST Calculations
-            for i=1:n-1
+            for i=1:Neuron.n-1
                 PFC_A = PFC_A.iterate_FROST(PFC_B, MDN_A, AC_A);
                 PFC_B = PFC_B.iterate_FROST(PFC_A, MDN_B, AC_B);
 
@@ -258,7 +257,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             end
         else
             %% Non-FROST Calculation
-            for i=1:n-1
+            for i=1:Neuron.n-1
                 PFC_A = PFC_A.iterate(PFC_B);
                 PFC_B = PFC_B.iterate(PFC_A);
 
@@ -292,9 +291,9 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         MC.reactions(trial,:) = [neuron_id_MC, latency];
         % Determine accuracy
         if config.isCOVISEnabled
-            accuracy(trial) = determinecorrectneuron(VISUAL.coord.x, VISUAL.coord.y, VISUAL.RULES(config.COVISRules.correct)) == neuron_id_MC;
+            accuracy(trial) = determinecorrectneuron(config.visual.coord, config.visual.RULES(config.COVISRules.correct)) == neuron_id_MC;
         else
-            accuracy(trial) = determinecorrectneuron(VISUAL.coord.x, VISUAL.coord.y, RULE(1)) == neuron_id_MC;
+            accuracy(trial) = determinecorrectneuron(config.visual.coord, RULE(1)) == neuron_id_MC;
         end
 
         %% Weight change calculations
@@ -420,7 +419,9 @@ function [neuron_id, latency] = determine_reacting_neuron(neuron_1, neuron_2, de
     end
 end
 
-function [neuron_id] = determinecorrectneuron(x, y, rule)
+function [neuron_id] = determinecorrectneuron(coord, rule)
+    x = coord.x;
+    y = coord.y;
     % If x and y are found in "B", the boolean will evaluate to true.
     equalsNeuron2 = any(x == rule.B_X) && any(y == rule.B_Y);
     % Add one to the result, since neuron IDs are 1-indexed, and cast the result
