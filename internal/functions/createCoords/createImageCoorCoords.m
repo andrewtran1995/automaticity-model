@@ -1,4 +1,4 @@
-function [visualInput] = createImageInput()
+function [visualInput] = createImageCoorCoords()
 %CREATEIMAGEINPUT Create visual input for the IMAGE configuration.
     TRIALS = 15000;
 

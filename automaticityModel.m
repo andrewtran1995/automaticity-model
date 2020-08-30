@@ -91,11 +91,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     
     %% Load visual stimulus matrix
     if VIS_INPUT_FROM_PARM
-        x_coordinates = optional_parms.visualinput(:,1);
-        y_coordinates = optional_parms.visualinput(:,2);
-        coordinate_groups = zeros(length(x_coordinates), 1);
+        x_coords = optional_parms.visualinput(:,1);
+        y_coords = optional_parms.visualinput(:,2);
     else
-        [x_coordinates, y_coordinates, coordinate_groups] = config.loadCoords();
+        [x_coords, y_coords] = config.loadCoords();
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
@@ -133,20 +132,20 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
-        'reactions',   zeros(TRIALS,3), ...          % stores information about PFC neuron reactions during trial
+        'reactions',   zeros(TRIALS,2), ...          % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
 
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
-        'reactions',   zeros(TRIALS,3), ...          % stores information about PMC neuron reactions during trial
+        'reactions',   zeros(TRIALS,2), ...          % stores information about PMC neuron reactions during trial
         'alpha',       zeros(TRIALS,n), ...          % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
 
     MC = struct( ...
         'DECISION_PT',      PARAMS.MC_DECISION_PT, ...
-        'reactions',        zeros(TRIALS,3), ...
+        'reactions',        zeros(TRIALS,2), ...
         'activations',      zeros(TRIALS,1), ...
         'A_area',           zeros(TRIALS,1), ...
         'B_area',           zeros(TRIALS,1) ...
@@ -216,9 +215,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Determine visual stimulus in range [1, GRID_SIZE] to pick random gabor for each trial, padded with
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         VISUAL.coord = Coord( ...
-            x_coordinates(trial) + config.BORDER_SIZE + config.hasCriterialNoise * criterialnoise(), ...
-            y_coordinates(trial) + config.BORDER_SIZE, ...
-            coordinate_groups(trial) ...
+            x_coords(trial) + config.BORDER_SIZE + config.hasCriterialNoise * criterialnoise(), ...
+            y_coords(trial) + config.BORDER_SIZE ...
         );
        
 
@@ -287,11 +285,11 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         %% Determine decision neuron and reaction time, and record accuracy
         % Determine reacting neuron and latency
         [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
-        PFC.reactions(trial,:) = [neuron_id_PFC, latency, VISUAL.coord.group];
+        PFC.reactions(trial,:) = [neuron_id_PFC, latency];
         [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
-        PMC.reactions(trial,:) = [neuron_id_PMC, latency, VISUAL.coord.group];
+        PMC.reactions(trial,:) = [neuron_id_PMC, latency];
         [neuron_id_MC, latency] = determine_reacting_neuron(MC_A.out, MC_B.out, MC.DECISION_PT);
-        MC.reactions(trial,:) = [neuron_id_MC, latency, VISUAL.coord.group];
+        MC.reactions(trial,:) = [neuron_id_MC, latency];
         % Determine accuracy
         if config.isCOVISEnabled
             accuracy(trial) = determinecorrectneuron(VISUAL.coord.x, VISUAL.coord.y, VISUAL.RULES(config.COVISRules.correct)) == neuron_id_MC;
@@ -382,10 +380,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-        displayautoresults(config, Neuron.TAU, n, RBF, config.BORDER_SIZE, VISUAL, TRIALS, ...
+        displayautoresults(config, n, RBF, ...
             PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, ...
             PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, ...
-            chosen_rule, y_coordinates, x_coordinates...
+            y_coords, x_coords...
         );
     end
     return;
