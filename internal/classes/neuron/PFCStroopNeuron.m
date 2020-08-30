@@ -13,8 +13,9 @@ classdef PFCStroopNeuron < PFCNeuron
     Only enable MC learning if button switch enabled
     %}
     
-    properties
-        Property1
+    properties (Constant)
+        STROOP_STIM = 250
+        NOISE = getconstants().NOISE_PFC
     end
     
     methods
@@ -22,10 +23,30 @@ classdef PFCStroopNeuron < PFCNeuron
             obj.Property1 = inputArg1 + inputArg2;
         end
         
-        function outputArg = method1(obj,inputArg)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
-            outputArg = obj.Property1 + inputArg;
+        function obj = iterate(obj, MDN)
+            % Create local variables for readability.
+            i = obj.i;
+            n = obj.n;
+            TAU = obj.TAU;
+
+            obj.v(i+1) = obj.v(i) ...
+                + ( ...
+                    TAU * obj.k * (obj.v(i) - obj.rv) * (obj.v(i) - obj.vt) ...
+                    - obj.u(i) ...
+                    + obj.E ...
+                    + obj.STROOP_STIM ...
+                    + 20 * MDN.out(i) ...
+                )/obj.C ...
+                + normrnd(0, obj.NOISE);
+            obj.u(i+1) = obj.u(i) + TAU * obj.a * (obj.b * (obj.v(i) - obj.rv) - obj.u(i));
+            if obj.v(i+1) >= obj.vpeak
+                obj.v(i:i+1) = [obj.vpeak, obj.c];
+                obj.u(i+1) = obj.u(i+1) + obj.d;
+                obj.out(i:n) = obj.out(i:n) + obj.LAMBDA_PRECALC(1:n-1:1);
+            end
+
+            % Increment time.
+            obj.i = obj.i + 1;
         end
     end
 end
