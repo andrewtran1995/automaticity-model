@@ -55,7 +55,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     
     % Load dependencies
     addpath(genpath('.'));
-    coder.extrinsic('getmodelparams','getconstants','displayautoresults');
+    coder.extrinsic('getmodelparams','getconstants','displayautoresults','dispResults');
 
     % Load config and config parameters
     config = ModelConfigButtonSwitch();
@@ -93,85 +93,72 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     if VIS_INPUT_FROM_PARM
         x_coords = optional_parms.visualinput(:,1);
         y_coords = optional_parms.visualinput(:,2);
+        coord_groups = repmat(Category.NONE, length(x_coords), 1);
     else
-        [x_coords, y_coords] = config.loadCoords();
+        [x_coords, y_coords, coord_groups] = config.loadCoords();
     end
 
     %% Initialize/configure constants (though some data structure specific constants are initialized below)
-    % Set behavior and number of trials
-    PRE_LEARNING_TRIALS  = PARAMS.PRE_LEARNING_TRIALS;  % Number of control trials run before learning trials
-    LEARNING_TRIALS      = PARAMS.LEARNING_TRIALS;      % Number of learning trials in automaticity experiment
-    POST_LEARNING_TRIALS = PARAMS.POST_LEARNING_TRIALS; % Number of trials where no learning is involved after learning trials
-    if isa(config, 'ModelConfigButtonSwitch')
-        TRIALS           = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS + config.meta.trialsAfterSwitch;
-        IS_LEARNING      = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS), ones(1,config.meta.trialsAfterSwitch)];
-    else
-        TRIALS           = PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS;
-        IS_LEARNING      = [zeros(1,PRE_LEARNING_TRIALS), ones(1,LEARNING_TRIALS), zeros(1,POST_LEARNING_TRIALS)];
-    end
-    config = config.setTrials(TRIALS);
+    config = config.setTrials(PARAMS.PRE_LEARNING_TRIALS, PARAMS.LEARNING_TRIALS, PARAMS.POST_LEARNING_TRIALS);
+    TRIALS = config.trials;
 
     % Other parameters
     W_MAX = PARAMS.W_MAX;         % Maximum weight for Hebbian Synapses
-    accuracy = zeros(TRIALS, 1);  % Boolean matrix indicating if correct PMC neuron reacted
 
     % Get visual stimulus variable and establish correct and chosen rules.
     VISUAL = config.visual;
-    chosen_rule = 1;
-    correct_rule = 2;
-    RULE = config.visual.RULES(chosen_rule);
 
     % Radial Basis Function
     RBF = RadialBasisFunction(config.GRID_SIZE, VISUAL.STIM);
 
     %% COVIS Model
+    chosen_rule = 1;
+    correct_rule = 2;
+    RULE = config.visual.RULES(chosen_rule);
     config = config.initCOVISRules(PARAMS, chosen_rule, correct_rule, config.trials);
     
     %% General settings for neurons
     % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
+    
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
         'reactions',   zeros(TRIALS,2), ...          % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
+    PFC_A = PFCNeuron(PARAMS.PFC_A_W_OUT_MDN);
+    PFC_B = PFCNeuron(PARAMS.PFC_B_W_OUT_MDN);
 
+    default_hebbian_consts = HebbianConst(PARAMS.HEB_CONSTS, PARAMS.HEB_CONSTS, PARAMS.NMDA, PARAMS.AMPA);
     PMC = struct( ...                           
         'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
         'reactions',   zeros(TRIALS,2), ...          % stores information about PMC neuron reactions during trial
         'alpha',       zeros(TRIALS,Neuron.n), ...          % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
-
-    MC = struct( ...
-        'DECISION_PT',      PARAMS.MC_DECISION_PT, ...
-        'reactions',        zeros(TRIALS,2), ...
-        'activations',      zeros(TRIALS,1), ...
-        'A_area',           zeros(TRIALS,1), ...
-        'B_area',           zeros(TRIALS,1) ...
-    );
-
-    MDN = struct('activations', zeros(TRIALS,1));
-
-    default_hebbian_consts = HebbianConst(PARAMS.HEB_CONSTS, PARAMS.HEB_CONSTS, PARAMS.NMDA, PARAMS.AMPA);
-                 
-    %% Set up neurons
-    PFC_A = PFCNeuron(PARAMS.PFC_A_W_OUT_MDN);
-    PFC_B = PFCNeuron(PARAMS.PFC_B_W_OUT_MDN);
-
     PMC_A = PMCNeuron(TRIALS, PARAMS.PMC_A_W_OUT, W_MAX, config.isCOVISEnabled, config.GRID_SIZE, default_hebbian_consts);
     PMC_B = PMCNeuron(TRIALS, PARAMS.PMC_B_W_OUT, W_MAX, config.isCOVISEnabled, config.GRID_SIZE, default_hebbian_consts);
 
+    MC = struct( ...
+        'DECISION_PT', PARAMS.MC_DECISION_PT, ...
+        'reactions',   zeros(TRIALS,2), ...
+        'activations', zeros(TRIALS,1), ...
+        'A_area',      zeros(TRIALS,1), ...
+        'B_area',      zeros(TRIALS,1) ...
+    );
     MC_A = MCNeuron(TRIALS, W_MAX, default_hebbian_consts);
     MC_B = MCNeuron(TRIALS, W_MAX, default_hebbian_consts);
+
+    MDN = struct( ...
+        'activations', zeros(TRIALS,1) ...
+    );
+    MDN_A = MDNNeuron(PARAMS.MDN_A_W_OUT);
+    MDN_B = MDNNeuron(PARAMS.MDN_B_W_OUT);
 
     Driv_PFC = Driv_PFCNeuron(PARAMS.DRIV_PFC_W_OUT);
 
     CN = CNNeuron(TRIALS);
     
     GP = GPNeuron(TRIALS);
-
-    MDN_A = MDNNeuron(PARAMS.MDN_A_W_OUT);
-    MDN_B = MDNNeuron(PARAMS.MDN_B_W_OUT);
 
     AC_A = ACNeuron();
     AC_B = ACNeuron();
@@ -180,7 +167,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     %%%%%%%%%% CALCULATIONS %%%%%%%%%%
     %  ============================  %
     %% Learning trials
-    for trial=1:TRIALS
+    for trial=1:config.trials
         config.trial = trial;
         %% Initialize each neuron for the trial
         PFC_A = PFC_A.reset(); PFC_B = PFC_B.reset();
@@ -196,15 +183,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         end
         %% Initialize COVIS components (choose a rule)
         if config.isCOVISEnabled
-            if trial <= config.COVISRules.GUESSES
-                config.COVISRules.chosen = randi(config.COVISRules.NUM);
-            elseif accuracy(trial-1) == 1 || trial > PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
-                config.COVISRules.chosen = config.COVISRules.log(trial-1);
-            else
-                config.COVISRules.chosen = rand_discrete(config.COVISRules.prob);
-            end
-            RULE = config.visual.RULES(config.COVISRules.chosen);
-            config.COVISRules.log(trial) = config.COVISRules.chosen;
+            [config, RULE] = config.chooseCOVISRule();
         end
         %% Button Switch if enabled and correct trials
         if config.shouldButtonSwitch()
@@ -215,10 +194,10 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         % the BORDER_SIZE such that the visual stimulus is accounted for properly
         config.visual.coord = Coord( ...
             x_coords(trial) + config.BORDER_SIZE + config.hasCriterialNoise * criterialnoise(), ...
-            y_coords(trial) + config.BORDER_SIZE ...
+            y_coords(trial) + config.BORDER_SIZE, ...
+            coord_groups(trial) ...
         );
        
-
         %% Calculate visual stimulus effect using Radial Basis Function (RBF) implementation
         % Calculate RBF grid
         RBF = RBF.resolvestimulus(config.visual.coord);
@@ -291,19 +270,19 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         MC.reactions(trial,:) = [neuron_id_MC, latency];
         % Determine accuracy
         if config.isCOVISEnabled
-            accuracy(trial) = determinecorrectneuron(config.visual.coord, config.visual.RULES(config.COVISRules.correct)) == neuron_id_MC;
+            config.accuracy(trial) = determinecorrectneuron(config.visual.coord, config.visual.RULES(config.COVISRules.correct)) == neuron_id_MC;
         else
-            accuracy(trial) = determinecorrectneuron(config.visual.coord, RULE(1)) == neuron_id_MC;
+            config.accuracy(trial) = determinecorrectneuron(config.visual.coord, RULE(1)) == neuron_id_MC;
         end
 
         %% Weight change calculations
-        if IS_LEARNING(trial)
-            PMC_A = PMC_A.doHebbianLearning(config, RBF.rbv, PFC_A);
-            PMC_B = PMC_B.doHebbianLearning(config, RBF.rbv, PFC_B);
+        if config.isLearningTrial
+            PMC_A = PMC_A.doHebbianLearning(config, RBF.rbv, PMC_A.weightsForTrial(config)*1000);
+            PMC_B = PMC_B.doHebbianLearning(config, RBF.rbv, PMC_B.weightsForTrial(config)*1000);
             
             if config.isMCLearningEnabled
-                MC_A = MC_A.doHebbianLearning(config, PMC_A);
-                MC_B = MC_B.doHebbianLearning(config, PMC_B);
+                MC_A = MC_A.doHebbianLearning(config, PMC_A.integralPosVolt);
+                MC_B = MC_B.doHebbianLearning(config, PMC_B.integralPosVolt);
             end
         % Else, if not learning, set new weights to previous weights
         else
@@ -325,9 +304,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,config.weightIdx,config.correctRuleIdx)));
         
         %% COVIS Calculations - readjusting saliences, weights
-        % TODO: Do we not want to do COVIS after the button switch is executed?
-        if config.isCOVISEnabled && trial <= PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
-            config.COVISRules = config.COVISRules.processRuleAttempt(accuracy(trial) == 1);
+        if config.isCOVISEnabled && trial <= config.preLearningTrials + config.learningTrials + config.postLearningTrials
+            config.COVISRules = config.COVISRules.processRuleAttempt(config.accuracy(trial) == 1);
         end
 
         %% Print data to console
@@ -345,18 +323,18 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
     if OPTIMIZATION_CALC && isa(config, 'ModelConfigButtonSwitch')
         FMRI_META = config.meta.optimization;
         if ~FMRI_META.GROUP_RUN
-            target = load('fmri/targetMeans1dCondition.mat');
+            target = load('data/buttonSwitch/targetMeans1dCondition.mat');
             % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-            output_acc = [mean(accuracy(FMRI_META.SES_1)), ...
-                            mean(accuracy(FMRI_META.SES_4)), ...
-                            mean(accuracy(FMRI_META.SES_10)), ...
-                            mean(accuracy(FMRI_META.SES_20))];
+            output_acc = [mean(config.accuracy(FMRI_META.SES_1)), ...
+                          mean(config.accuracy(FMRI_META.SES_4)), ...
+                          mean(config.accuracy(FMRI_META.SES_10)), ...
+                          mean(config.accuracy(FMRI_META.SES_20))];
             % Calculate Mean Median RT for trials from Session 4, 10, and 20
             % Reaction times must be converted from ms to seconds
             norm_output_rt = [median(PMC.reactions(FMRI_META.SES_1,2)), ...
-                                median(PMC.reactions(FMRI_META.SES_4,2)), ...
-                                median(PMC.reactions(FMRI_META.SES_10,2)), ...
-                                median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
+                              median(PMC.reactions(FMRI_META.SES_4,2)), ...
+                              median(PMC.reactions(FMRI_META.SES_10,2)), ...
+                              median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
             % Weight reaction time greater than accuracy
             target_diff = [target.means1dCondition(1,:) - output_acc;
                             (target.means1dCondition(2,:) - norm_output_rt)*20];
@@ -370,17 +348,17 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
             hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
             % Get value for opt_val_2
             opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
-                            get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
-                            get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
-                            mean(accuracy(FMRI_META.SES_1)), mean(accuracy(FMRI_META.SES_4)), mean(accuracy(FMRI_META.SES_10)), mean(accuracy(FMRI_META.SES_20))];
+                         get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
+                         get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
+                         mean(config.accuracy(FMRI_META.SES_1)), mean(config.accuracy(FMRI_META.SES_4)), mean(config.accuracy(FMRI_META.SES_10)), mean(config.accuracy(FMRI_META.SES_20))];
         end
     end
     %% =============================== %%
     %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
     %  ===============================  %
     if not(SUPPRESS_UI)
-        displayautoresults(config, n, RBF, ...
-            PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, ...
+        dispResults(config);
+        displayautoresults(config, RBF, ...
             PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, ...
             y_coords, x_coords...
         );

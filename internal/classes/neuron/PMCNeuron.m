@@ -56,8 +56,14 @@ classdef PMCNeuron < HebbianLearningNeuron
             obj.i = obj.i + 1;
         end
         
-        function obj = doHebbianLearning(obj, config, scalar, inputNeuron)
-            w = obj.calcHebbianWeights(config, scalar, inputNeuron);
+        % The pre-synaptic output is directly related to the visual input
+        % (represented by the radial basis vector). More precisely, the
+        % pre-synaptic output to do Hebbian learning on are the existing
+        % PMC weights multiplied by Neuron.n (the amount of time where the
+        % visual stimulus is exposed), which is then multiplied by the
+        % scalar (the radial basis vector).
+        function obj = doHebbianLearning(obj, config, scalar, preSynapticOutput)
+            w = obj.calcHebbianWeights(config, scalar, preSynapticOutput);
             if config.isCOVISEnabled
                 obj.weights(:,:,config.weightIdx,config.COVISRules.chosen) = w;
             else

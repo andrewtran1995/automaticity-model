@@ -4,6 +4,7 @@ classdef ModelConfig
         isCOVISEnabled
         isMCLearningEnabled
         hasCriterialNoise
+        hasStroopInterference
     end
     
     properties (Constant)
@@ -14,6 +15,9 @@ classdef ModelConfig
     
     properties
         trials (1,1) {mustBeNumeric} % Number of trials for the configuration.3
+        preLearningTrials (1,1) {mustBeNonnegative}
+        learningTrials (1,1) {mustBeNonnegative}
+        postLearningTrials (1,1) {mustBeNonnegative}
         trial (1,1) {mustBeNonzero} = 1
         accuracy (:,1) {mustBeNumeric} % Boolean array recording if the reacting neuron is correct or not.
         
@@ -24,6 +28,7 @@ classdef ModelConfig
     end
     
     properties (Dependent)
+        isLearningTrial
         weightIdx
         correctRuleIdx
         chosenRuleIdx
@@ -40,23 +45,27 @@ classdef ModelConfig
     methods (Abstract)
         [x_coords, y_coords, coord_groups] = loadCoords(obj)
         config = doPreprocessing(obj)
+        dispResults(obj)
     end
     
     methods
-        function obj = setTrials(obj, trials)
-            obj.trials = trials;
-            obj.accuracy = zeros(trials,1);
+        function config = setTrials(config, preLearningTrials, learningTrials, postLearningTrials)
+            config.preLearningTrials = preLearningTrials;
+            config.learningTrials = learningTrials;
+            config.postLearningTrials = postLearningTrials;
+            config.trials = preLearningTrials + learningTrials + postLearningTrials + config.meta.trialsAfterSwitch;
+            config.accuracy = zeros(config.trials,1);
         end
         
-        function [config, RULE] = chooseCOVISRule(obj)
-            if obj.trial <= obj.COVISRules.GUESSES
-                config.COVISRules.chosen = randi(obj.COVISRules.NUM);
-            elseif obj.accuracy(obj.trial-1) == 1 || obj.trial > PRE_LEARNING_TRIALS + LEARNING_TRIALS + POST_LEARNING_TRIALS
-                config.COVISRules.chosen = obj.COVISRules.log(obj.trial-1);
+        function [config, RULE] = chooseCOVISRule(config)
+            if config.trial <= config.COVISRules.GUESSES
+                config.COVISRules.chosen = randi(config.COVISRules.NUM);
+            elseif config.accuracy(config.trial-1) == 1 || config.trial > config.preLearningTrials + config.learningTrials + config.postLearningTrials
+                config.COVISRules.chosen = config.COVISRules.log(config.trial-1);
             else
-                config.COVISRules.chosen = rand_discrete(obj.COVISRules.prob);
+                config.COVISRules.chosen = rand_discrete(config.COVISRules.prob);
             end
-            RULE = VISUAL.RULES(config.COVISRules.chosen);
+            RULE = config.visual.RULES(config.COVISRules.chosen);
             config.COVISRules.log(config.trial) = config.COVISRules.chosen;
         end
         
@@ -72,6 +81,12 @@ classdef ModelConfig
             % Record the PMC weights at this instant.
             obj.meta.PMC_A_weights(:,:,1,:) = pmcA.weights(:,:,obj.weightIdx,:);
             obj.meta.PMC_B_weights(:,:,1,:) = pmcB.weights(:,:,obj.weightIdx,:);
+        end
+        
+        function tf = get.isLearningTrial(obj)
+            tf = obj.trial <= obj.trials && ...
+                obj.preLearningTrials < obj.trial && ...
+                obj.trial <= obj.preLearningTrials + obj.learningTrials;
         end
         
         function idx = get.weightIdx(obj)

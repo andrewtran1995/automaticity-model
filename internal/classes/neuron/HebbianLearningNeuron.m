@@ -8,7 +8,7 @@ classdef (Abstract) HebbianLearningNeuron < RSN
     
     properties (SetAccess = immutable)
         HEBBIAN (1,1) HebbianConst
-        MAX_WEIGHT
+        MAX_WEIGHT (1,1) {mustBeNonnegative}
     end
     
     properties (Constant)
@@ -38,11 +38,18 @@ classdef (Abstract) HebbianLearningNeuron < RSN
     end
     
     methods     
-        function w = calcHebbianWeights(obj, config, scalar, inputNeuron)
+        % "inputNeuron" should be the integral of the alpha function of the pre-synaptic unit.
+        % This can be simplified to the integral of the positive voltage.
+        % For the visual units, since they're not spiking, they have a
+        % constant output which is the same for all Neuron.n time points
+        % which is essentially the radial basis function vector multiplied
+        % by the weights of the PMC.
+        % Multiply radial basis values by weights, then 1000.
+        function w = calcHebbianWeights(obj, config, scalar, preSynapticOutput)
             w = obj.weightsForTrial(config);
             w = w + scalar.*( ...
-                obj.HEBBIAN.COEF * inputNeuron.integralPosVolt * obj.g_t_1.*(obj.MAX_WEIGHT - w) ...
-                - obj.HEBBIAN.ANTI * inputNeuron.integralPosVolt * obj.g_t_2.*w ...
+                obj.HEBBIAN.COEF * preSynapticOutput * obj.g_t_1.*(obj.MAX_WEIGHT - w) ...
+                - obj.HEBBIAN.ANTI * preSynapticOutput * obj.g_t_2.*w ...
             );
             w = bound_array(w, 0, obj.MAX_WEIGHT);
         end

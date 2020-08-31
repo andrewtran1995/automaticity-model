@@ -7,6 +7,7 @@ classdef ModelConfigImageCorr < ModelConfig
         isCOVISEnabled = false
         isMCLearningEnabled = false
         hasCriterialNoise = false
+        hasStroopInterference = false
     end
     
     methods

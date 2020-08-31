@@ -7,6 +7,7 @@ classdef ModelConfigButtonSwitch < ModelConfig
         isCOVISEnabled = true
         isMCLearningEnabled = true
         hasCriterialNoise = false
+        hasStroopInterference = false
     end
     
     methods
@@ -27,11 +28,23 @@ classdef ModelConfigButtonSwitch < ModelConfig
             loaded_input = load('data/buttonSwitch/coords.mat');
             x_coords = loaded_input.x_coordinates;
             y_coords = loaded_input.y_coordinates;
-            coord_groups = zeros(length(x_coords), 1);
+            coord_groups = repmat(Category.NONE, length(x_coords), 1);
+        end
+        
+        function config = setTrials(config, preLearningTrials, learningTrials, postLearningTrials)
+            config.preLearningTrials = preLearningTrials;
+            config.learningTrials = learningTrials;
+            config.postLearningTrials = postLearningTrials;
+            config.trials = preLearningTrials + learningTrials + postLearningTrials + config.meta.trialsAfterSwitch;
+            config.accuracy = zeros(config.trials,1);
         end
         
         function config = doPreprocessing(~)
             return
+        end
+        
+        function dispResults(obj)
+            scatter([1,2],[3,4]);
         end
     end
 end

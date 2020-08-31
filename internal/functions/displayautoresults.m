@@ -1,13 +1,18 @@
-function displayautoresults(config, n, RBF, PRE_LEARNING_TRIALS, LEARNING_TRIALS, POST_LEARNING_TRIALS, accuracy, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, y_coordinates, x_coordinates )
+function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, y_coordinates, x_coordinates )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
     addpath(genpath('.'));
+    n = Neuron.n;
     TAU = Neuron.TAU;
     BORDER_SIZE = config.BORDER_SIZE;
     VISUAL = config.visual;
     TRIALS = config.trials;
+    accuracy = config.accuracy;
+    PRE_LEARNING_TRIALS = config.preLearningTrials;
+    LEARNING_TRIALS = config.learningTrials;
+    POST_LEARNING_TRIALS = config.postLearningTrials;
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
     %% Starts debug mode if you want to view the variables before executing code
