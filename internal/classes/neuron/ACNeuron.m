@@ -19,11 +19,10 @@ classdef ACNeuron < RSN
             n = obj.n;
             TAU = obj.TAU;
             
-            obj.v(i+1)=((obj.v(i) + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i)+ 10 + PFC.W_OUT_AC*PFC.out(i) + obj.rule_stim))/obj.C);
-            obj.u(i+1)=obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
+            obj.v(i+1)=(obj.v(i) + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i)+ obj.E + PFC.W_OUT_AC*PFC.out(i) + obj.rule_stim))/obj.C;
+            obj.u(i+1)=obj.u(i) + TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
             if obj.v(i+1)>=obj.vpeak
-                obj.v(i)= obj.vpeak;
-                obj.v(i+1)= obj.c;
+                obj.v(i:i+1) = [obj.vpeak, obj.c];
                 obj.u(i+1)= obj.u(i+1)+ obj.d;
                 obj.out(i:n) = obj.out(i:n) + obj.LAMBDA_PRECALC(1:n-i+1);
             end

@@ -69,6 +69,21 @@ classdef ModelConfig
             config.COVISRules.log(config.trial) = config.COVISRules.chosen;
         end
         
+        function dispCOVISLog(config)
+            figure;
+            for i=1:config.COVISRules.NUM
+                plot(smooth(config.COVISRules.log == i, 500));
+                hold on;
+            end
+            colormap(lines);
+            xlim([0, config.trials]);
+            legend(arrayfun(@(i) sprintf('Rule %d', i), config.COVISRules.idxs, 'UniformOutput', false));
+            title('COVIS Rule Log Frequency');
+            
+            % Add line indicating when button switch occurred.
+            plot([config.trials - config.meta.trialsAfterSwitch; config.trials - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+        end
+        
         function tf = shouldButtonSwitch(obj)
             tf = isa(obj, 'ModelConfigButtonSwitch') && ...
                  obj.trial == (obj.trials - obj.meta.trialsAfterSwitch + 1);

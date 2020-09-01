@@ -15,12 +15,11 @@ classdef PFCStroopNeuron < PFCNeuron
     
     properties (Constant)
         STROOP_STIM = 250
-        NOISE = getconstants().NOISE_PFC
     end
     
     methods
-        function obj = PFCStroopNeuron(inputArg1,inputArg2)
-            obj.Property1 = inputArg1 + inputArg2;
+        function obj = PFCStroopNeuron()
+            obj@PFCNeuron(20); % Hard-code the W_OUT_MDN value to 20.
         end
         
         function obj = iterate(obj, MDN)
@@ -36,7 +35,7 @@ classdef PFCStroopNeuron < PFCNeuron
                     + obj.E ...
                     + obj.STROOP_STIM ...
                     + 20 * MDN.out(i) ...
-                )/obj.C ...
+                ) / obj.C ...
                 + normrnd(0, obj.NOISE);
             obj.u(i+1) = obj.u(i) + TAU * obj.a * (obj.b * (obj.v(i) - obj.rv) - obj.u(i));
             if obj.v(i+1) >= obj.vpeak

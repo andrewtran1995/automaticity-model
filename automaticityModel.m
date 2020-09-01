@@ -45,7 +45,7 @@ opt_val_1      - return value signifying value of some cost function, used
 opt_val_2      - return value (array) signifying value of cost function
                  used in FMRI group runs
 %}
-function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
+function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
     %% ======================================= %%
     %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
     %  =======================================  %
@@ -66,7 +66,7 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
 
     % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 0;
+    SUPPRESS_UI           = 1;
     OPTIMIZATION_CALC     = 0;
     
     % Validate any supplied arguments
@@ -125,6 +125,8 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         'reactions',   zeros(TRIALS,2), ...          % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
+    PFC_Stroop_A = PFCStroopNeuron();
+    PFC_Stroop_B = PFCStroopNeuron();
     PFC_A = PFCNeuron(PARAMS.PFC_A_W_OUT_MDN);
     PFC_B = PFCNeuron(PARAMS.PFC_B_W_OUT_MDN);
 
@@ -210,8 +212,33 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
         PMC_B.v_stim = sum(sum(RBF.rbv(:,:).*(PMC_B.weightsForTrial(config)))) * PMC_B.V_SCALE;
 
         %% Individual Time Trial Loop (iterating through n)
-        if config.isFROSTEnabled
-            %% FROST Calculations
+        if config.isFROSTEnabled && config.hasStroopInterference
+            for i=1:Neuron.n-1
+                PFC_Stroop_A = PFC_Stroop_A.iterate(MDN_A);
+                PFC_Stroop_B = PFC_Stroop_B.iterate(MDN_B);
+                
+                PFC_A = PFC_A.iterateWithStroopInterference(PFC_B, PFC_Stroop_A, PFC_Stroop_B);
+                PFC_B = PFC_B.iterateWithStroopInterference(PFC_A, PFC_Stroop_B, PFC_Stroop_A);
+
+                PMC_A = PMC_A.iterate(PMC_B, PFC_A);
+                PMC_B = PMC_B.iterate(PMC_A, PFC_B);
+                
+                MC_A = MC_A.iterate(trial, MC_B, PMC_A, PMC_B);
+                MC_B = MC_B.iterate(trial, MC_A, PMC_B, PMC_A);               
+
+                Driv_PFC = Driv_PFC.iterate();
+
+                CN = CN.iterate(Driv_PFC);
+                
+                GP = GP.iterate(CN);
+
+                MDN_A = MDN_A.iterate(PFC_Stroop_A, GP);
+                MDN_B = MDN_B.iterate(PFC_Stroop_B, GP);
+
+                AC_A = AC_A.iterate(PFC_Stroop_A);
+                AC_B = AC_B.iterate(PFC_Stroop_B);
+            end
+        elseif config.isFROSTEnabled
             for i=1:Neuron.n-1
                 PFC_A = PFC_A.iterate_FROST(PFC_B, MDN_A, AC_A);
                 PFC_B = PFC_B.iterate_FROST(PFC_A, MDN_B, AC_B);
@@ -235,7 +262,6 @@ function [opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) 
                 AC_B = AC_B.iterate(PFC_B);
             end
         else
-            %% Non-FROST Calculation
             for i=1:Neuron.n-1
                 PFC_A = PFC_A.iterate(PFC_B);
                 PFC_B = PFC_B.iterate(PFC_A);
