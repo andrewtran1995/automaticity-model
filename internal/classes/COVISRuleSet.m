@@ -69,7 +69,7 @@ classdef COVISRuleSet
             obj.weights(obj.chosen) = obj.saliences(obj.chosen) + obj.PERSEV;
             
             % Step 3: Update randomly chosen rule.
-            random_rule = randi(4);
+            random_rule = randi(obj.NUM);
             obj.weights(random_rule) = obj.weights(random_rule) + poissrnd(obj.LAMBDA);
             
             % Step 4: Carry over all other saliences into weights.

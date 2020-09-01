@@ -9,7 +9,7 @@ classdef MCNeuron < HebbianLearningNeuron
     
     properties (Constant)
         V_SCALE = 1
-        W_LI = 2
+        W_LI = 3
         INIT_WEIGHT = 1
         W_MAX = 100;
         NOISE = getconstants().NOISE_MC
@@ -17,8 +17,8 @@ classdef MCNeuron < HebbianLearningNeuron
     end
     
     methods
-        function obj = MCNeuron(trials, max_weight, hebbianConsts)
-            obj@HebbianLearningNeuron(hebbianConsts, max_weight);
+        function obj = MCNeuron(trials, hebbianConsts)
+            obj@HebbianLearningNeuron(hebbianConsts, MCNeuron.W_MAX);
             obj.v = repmat(obj.rv,obj.n,1);
             obj.weights = obj.INIT_WEIGHT*ones(2,trials);
         end
@@ -38,7 +38,14 @@ classdef MCNeuron < HebbianLearningNeuron
             end
 
             obj.v(i+1) = obj.v(i) ...
-                       + TAU*(obj.k*(obj.v(i)-obj.rv)*(obj.v(i)-obj.vt)-obj.u(i) + obj.E + (PMC.W_OUT*obj.WEIGHT.PRIMARY*OBJ_WEIGHT*PMC.out(i) + PMC_OTHER.W_OUT*obj.WEIGHT.SECONDARY*OTHER_WEIGHT*PMC_OTHER.out(i)) - obj.W_LI*MC_OTHER.out(i) )/obj.C ...
+                       + TAU * ( ...
+                                 obj.k * (obj.v(i) - obj.rv) * (obj.v(i) - obj.vt) ...
+                                 - obj.u(i) ...
+                                 + obj.E ...
+                                 + PMC.W_OUT * obj.WEIGHT.PRIMARY * OBJ_WEIGHT * PMC.out(i) ...
+                                 + PMC_OTHER.W_OUT * obj.WEIGHT.SECONDARY * OTHER_WEIGHT * PMC_OTHER.out(i) ...
+                                 - obj.W_LI * MC_OTHER.out(i) ...
+                        ) / obj.C ...
                        + normrnd(0, obj.NOISE);
             obj.u(i+1) = obj.u(i)+TAU*obj.a*(obj.b*(obj.v(i)-obj.rv)-obj.u(i));
             if obj.v(i+1) >= obj.vpeak

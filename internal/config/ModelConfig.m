@@ -57,6 +57,10 @@ classdef ModelConfig
             config.accuracy = zeros(config.trials,1);
         end
         
+        function obj = initCOVISRules(obj, params, chosen_rule, correct_rule, trials)
+            obj.COVISRules = COVISRuleSet(params, 2, chosen_rule, correct_rule, trials);
+        end
+        
         function [config, RULE] = chooseCOVISRule(config)
             if config.trial <= config.COVISRules.GUESSES
                 config.COVISRules.chosen = randi(config.COVISRules.NUM);
@@ -71,6 +75,7 @@ classdef ModelConfig
         
         function dispCOVISLog(config)
             figure;
+            
             for i=1:config.COVISRules.NUM
                 plot(smooth(config.COVISRules.log == i, 500));
                 hold on;
@@ -80,8 +85,20 @@ classdef ModelConfig
             legend(arrayfun(@(i) sprintf('Rule %d', i), config.COVISRules.idxs, 'UniformOutput', false));
             title('COVIS Rule Log Frequency');
             
-            % Add line indicating when button switch occurred.
-            plot([config.trials - config.meta.trialsAfterSwitch; config.trials - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            if isa(config, 'ModelConfigButtonSwitch')
+                config.dispButtonSwitchLine();
+            end
+        end
+        
+        function dispAccuracy(config)
+            figure;
+            plot(smooth(config.accuracy, 200), 'b');
+            xlim([0, config.trials]);
+            ylim([0,1]);
+            if isa(config, 'ModelConfigButtonSwitch')
+                config.dispButtonSwitchLine();
+            end
+            title('Accuracy');
         end
         
         function tf = shouldButtonSwitch(obj)
@@ -126,13 +143,6 @@ classdef ModelConfig
             else
                 idx = 1;
             end
-        end
-        
-    end
-    
-    methods
-        function obj = initCOVISRules(obj, params, chosen_rule, correct_rule, trials)
-            obj.COVISRules = COVISRuleSet(params, 4, chosen_rule, correct_rule, trials);
         end
     end
 end

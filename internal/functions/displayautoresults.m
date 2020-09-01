@@ -22,30 +22,15 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     figure;
     rows = 3; columns = 4;
 
-    subplot(rows,columns,1); plot(TAU*(1:n),PFC_A.v);
-    axis([0 n -100 100]); title('PFC_A Neuron Voltage');
-
-    subplot(rows,columns,2); plot(TAU*(1:n),PFC_B.v);
-    axis([0 n -100 100]); title('PFC_B Neuron Voltage');
-
-    subplot(rows,columns,3); plot(TAU*(1:n),PMC_A.v);
-    axis([0 n -100 100]); title('PMC_A Neuron Voltage');
-
-    subplot(rows,columns,4); plot(TAU*(1:n),PMC_B.v);
-    axis([0 n -100 100]); title('PMC_B Neuron Voltage');
-
-    subplot(rows,columns,5); plot(TAU*(1:n),PFC_A.out);
-    axis([0 n -1 10]); title('PFC_A Neuron Output');
-
-    subplot(rows,columns,6); plot(TAU*(1:n),PFC_B.out);
-    axis([0 n -1 10]); title('PFC_B Neuron Output');
-
-    subplot(rows,columns,7); plot(TAU*(1:n),PMC_A.out);
-    axis([0 n -1 10]); title('PMC_A Neuron Output');
-
-    subplot(rows,columns,8); plot(TAU*(1:n),PMC_B.out);
-    axis([0 n -1 10]); title('PMC_B Neuron Output');
-
+    subplot(rows,columns,1); PFC_A.dispVoltage('PFC_A');
+    subplot(rows,columns,2); PFC_B.dispVoltage('PFC_B');
+    subplot(rows,columns,3); PMC_A.dispVoltage('PMC_A');
+    subplot(rows,columns,4); PMC_B.dispVoltage('PMC_B');
+    subplot(rows,columns,5); PFC_A.dispOutput('PFC_A');
+    subplot(rows,columns,6); PFC_B.dispOutput('PFC_B');
+    subplot(rows,columns,7); PMC_A.dispOutput('PMC_A');
+    subplot(rows,columns,8); PMC_B.dispOutput('PMC_B');
+    
     subplot(rows,columns,9);
     colormap('hot');
     imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
@@ -119,23 +104,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
 
     %% COVIS Figures
     if config.isCOVISEnabled
-        figure;
-        rule_legend = { 'r', 'Rule 1'; ...
-                        'b', 'Rule 2'; ...
-                        'g', 'Rule 3'; ...
-                        'm', 'Rule 4' ...
-        };
-        rules = { config.COVISRules.log == 1; ...
-                  config.COVISRules.log == 2; ...
-                  config.COVISRules.log == 3; ...
-                  config.COVISRules.log == 4 ...
-        };
-        for i=1:4
-            plot(smooth(rules{i}, 500), rule_legend{i,1}); hold on;
-        end
-        xlim([0, TRIALS]);
-        legend(rule_legend{:,2});
-        title('COVIS Rule Log Frequency');
+        config.dispCOVISLog();
     end
 
     %% Figure 2 - Synaptic Weight Heatmaps
@@ -275,14 +244,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     suplabel('Reaction Latencies Over Time', 't');
     
     %% Figure 7 - Accuracy
-    figure;
-    plot(smooth(accuracy, 200), 'b');
-    xlim([0, TRIALS]); ylim([0, 1]);
-    if isa(config, 'ModelConfigButtonSwitch')
-       hold on;
-       plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
-    end
-    title('Accuracy');
+    config.dispAccuracy()
     
     %% Utility matrix that holds:
     % x-coordinates (padded with border size)

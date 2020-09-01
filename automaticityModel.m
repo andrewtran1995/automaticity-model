@@ -66,7 +66,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
 
     % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 1;
+    SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
     
     % Validate any supplied arguments
@@ -147,8 +147,8 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
         'A_area',      zeros(TRIALS,1), ...
         'B_area',      zeros(TRIALS,1) ...
     );
-    MC_A = MCNeuron(TRIALS, W_MAX, default_hebbian_consts);
-    MC_B = MCNeuron(TRIALS, W_MAX, default_hebbian_consts);
+    MC_A = MCNeuron(TRIALS, default_hebbian_consts);
+    MC_B = MCNeuron(TRIALS, default_hebbian_consts);
 
     MDN = struct( ...
         'activations', zeros(TRIALS,1) ...

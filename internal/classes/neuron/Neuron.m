@@ -47,5 +47,15 @@ classdef (Abstract) Neuron
         function val = get.integralPosVolt(obj)
             val = trapz(obj.posVolt());
         end
+        function dispVoltage(obj, neuron_name)
+            plot(obj.TAU * (1:obj.n), obj.v);
+            axis([0 obj.n -100 100]);
+            title(sprintf('%s Neuron Voltage', neuron_name));
+        end
+        function dispOutput(obj, neuron_name)
+            plot(obj.TAU * (1:obj.n), obj.out);
+            axis([0 obj.n -1 10]);
+            title(sprintf('%s Neuron Output', neuron_name));
+        end
     end
 end

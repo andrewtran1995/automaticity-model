@@ -46,6 +46,11 @@ classdef ModelConfigButtonSwitch < ModelConfig
         function dispResults(obj)
             scatter([1,2],[3,4]);
         end
+        
+        function dispButtonSwitchLine(config)
+            hold on;
+            plot([config.trials - config.meta.trialsAfterSwitch; config.trials - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+        end
     end
 end
 
