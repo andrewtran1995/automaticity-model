@@ -95,7 +95,38 @@ classdef PMCNeuron < HebbianLearningNeuron
                 end
             end
         end
+        
+        function dispWeightsWithSlider(obj, name, subplot_x, subplot_y, position, config)
+            subplot(subplot_x, subplot_y, position);
+            weights_no_border = obj.weights( ...
+                ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE, ...
+                ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE, ...
+                : ...
+            );
+            PMCNeuron.dispWeights(weights_no_border, 1, name);
+            slider = uicontrol('Style', 'slider', ...
+                               'Min', 1, ...
+                               'Max', config.trials, ...
+                               'Value', 1, ...
+                               'Position', [100 50 300 20] ...
+            );
+            set(slider, 'Callback', {@PMCNeuron.synapticSliderCallback, subplot_x, subplot_y, position, weights_no_border, name});
+        end
     end
     
+    methods (Static)
+        function dispWeights(weights, trial, name)
+            imagesc(weights(:,:,trial));
+            colormap('hot');
+            colorbar;
+            title(sprintf('%s Synaptic Heatmap, Trial %d\n', name, trial));
+        end
+        function synapticSliderCallback(src, ~, subplot_x, subplot_y, position, data, name)
+            subplot(subplot_x, subplot_y, position);
+            idx = round(get(src, 'value'));
+            set(src, 'value', idx);
+            PMCNeuron.dispWeights(data, idx, name);
+        end
+    end
 end
 

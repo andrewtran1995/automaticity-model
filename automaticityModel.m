@@ -66,7 +66,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
 
     % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 0;
+    SUPPRESS_UI           = 1;
     OPTIMIZATION_CALC     = 0;
     
     % Validate any supplied arguments
@@ -427,10 +427,10 @@ function [neuron_id] = determinecorrectneuron(coord, rule)
     x = coord.x;
     y = coord.y;
     % If x and y are found in "B", the boolean will evaluate to true.
-    equalsNeuron2 = any(x == rule.B_X) && any(y == rule.B_Y);
+    equalsNeuronB = any(x == rule.B_X) && any(y == rule.B_Y);
     % Add one to the result, since neuron IDs are 1-indexed, and cast the result
     % to a double for code-generation compatibility.
-    neuron_id = double(equalsNeuron2 + 1);
+    neuron_id = double(equalsNeuronB + 1);
 end
 
 % Finds correlation between different neurons and accuracy

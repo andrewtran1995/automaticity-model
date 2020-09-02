@@ -32,6 +32,12 @@ classdef RadialBasisFunction
             y = coord.y;
             obj.rbv = exp( -(sqrt((y-obj.Y).^2 + (x-obj.X).^2))/obj.RADIUS ) * obj.stimulus_weight;
         end
+        
+        function dispStimulus(obj, coord)
+            colormap('hot');
+            imagesc(obj.rbv(ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE-1, ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE-1));
+            title(sprintf('Stimulus: %d, %d', coord.x, coord.y));
+        end
     end
     
 end

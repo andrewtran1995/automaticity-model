@@ -8,7 +8,7 @@ function [params] = getconstants()
     frost_vals  = {                5;                5;               5;            5;            5};
     % COVIS Params
     covis_names = {'COVIS_DELTA_C';'COVIS_DELTA_E';'COVIS_PERSEV';'COVIS_LAMBDA'};
-    covis_vals  = {           9.6545;    6.1809;    8.5273;    3.8482};
+    covis_vals  = {         9.6545;         6.1809;        8.5273;        3.8482};
     params = cell2struct(vertcat( agn_vals,  frost_vals, covis_vals), ...  % Parameter values
                          vertcat(agn_names, frost_names, covis_names), ... % Parameter names
                          1);

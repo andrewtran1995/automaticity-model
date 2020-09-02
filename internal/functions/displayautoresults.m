@@ -32,9 +32,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     subplot(rows,columns,8); PMC_B.dispOutput('PMC_B');
     
     subplot(rows,columns,9);
-    colormap('hot');
-    imagesc(RBF.rbv(BORDER_SIZE:end-BORDER_SIZE-1,BORDER_SIZE:end-BORDER_SIZE-1,:));
-    title(sprintf('Stimulus: (%d,%d)', VISUAL.coord.y, VISUAL.coord.x));
+    RBF.dispStimulus(VISUAL.coord);
 
     subplot(rows,columns,10);
     x_axis = linspace(1, TRIALS, TRIALS);
@@ -57,47 +55,21 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
         figure;
         rows = 7; columns = 2;
 
-        subplot(rows,columns,1); plot(TAU*(1:n),Driv_PFC.v);
-        axis([0 n -100 100]); title('Driv_PFC Voltage');
+        subplot(rows,columns,1); Driv_PFC.dispVoltage('Driv_PFC');
+        subplot(rows,columns,3); CN.dispVoltage('CN');
+        subplot(rows,columns,5); GP.dispVoltage('GP');
+        subplot(rows,columns,7); MDN_A.dispVoltage('MDN_A');
+        subplot(rows,columns,9); MDN_B.dispVoltage('MDN_B');
+        subplot(rows,columns,11); AC_A.dispVoltage('AC_A');
+        subplot(rows,columns,13); AC_B.dispVoltage('AC_B');
 
-        subplot(rows,columns,3); plot(TAU*(1:n),CN.v);
-        axis([0 n -100 100]); title('CN Voltage');
-
-        subplot(rows,columns,5); plot(TAU*(1:n),GP.v);
-        axis([0 n -100 100]); title('GP Voltage');
-
-        subplot(rows,columns,7); plot(TAU*(1:n),MDN_A.v);
-        axis([0 n -100 100]); title('MDN_A Voltage');
-
-        subplot(rows,columns,9); plot(TAU*(1:n),MDN_B.v);
-        axis([0 n -100 100]); title('MDN_B Voltage');
-
-        subplot(rows,columns,11); plot(TAU*(1:n),AC_A.v);
-        axis([0 n -100 100]); title('AC_A Voltage');
-
-        subplot(rows,columns,13); plot(TAU*(1:n),AC_B.v);
-        axis([0 n -100 100]); title('AC_B Voltage');
-
-        subplot(rows,columns,2); plot(TAU*(1:n),Driv_PFC.out);
-        axis([0 n 0 30]); title('Driv PFC Output');
-
-        subplot(rows,columns,4); plot(TAU*(1:n),CN.out);
-        axis([0 n 0 30]); title('CN Output');
-
-        subplot(rows,columns,6); plot(TAU*(1:n),GP.out);
-        axis([0 n 0 30]); title('GP Output');
-
-        subplot(rows,columns,8); plot(TAU*(1:n),MDN_A.out);
-        axis([0 n 0 30]); title('MDN_A Output');
-
-        subplot(rows,columns,10); plot(TAU*(1:n),MDN_B.out);
-        axis([0 n 0 30]); title('MDN_B Output');
-
-        subplot(rows,columns,12); plot(TAU*(1:n),AC_A.out);
-        axis([0 n 0 30]); title('AC_A Output');
-
-        subplot(rows,columns,14); plot(TAU*(1:n),AC_B.out);
-        axis([0 n 0 30]); title('AC_B Output');
+        subplot(rows,columns,2); Driv_PFC.dispOutput('Driv_PFC');
+        subplot(rows,columns,4); CN.dispOutput('CN');
+        subplot(rows,columns,6); GP.dispOutput('GP');
+        subplot(rows,columns,8); MDN_A.dispOutput('MDN_A');
+        subplot(rows,columns,10); MDN_B.dispOutput('MDN_B');
+        subplot(rows,columns,12); AC_A.dispOutput('AC_A');
+        subplot(rows,columns,14); AC_B.dispOutput('AC_B');
 
         suplabel('Neuron Information from Last Trial, Rx Times, Etc.', 't');
     end
@@ -114,36 +86,8 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
         if not(isa(config, 'ModelConfigButtonSwitch'))
             figure;
             rows = 1; columns = 2;
-            % Force slider to integer/discrete value:
-            % https://www.mathworks.com/matlabcentral/answers/45769-forcing-slider-values-to-round-to-a-valid-number
-
-            PMC_A_trial_num = 1;
-            PMC_A_no_border = PMC_A.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, LEARNING_IDX);
-            subplot(rows,columns,1);
-            data3 = PMC_A_no_border(:,:,PMC_A_trial_num);
-            colormap('hot');
-            imagesc(data3);
-            colorbar;
-            title(sprintf('PMC_A Synaptic Heatmap, Trial %d\n', PMC_A_trial_num));
-            slider_PMC_A = uicontrol('Style', 'slider', ...
-                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                     'Value', 1, ...
-                                     'Position', [100 50 300 20]);
-            set(slider_PMC_A, 'Callback', {@synaptic_slider_callback, 1, PMC_A_no_border, 'PMC_A'});
-
-            PMC_B_trial_num = 1;
-            PMC_B_no_border = PMC_B.weights(BORDER_SIZE:end-BORDER_SIZE, BORDER_SIZE:end-BORDER_SIZE, LEARNING_IDX);
-            subplot(rows,columns,2);
-            data4 = PMC_B_no_border(:,:,PMC_B_trial_num);
-            colormap('hot');
-            imagesc(data4);
-            colorbar;
-            title(sprintf('PMC_B Synaptic Heatmap, Trial %d\n', PMC_B_trial_num));
-            slider_PMC_B = uicontrol('Style', 'slider', ...
-                                     'Min', 1, 'Max', LEARNING_TRIALS, ...
-                                     'Value', 1, ...
-                                     'Position', [500 50 300 20]);
-            set(slider_PMC_B, 'Callback', {@synaptic_slider_callback, 2, PMC_B_no_border, 'PMC_B'});
+            PMC_A.dispWeightsWithSlider('PMC_A', rows, columns, 1, config);
+            PMC_B.dispWeightsWithSlider('PMC_B', rows, columns, 2, config);
             
             suplabel('Synaptic Heatmaps', 't');
         % Create figures for button switch
@@ -186,8 +130,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
         plot(smooth(MC_A.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_A.weights(2,:),50), 'b');
         if isa(config, 'ModelConfigButtonSwitch')
-            hold on;
-            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            config.dispButtonSwitchLine();
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_A', 'Weight to PMC_B');
@@ -196,8 +139,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
         plot(smooth(MC_B.weights(1,:),50), 'r'); hold on;
         plot(smooth(MC_B.weights(2,:),50), 'b');
         if isa(config, 'ModelConfigButtonSwitch')
-            hold on;
-            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            config.dispButtonSwitchLine();
         end
         xlim([0, TRIALS]);
         legend('Weight to PMC_B', 'Weight to PMC_A');
@@ -236,8 +178,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
         plot(smooth(latencies{i},30));
         xlim([0, TRIALS]);
         if isa(config, 'ModelConfigButtonSwitch')
-            hold on;
-            plot([TRIALS - config.meta.trialsAfterSwitch; TRIALS - config.meta.trialsAfterSwitch], get(gca,'ylim'), 'r');
+            config.dispButtonSwitchLine();
         end
         title(latencyTitles{i});
     end
@@ -268,17 +209,6 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     %% Starts debug mode, allowing variables to be observed before the function ends
     keyboard;
 
-end
-
-% Handles the slider functionality for the synaptic weight heatmaps
-function synaptic_slider_callback(src, ~, position, data, neuron_name)
-    subplot(1, 2, position, 'replace');
-    trial_num = round(get(src, 'value'));
-    set(src, 'value', trial_num);
-    colormap('hot');
-    imagesc(data(:,:,trial_num));
-    colorbar;
-    title(sprintf('%s Synaptic Heatmap, Trial %d\n', neuron_name, trial_num'));
 end
 
 % Find the hazard function as defined by Hazard = f(t)/S(t),
