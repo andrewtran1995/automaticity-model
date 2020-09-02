@@ -66,7 +66,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
 
     % Model/function behavior parameters (default values)
     VIS_INPUT_FROM_PARM   = 0;
-    SUPPRESS_UI           = 1;
+    SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
     
     % Validate any supplied arguments
