@@ -20,7 +20,7 @@ The **automaticityModel** runs through logic which can be thought of in the foll
 ### Model configurations
 A **model configuration** can affect how the model behaves, especially for the  purpose of replicating real-world phemonemon. This includes (but is not limited to):
 * Affecting how many trials the model runs through.
-* Determining during which trials learning is active.
+* Determining for which trials learning is active.
 * Deciding if the COVIS model of rule learning is enabled.
 * Deciding if the FROST model of working memory maintenance is used.
 
@@ -39,7 +39,7 @@ compile;
 optional_parms = struct('FMRI_META_GROUP_RUN', 0, ...
 	'VIS_INPUT_FROM_PARM', 0, ...
 	'visualInput', zeros(2));
-automaticityModel_mex(getmodelparams(ModelConfigButtonSwitch()), optional_parms)
+automaticityModel_mex(ModelConfigButtonSwitch.name, getmodelparams(ModelConfigButtonSwitch()), optional_parms)
 ```
 
 ## Understanding the code
@@ -61,7 +61,7 @@ automaticityModel_mex(getmodelparams(ModelConfigButtonSwitch()), optional_parms)
 ### Project structure
 * `/data` - Matrix files and related code, categorized by configuration.
 * `/external` - External library dependencies.
-* [`/internal`](/internal/README.md) - Code internal to this project. Most of the implementation can be found here.
+* [`/internal`](/internal) - Code internal to this project. Most of the implementation can be found here.
 * `/reference` - Random files and code that are not used in the model itself, but kept around as reference.
 * `.gitignore` - Version control file that specifies which files/directories should be ignored when updating this repository.
 * `automaticityModel.m` - The function which runs an automaticity configuration through a series of trials. Can be thought of as the "main" function for this project.
