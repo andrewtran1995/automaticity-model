@@ -1,4 +1,6 @@
-classdef ModelConfig
+classdef (Abstract) ModelConfig
+    % Ideally, these would be abstract properties. However, it is
+    % necessary to make ModelConfig non-abstract for code generation.
     properties (Abstract, Constant)
         name
         isFROSTEnabled

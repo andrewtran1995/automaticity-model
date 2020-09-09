@@ -28,7 +28,7 @@ classdef (Abstract) Neuron
         function obj = Neuron()
             % Pre-calcate the lambda vector for performance reasons
             t = (0:obj.n)';
-            obj.LAMBDA_PRECALC = (t/obj.LAMBDA).*exp((obj.LAMBDA-t)/obj.LAMBDA);
+            obj.LAMBDA_PRECALC = coder.const((t/obj.LAMBDA).*exp((obj.LAMBDA-t)/obj.LAMBDA));
 
             obj.out = zeros(obj.n,1);
             obj.u = zeros(obj.n,1);
