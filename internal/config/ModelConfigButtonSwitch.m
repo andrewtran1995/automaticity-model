@@ -3,6 +3,7 @@ classdef ModelConfigButtonSwitch < ModelConfig
     % Observes a button switch effect with some late-stage dual-task
     % constraints.
     properties (Constant)
+        name = "ModelConfigButtonSwitch"
         isFROSTEnabled = false
         isCOVISEnabled = true
         isMCLearningEnabled = true

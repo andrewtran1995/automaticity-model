@@ -45,81 +45,64 @@ opt_val_1      - return value signifying value of some cost function, used
 opt_val_2      - return value (array) signifying value of cost function
                  used in FMRI group runs
 %}
-function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional_parms) %#codegen
-    %% ======================================= %%
-    %%%%%%%%%% VARIABLE INITIALIZATION %%%%%%%%%%
-    %  =======================================  %
-    % Code-generation declarations
-    coder.extrinsic('struct2table','cell2struct','addpath','genpath');
+function [config, opt_val_1, opt_val_2] = automaticityModel(config_name, parameter_overrides, optional_params) %#codegen
+    %% Pre-processing
+    % Code-generation declarations.
+    coder.extrinsic('struct2table','cell2struct','addpath','genpath','getmodelparams','getconstants','displayautoresults','dispResults','dispStimulus','dispWeightsWithSlider','dispCOVISLog');
     coder.varsize('chosen_rule');
-    
-    % Load dependencies
-    addpath(genpath('.'));
-    coder.extrinsic('getmodelparams','getconstants','displayautoresults','dispResults');
 
-    % Load config and config parameters
-    config = ModelConfigButtonSwitch();
-
-    % Get parameters
+    % Get model parameters.
+    config = ModelConfig.byName(config_name);
     PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
     PARAMS = getmodelparams(config);
 
-    % Model/function behavior parameters (default values)
+    % Model/function behavior parameters (default values).
     VIS_INPUT_FROM_PARM   = 0;
     SUPPRESS_UI           = 0;
     OPTIMIZATION_CALC     = 0;
     
-    % Validate any supplied arguments
     if nargin >= 1
-        % Determine if parms are valid
+        % Determine if parameters are valid.
         if not(areparamsvalid(PARAMS))
             disp(struct2table(PARAMS));
             error('Parameters not valid.');
         end
-        PARAMS = absorbstruct(PARAMS, arg_struct);
+        % Accept any parameter overrides from "arg_struct".
+        PARAMS = absorbstruct(PARAMS, parameter_overrides);
     end
 
     % Override values with optional_parms if passed as an argument
     if nargin == 2
-        if isfield(optional_parms, 'FMRI_META_GROUP_RUN') && isa(config, 'ModelConfigButtonSwitch')
-            config.meta.optimization.GROUP_RUN = optional_parms.FMRI_META_GROUP_RUN;
+        if isfield(optional_params, 'FMRI_META_GROUP_RUN') && isa(config, 'ModelConfigButtonSwitch')
+            config.meta.optimization.GROUP_RUN = optional_params.FMRI_META_GROUP_RUN;
         end
-        if isfield(optional_parms, 'VIS_INPUT_FROM_PARM')
-            VIS_INPUT_FROM_PARM = optional_parms.VIS_INPUT_FROM_PARM;
+        if isfield(optional_params, 'VIS_INPUT_FROM_PARM')
+            VIS_INPUT_FROM_PARM = optional_params.VIS_INPUT_FROM_PARM;
         end
     end
     
-    %% Load visual stimulus matrix
+    % Load visual stimulus.
     if VIS_INPUT_FROM_PARM
-        x_coords = optional_parms.visualinput(:,1);
-        y_coords = optional_parms.visualinput(:,2);
+        x_coords = optional_params.visualinput(:,1);
+        y_coords = optional_params.visualinput(:,2);
         coord_groups = repmat(Category.NONE, length(x_coords), 1);
     else
         [x_coords, y_coords, coord_groups] = config.loadCoords();
     end
 
-    %% Initialize/configure constants (though some data structure specific constants are initialized below)
+    % Initialize constants/variables.
     config = config.setTrials(PARAMS.PRE_LEARNING_TRIALS, PARAMS.LEARNING_TRIALS, PARAMS.POST_LEARNING_TRIALS);
     TRIALS = config.trials;
+    W_MAX = PARAMS.W_MAX;
+    RBF = RadialBasisFunction(config.GRID_SIZE, VisualStimulus.STIM);
 
-    % Other parameters
-    W_MAX = PARAMS.W_MAX;         % Maximum weight for Hebbian Synapses
-
-    % Get visual stimulus variable and establish correct and chosen rules.
-    VISUAL = config.visual;
-
-    % Radial Basis Function
-    RBF = RadialBasisFunction(config.GRID_SIZE, VISUAL.STIM);
-
-    %% COVIS Model
+    % Initialize COVIS model.
     chosen_rule = 1;
     correct_rule = 2;
     RULE = config.visual.RULES(chosen_rule);
     config = config.initCOVISRules(PARAMS, chosen_rule, correct_rule, config.trials);
     
-    %% General settings for neurons
-    % Note that reactions is big enough for both learning trials and no-learning trials to allow for comparisons
-    
+    % Initialize neurons.
     PFC = struct( ...                       
         'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
         'reactions',   zeros(TRIALS,2), ...          % stores information about PFC neuron reactions during trial
@@ -325,24 +308,23 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
             PMC_B.weights(:,:,trial,1:config.COVISRules.NUM ~= chosen_rule) = PMC_B.weights(:,:,trial-1,1:config.COVISRules.NUM ~= chosen_rule);
         end
         
-        % Record average weight for PMC_A and PMC_B
+        % Record average weight for PMC_A and PMC_B.
         PMC_A.weights_avg(trial) = mean(mean(PMC_A.weights(:,:,config.weightIdx,config.correctRuleIdx)));
         PMC_B.weights_avg(trial) = mean(mean(PMC_B.weights(:,:,config.weightIdx,config.correctRuleIdx)));
         
-        %% COVIS Calculations - readjusting saliences, weights
+        % Calculate COVIS weights.
         if config.isCOVISEnabled && trial <= config.preLearningTrials + config.learningTrials + config.postLearningTrials
             config.COVISRules = config.COVISRules.processRuleAttempt(config.accuracy(trial) == 1);
         end
 
-        %% Print data to console
         if not(SUPPRESS_UI)
             consoleprogressbar('TRIALS COMPLETED', trial, TRIALS);
         end
     end
     
-    %% ========================================= %%
-    %%%%%%%%%% OPTIMIZATION CALCULATIONS %%%%%%%%%%
-    %  =========================================  %
+    %% Post-processing
+    
+    % Optimization calculations.
     opt_val_1 = 0;
     opt_val_2 = zeros(4,4);
     % Calculate Sum of Squared Errors of Prediction (SSE)
@@ -379,9 +361,8 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(arg_struct, optional
                          mean(config.accuracy(FMRI_META.SES_1)), mean(config.accuracy(FMRI_META.SES_4)), mean(config.accuracy(FMRI_META.SES_10)), mean(config.accuracy(FMRI_META.SES_20))];
         end
     end
-    %% =============================== %%
-    %%%%%%%%%% DISPLAY RESULTS %%%%%%%%%%
-    %  ===============================  %
+    
+    % Results display.
     if not(SUPPRESS_UI)
         dispResults(config);
         displayautoresults(config, RBF, ...

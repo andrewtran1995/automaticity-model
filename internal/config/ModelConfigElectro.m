@@ -1,8 +1,9 @@
-classdef ModelConfigImageCorr < ModelConfig
+classdef ModelConfigElectro < ModelConfig
     % Corresponds to the Wallis, Jonathan D. paper.
     % Observes image correlation effects.
     
     properties (Constant)
+        name = "ModelConfigElectro"
         isFROSTEnabled = false
         isCOVISEnabled = false
         isMCLearningEnabled = false
@@ -11,18 +12,22 @@ classdef ModelConfigImageCorr < ModelConfig
     end
     
     methods
-        function obj = ModelConfigImageCorr()
+        function obj = ModelConfigElectro()
             obj@ModelConfig();
         end
         
         function [xs, ys, groups] = loadCoords(~)
-            loaded_input = load('data/imageCoor/coords.mat');
+            loaded_input = load('data/electro/coords.mat');
             xs = loaded_input.visualInput.x;
             ys = loaded_input.visualInput.y;
             groups = loaded_input.visualInput.groups;
         end
         
         function config = doPreprocessing(~)
+            return
+        end
+        
+        function dispResults(obj)
             return
         end
     end

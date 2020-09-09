@@ -1,5 +1,6 @@
 classdef ModelConfig
     properties (Abstract, Constant)
+        name
         isFROSTEnabled
         isCOVISEnabled
         isMCLearningEnabled
@@ -42,6 +43,19 @@ classdef ModelConfig
         end
     end
     
+    methods (Static)
+        function m = byName(config_name)
+            switch config_name
+                case ModelConfigElectro.name()
+                    m = ModelConfigElectro();
+                case ModelConfigDualTask.name()
+                    m = ModelConfigDualTask();
+                case ModelConfigButtonSwitch.name()
+                    m = ModelConfigButtonSwitch();
+            end
+        end
+    end
+    
     methods (Abstract)
         [x_coords, y_coords, coord_groups] = loadCoords(obj)
         config = doPreprocessing(obj)
@@ -53,7 +67,7 @@ classdef ModelConfig
             config.preLearningTrials = preLearningTrials;
             config.learningTrials = learningTrials;
             config.postLearningTrials = postLearningTrials;
-            config.trials = preLearningTrials + learningTrials + postLearningTrials + config.meta.trialsAfterSwitch;
+            config.trials = preLearningTrials + learningTrials + postLearningTrials;
             config.accuracy = zeros(config.trials,1);
         end
         

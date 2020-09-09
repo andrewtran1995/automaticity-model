@@ -3,6 +3,7 @@ classdef ModelConfigDualTask < ModelConfig
     % Observes dual task interference in category learning.
     
     properties (Constant)
+        name = "ModelConfigDualTask"
         isFROSTEnabled = true
         isCOVISEnabled = true
         isMCLearningEnabled = false
