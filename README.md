@@ -39,7 +39,10 @@ compile;
 optional_parms = struct('FMRI_META_GROUP_RUN', 0, ...
 	'VIS_INPUT_FROM_PARM', 0, ...
 	'visualInput', zeros(2));
-automaticityModel_mex(ModelConfigButtonSwitch.name, getmodelparams(ModelConfigButtonSwitch()), optional_parms)
+automaticityModel_mex(ModelConfigButtonSwitch.name, ...
+	getmodelparams(ModelConfigButtonSwitch()), ...
+	optional_parms ...
+)
 ```
 
 ## Understanding the code
@@ -62,10 +65,9 @@ automaticityModel_mex(ModelConfigButtonSwitch.name, getmodelparams(ModelConfigBu
 * `/data` - Matrix files and related code, categorized by configuration.
 * `/external` - External library dependencies.
 * [`/internal`](/internal) - Code internal to this project. Most of the implementation can be found here.
-* `/reference` - Random files and code that are not used in the model itself, but kept around as reference.
 * `.gitignore` - Version control file that specifies which files/directories should be ignored when updating this repository.
 * `automaticityModel.m` - The function which runs an automaticity configuration through a series of trials. Can be thought of as the "main" function for this project.
-* `compile.m` - Generates performant code for `automaticityModel.m`. Useful for 
+* `compile.m` - Generates performant code for `automaticityModel.m`.
 * `init.m` - Utility script to recursively load all folders from the current working directory. Useful for ensuring all classes/functions are in memory before doing work with the model.
 
 ### Code-generation and performance
