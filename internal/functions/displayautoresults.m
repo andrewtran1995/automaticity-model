@@ -207,7 +207,7 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     ];
 
     %% Starts debug mode, allowing variables to be observed before the function ends
-    keyboard;
+%     keyboard;
 
 end
 
