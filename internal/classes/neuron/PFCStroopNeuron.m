@@ -19,7 +19,7 @@ classdef PFCStroopNeuron < PFCNeuron
     
     methods
         function obj = PFCStroopNeuron()
-            obj@PFCNeuron(20); % Hard-code the W_OUT_MDN value to 20.
+            obj@PFCNeuron();
         end
         
         function obj = iterate(obj, MDN)
@@ -36,8 +36,8 @@ classdef PFCStroopNeuron < PFCNeuron
                     + 20 * MDN.out(i) ...
                 ) / obj.C ...
                 + normrnd(0, obj.NOISE);
-                obj.u(i+1) = obj.u(i) ...
-                + TAU * obj.a * (obj.b * (obj.v(i) - obj.rv) - obj.u(i));
+            obj.u(i+1) = obj.u(i) ...
+                       + TAU * obj.a * (obj.b * (obj.v(i) - obj.rv) - obj.u(i));
             if obj.v(i+1) >= obj.vpeak
                 obj.v(i:obj.i+1) = [obj.vpeak, obj.c];
                 obj.u(i+1) = obj.u(i+1) + obj.d;

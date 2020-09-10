@@ -53,7 +53,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
 
     % Get model parameters.
     config = ModelConfigButtonSwitch();
-    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'PFC_DECISION_PT',0,'PMC_DECISION_PT',0,'MC_DECISION_PT',0,'HEB_CONSTS',0,'NMDA',0,'AMPA',0,'W_MAX',0,'NOISE_PFC',0,'NOISE_PMC',0,'NOISE_MC',0,'PMC_A_W_OUT',0,'PMC_B_W_OUT',0,'PFC_A_W_OUT_MDN',0,'PFC_B_W_OUT_MDN',0,'DRIV_PFC_W_OUT',0,'MDN_A_W_OUT',0,'MDN_B_W_OUT',0,'COVIS_DELTA_C',0,'COVIS_DELTA_E',0,'COVIS_PERSEV',0,'COVIS_LAMBDA',0);
+    PARAMS = struct('PRE_LEARNING_TRIALS',0,'LEARNING_TRIALS',0,'POST_LEARNING_TRIALS',0,'W_MAX',0);
     PARAMS = getmodelparams(config);
 
     % Model/function behavior parameters (default values).
@@ -103,43 +103,39 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     config = config.initCOVISRules(PARAMS, chosen_rule, correct_rule, config.trials);
     
     % Initialize neurons.
-    PFC = struct( ...                       
-        'DECISION_PT', PARAMS.PFC_DECISION_PT, ...   % threshold which determines which PFC neuron acts on a visual input
+    PFC = struct( ...
         'reactions',   zeros(TRIALS,2), ...          % stores information about PFC neuron reactions during trial
         'activations', zeros(TRIALS,1) ...
     );
     PFC_Stroop_A = PFCStroopNeuron();
     PFC_Stroop_B = PFCStroopNeuron();
-    PFC_A = PFCNeuron(PARAMS.PFC_A_W_OUT_MDN);
-    PFC_B = PFCNeuron(PARAMS.PFC_B_W_OUT_MDN);
+    PFC_A = PFCNeuron();
+    PFC_B = PFCNeuron();
 
-    default_hebbian_consts = HebbianConst(PARAMS.HEB_CONSTS, PARAMS.HEB_CONSTS, PARAMS.NMDA, PARAMS.AMPA);
-    PMC = struct( ...                           
-        'DECISION_PT', PARAMS.PMC_DECISION_PT, ...   % threshold which determines which PMC neuron acts on a visual input
+    PMC = struct( ...
         'reactions',   zeros(TRIALS,2), ...          % stores information about PMC neuron reactions during trial
         'alpha',       zeros(TRIALS,Neuron.n), ...          % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
-    PMC_A = PMCNeuron(TRIALS, PARAMS.PMC_A_W_OUT, W_MAX, config.isCOVISEnabled, config.GRID_SIZE, default_hebbian_consts);
-    PMC_B = PMCNeuron(TRIALS, PARAMS.PMC_B_W_OUT, W_MAX, config.isCOVISEnabled, config.GRID_SIZE, default_hebbian_consts);
+    PMC_A = PMCNeuron(config, W_MAX);
+    PMC_B = PMCNeuron(config, W_MAX);
 
     MC = struct( ...
-        'DECISION_PT', PARAMS.MC_DECISION_PT, ...
         'reactions',   zeros(TRIALS,2), ...
         'activations', zeros(TRIALS,1), ...
         'A_area',      zeros(TRIALS,1), ...
         'B_area',      zeros(TRIALS,1) ...
     );
-    MC_A = MCNeuron(TRIALS, default_hebbian_consts);
-    MC_B = MCNeuron(TRIALS, default_hebbian_consts);
+    MC_A = MCNeuron(TRIALS);
+    MC_B = MCNeuron(TRIALS);
 
     MDN = struct( ...
         'activations', zeros(TRIALS,1) ...
     );
-    MDN_A = MDNNeuron(PARAMS.MDN_A_W_OUT);
-    MDN_B = MDNNeuron(PARAMS.MDN_B_W_OUT);
+    MDN_A = MDNNeuron();
+    MDN_B = MDNNeuron();
 
-    Driv_PFC = Driv_PFCNeuron(PARAMS.DRIV_PFC_W_OUT);
+    Driv_PFC = Driv_PFCNeuron();
 
     CN = CNNeuron(TRIALS);
     
@@ -271,11 +267,11 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
 
         %% Determine decision neuron and reaction time, and record accuracy
         % Determine reacting neuron and latency
-        [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFC.DECISION_PT);
+        [neuron_id_PFC, latency] = determine_reacting_neuron(PFC_A.out, PFC_B.out, PFCNeuron.RESPONSE_THRESHOLD);
         PFC.reactions(trial,:) = [neuron_id_PFC, latency];
-        [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMC.DECISION_PT);
+        [neuron_id_PMC, latency] = determine_reacting_neuron(PMC_A.out, PMC_B.out, PMCNeuron.RESPONSE_THRESHOLD);
         PMC.reactions(trial,:) = [neuron_id_PMC, latency];
-        [neuron_id_MC, latency] = determine_reacting_neuron(MC_A.out, MC_B.out, MC.DECISION_PT);
+        [neuron_id_MC, latency] = determine_reacting_neuron(MC_A.out, MC_B.out, MCNeuron.RESPONSE_THRESHOLD);
         MC.reactions(trial,:) = [neuron_id_MC, latency];
         % Determine accuracy
         if config.isCOVISEnabled
@@ -286,8 +282,8 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
 
         %% Weight change calculations
         if config.isLearningTrial
-            PMC_A = PMC_A.doHebbianLearning(config, RBF.rbv, PMC_A.weightsForTrial(config)*1000);
-            PMC_B = PMC_B.doHebbianLearning(config, RBF.rbv, PMC_B.weightsForTrial(config)*1000);
+            PMC_A = PMC_A.doHebbianLearning(config, RBF.rbv.*PMC_A.weightsForTrial(config).*1000);
+            PMC_B = PMC_B.doHebbianLearning(config, RBF.rbv.*PMC_B.weightsForTrial(config).*1000);
             
             if config.isMCLearningEnabled
                 MC_A = MC_A.doHebbianLearning(config, PMC_A.integralPosVolt);
@@ -364,10 +360,8 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     
     % Results display.
     if not(SUPPRESS_UI)
-        dispResults(config);
         displayautoresults(config, RBF, ...
-            PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, ...
-            y_coords, x_coords...
+            PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B ...
         );
     end
     return;

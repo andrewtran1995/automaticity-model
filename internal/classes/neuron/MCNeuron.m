@@ -12,13 +12,14 @@ classdef MCNeuron < HebbianLearningNeuron
         W_LI = 3
         INIT_WEIGHT = 1
         W_MAX = 100;
-        NOISE = getconstants().NOISE_MC
+        NOISE = 3
         WEIGHT = struct('PRIMARY', 0.9, 'SECONDARY', 0.1)
+        RESPONSE_THRESHOLD = 700
     end
     
     methods
-        function obj = MCNeuron(trials, hebbianConsts)
-            obj@HebbianLearningNeuron(hebbianConsts, MCNeuron.W_MAX);
+        function obj = MCNeuron(trials)
+            obj@HebbianLearningNeuron(HebbianConst(2.45e-8, 450), MCNeuron.W_MAX);
             obj.v = repmat(obj.rv,obj.n,1);
             obj.weights = obj.INIT_WEIGHT*ones(2,trials);
         end

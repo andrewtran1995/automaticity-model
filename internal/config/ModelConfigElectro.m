@@ -10,6 +10,12 @@ classdef ModelConfigElectro < ModelConfig
         hasCriterialNoise = false
         hasStroopInterference = false
     end
+
+    methods (Static)
+        function vals = hebbianValues()
+            vals = HebbianConst(1e-10, 300);
+        end
+    end
     
     methods
         function obj = ModelConfigElectro()
@@ -20,7 +26,8 @@ classdef ModelConfigElectro < ModelConfig
             loaded_input = load('data/electro/coords.mat');
             xs = loaded_input.visualInput.x;
             ys = loaded_input.visualInput.y;
-            groups = loaded_input.visualInput.groups;
+%             groups = loaded_input.visualInput.groups;
+            groups = repmat(Category.NONE, length(xs), 1);
         end
         
         function config = doPreprocessing(~)

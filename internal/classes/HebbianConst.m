@@ -2,22 +2,19 @@ classdef HebbianConst
     %HEBBIANCONSTANTS Class holding all Hebbian constants that can be
     %specified per type of neuron that engages in learning.
     % Strengthening occurs if "[voltage integral] > [NMDA]".
-    % Weakening occurs if "[NMDA] - [voltage integral] - [AMPA] > 0".
+    % Weakening occurs if "[NMDA] - [voltage integral] > 0".
     
     properties (SetAccess = immutable)
-        COEF
-        ANTI
-        NMDA % Upper threshold
-        AMPA % Lower threshold
+        COEF (1,1) = 1e-8
+        NMDA (1,1) = 400 % Upper threshold
     end
     
     methods
-        function obj = HebbianConst(coef, anti, nmda, ampa)
+        % Set overrides if given.
+        function obj = HebbianConst(coef, nmda)
             if nargin > 0
                 obj.COEF = coef;
-                obj.ANTI = anti;
                 obj.NMDA = nmda;
-                obj.AMPA = ampa;
             end
         end
     end

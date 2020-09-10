@@ -10,6 +10,12 @@ classdef ModelConfigDualTask < ModelConfig
         hasCriterialNoise = true
         hasStroopInterference = true
     end
+
+    methods (Static)
+        function vals = hebbianValues()
+            vals = Hebbian(1e-9, 400);
+        end
+    end
     
     methods
         function obj = ModelConfigDualTask()

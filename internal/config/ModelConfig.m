@@ -45,23 +45,15 @@ classdef (Abstract) ModelConfig
         end
     end
     
-    methods (Static)
-        function m = byName(config_name)
-            switch config_name
-                case ModelConfigElectro.name()
-                    m = ModelConfigElectro();
-                case ModelConfigDualTask.name()
-                    m = ModelConfigDualTask();
-                case ModelConfigButtonSwitch.name()
-                    m = ModelConfigButtonSwitch();
-            end
-        end
-    end
-    
     methods (Abstract)
         [x_coords, y_coords, coord_groups] = loadCoords(obj)
         config = doPreprocessing(obj)
-        dispResults(obj)
+    end
+
+    methods (Static)
+        function vals = hebbianValues()
+            vals = Hebbian()
+        end
     end
     
     methods
@@ -158,6 +150,68 @@ classdef (Abstract) ModelConfig
                 idx = obj.COVISRules.chosen;
             else
                 idx = 1;
+            end
+        end
+        
+        function dispResults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B)
+            %% Neuron information from last trial or throughout trials
+            figure;
+            rows = 3; columns = 4;
+
+            subplot(rows,columns,1); PFC_A.dispVoltage('PFC_A');
+            subplot(rows,columns,2); PFC_B.dispVoltage('PFC_B');
+            subplot(rows,columns,3); PMC_A.dispVoltage('PMC_A');
+            subplot(rows,columns,4); PMC_B.dispVoltage('PMC_B');
+            subplot(rows,columns,5); PFC_A.dispOutput('PFC_A');
+            subplot(rows,columns,6); PFC_B.dispOutput('PFC_B');
+            subplot(rows,columns,7); PMC_A.dispOutput('PMC_A');
+            subplot(rows,columns,8); PMC_B.dispOutput('PMC_B');
+            
+            subplot(rows,columns,9);
+            RBF.dispStimulus(config.visual.coord);
+
+            subplot(rows,columns,10);
+            x_axis = linspace(1, config.trials, config.trials);
+            plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
+            legend('PMC_A', 'PMC_B', 'Location', 'southeast');
+            title('PMC_A & PMC_B Weight Average');
+
+            subplot(rows,columns,11);
+            linspace(1, config.trials, config.trials);
+            PMC_A_Rx = PMC.reactions(:,1) == 1;
+            PMC_B_Rx = ~PMC_A_Rx;
+            scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled'); hold on;
+            scatter(find(PMC_B_Rx), PMC.reactions(PMC_B_Rx,2), 10, 'b', 'filled');
+            xlim([0, config.trials]);
+            legend('PMC_A', 'PMC_B');
+            suplabel('PMC_A & PMC_B Reaction Time', 't');
+            
+            if config.isFROSTEnabled
+                figure;
+                rows = 7; columns = 2;
+
+                subplot(rows,columns,1); Driv_PFC.dispVoltage('Driv_PFC');
+                subplot(rows,columns,3); CN.dispVoltage('CN');
+                subplot(rows,columns,5); GP.dispVoltage('GP');
+                subplot(rows,columns,7); MDN_A.dispVoltage('MDN_A');
+                subplot(rows,columns,9); MDN_B.dispVoltage('MDN_B');
+                subplot(rows,columns,11); AC_A.dispVoltage('AC_A');
+                subplot(rows,columns,13); AC_B.dispVoltage('AC_B');
+
+                subplot(rows,columns,2); Driv_PFC.dispOutput('Driv_PFC');
+                subplot(rows,columns,4); CN.dispOutput('CN');
+                subplot(rows,columns,6); GP.dispOutput('GP');
+                subplot(rows,columns,8); MDN_A.dispOutput('MDN_A');
+                subplot(rows,columns,10); MDN_B.dispOutput('MDN_B');
+                subplot(rows,columns,12); AC_A.dispOutput('AC_A');
+                subplot(rows,columns,14); AC_B.dispOutput('AC_B');
+
+                suplabel('Neuron Information from Last Trial, Rx Times, Etc.', 't');
+            end
+            
+            %% COVIS Figures
+            if config.isCOVISEnabled
+                config.dispCOVISLog();
             end
         end
     end

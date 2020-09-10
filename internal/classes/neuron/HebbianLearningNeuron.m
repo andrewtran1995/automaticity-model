@@ -33,10 +33,10 @@ classdef (Abstract) HebbianLearningNeuron < RSN
         end
         
         function g_t_2 = get.g_t_2(obj)
-            g_t_2 = max(0, obj.HEBBIAN.NMDA - obj.integralPosVolt - obj.HEBBIAN.AMPA);
+            g_t_2 = max(0, obj.HEBBIAN.NMDA - obj.integralPosVolt);
         end
     end
-    
+
     methods     
         % "inputNeuron" should be the integral of the alpha function of the pre-synaptic unit.
         % This can be simplified to the integral of the positive voltage.
@@ -49,7 +49,7 @@ classdef (Abstract) HebbianLearningNeuron < RSN
             w = obj.weightsForTrial(config);
             w = w + scalar.*( ...
                 obj.HEBBIAN.COEF * preSynapticOutput * obj.g_t_1.*(obj.MAX_WEIGHT - w) ...
-                - obj.HEBBIAN.ANTI * preSynapticOutput * obj.g_t_2.*w ...
+                - obj.HEBBIAN.COEF * preSynapticOutput * obj.g_t_2.*w ...
             );
             w = bound_array(w, 0, obj.MAX_WEIGHT);
         end

@@ -3,10 +3,10 @@ classdef COVISRuleSet
     %COVIS rulesets and neuron-specific information per rule.
     
     properties (SetAccess = immutable)
-        DELTA_C (1,1) {mustBeNumeric}
-        DELTA_E (1,1) {mustBeNumeric}
-        PERSEV (1,1) {mustBeNumeric}
-        LAMBDA (1,1) {mustBeNumeric}
+        DELTA_C (1,1) {mustBeNumeric} = 1
+        DELTA_E (1,1) {mustBeNumeric} = 1
+        PERSEV (1,1) {mustBeNumeric} = 1
+        LAMBDA (1,1) {mustBeNumeric} = 1
         GUESSES (1,1) {mustBeNumeric} = 5
         
         NUM (1,1) {mustBeNumeric}
@@ -29,12 +29,6 @@ classdef COVISRuleSet
     methods        
         function obj = COVISRuleSet(params, num_rules, chosen_rule, correct_rule, trials)
             if nargin > 0
-                % Set constants.
-                obj.DELTA_C = params.COVIS_DELTA_C;
-                obj.DELTA_E = params.COVIS_DELTA_E;
-                obj.PERSEV = params.COVIS_PERSEV;
-                obj.LAMBDA = params.COVIS_LAMBDA;
-
                 % Set number of rules.
                 obj.NUM = num_rules;
 

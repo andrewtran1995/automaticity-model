@@ -10,6 +10,12 @@ classdef ModelConfigButtonSwitch < ModelConfig
         hasCriterialNoise = false
         hasStroopInterference = false
     end
+
+    methods (Static)
+        function vals = hebbianValues()
+            vals = HebbianConst(1e-9, 450);
+        end
+    end
     
     methods
         function obj = ModelConfigButtonSwitch()
@@ -44,8 +50,8 @@ classdef ModelConfigButtonSwitch < ModelConfig
             return
         end
         
-        function dispResults(obj)
-            scatter([1,2],[3,4]);
+        function dispResults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B)
+            dispResults@ModelConfig(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B);
         end
         
         function dispButtonSwitchLine(config)

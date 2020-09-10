@@ -2,14 +2,13 @@ classdef MDNNeuron < RSN
     %MDN
     %   MDN. Input from GP neuron. Input from PFC neuron. Output to PFC neuron. For FROST.
     
-    properties
-        W_OUT
+    properties (Constant)
+        W_OUT = 1
     end
     
     methods
-        function obj = MDNNeuron(W_OUT)
+        function obj = MDNNeuron()
             obj@RSN();
-            obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,obj.n,1);
         end
 

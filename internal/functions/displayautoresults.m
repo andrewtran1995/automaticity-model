@@ -1,83 +1,16 @@
-function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B, y_coordinates, x_coordinates )
+function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B )
 %DISPLAYAUTORESULTS Display results an Automaticity Model run
 %   Display results from an Automaticity Model run. Requires *all* (relevant)
 %   variables from the Automaticity Model workspace to be passed in.
 %   Separated for code clarity and ease of code-generation.
-    addpath(genpath('.'));
-    n = Neuron.n;
-    TAU = Neuron.TAU;
     BORDER_SIZE = config.BORDER_SIZE;
-    VISUAL = config.visual;
     TRIALS = config.trials;
-    accuracy = config.accuracy;
     PRE_LEARNING_TRIALS = config.preLearningTrials;
     LEARNING_TRIALS = config.learningTrials;
     POST_LEARNING_TRIALS = config.postLearningTrials;
     LEARNING_IDX = (PRE_LEARNING_TRIALS+1):(PRE_LEARNING_TRIALS+LEARNING_TRIALS);
 
-    %% Starts debug mode if you want to view the variables before executing code
-    % keyboard;
-
-    %% Figure 1 - neuron information from last trial or throughout trials
-    figure;
-    rows = 3; columns = 4;
-
-    subplot(rows,columns,1); PFC_A.dispVoltage('PFC_A');
-    subplot(rows,columns,2); PFC_B.dispVoltage('PFC_B');
-    subplot(rows,columns,3); PMC_A.dispVoltage('PMC_A');
-    subplot(rows,columns,4); PMC_B.dispVoltage('PMC_B');
-    subplot(rows,columns,5); PFC_A.dispOutput('PFC_A');
-    subplot(rows,columns,6); PFC_B.dispOutput('PFC_B');
-    subplot(rows,columns,7); PMC_A.dispOutput('PMC_A');
-    subplot(rows,columns,8); PMC_B.dispOutput('PMC_B');
-    
-    subplot(rows,columns,9);
-    RBF.dispStimulus(VISUAL.coord);
-
-    subplot(rows,columns,10);
-    x_axis = linspace(1, TRIALS, TRIALS);
-    plot(x_axis, PMC_A.weights_avg, 'r', x_axis, PMC_B.weights_avg, 'b');
-    legend('PMC_A', 'PMC_B', 'Location', 'southeast');
-    title('PMC_A & PMC_B Weight Average');
-
-    subplot(rows,columns,11);
-    x_axis = linspace(1, TRIALS, TRIALS);
-    PMC_A_Rx = PMC.reactions(:,1) == 1;
-    PMC_B_Rx = ~PMC_A_Rx;
-    scatter(find(PMC_A_Rx), PMC.reactions(PMC_A_Rx,2), 10, 'r', 'filled'); hold on;
-    scatter(find(PMC_B_Rx), PMC.reactions(PMC_B_Rx,2), 10, 'b', 'filled');
-    xlim([0, TRIALS]);
-    legend('PMC_A', 'PMC_B');
-    suplabel('PMC_A & PMC_B Reaction Time', 't');
-
-    %% Figure 1B - neuron information from last trial or throughout trials
-    if config.isFROSTEnabled
-        figure;
-        rows = 7; columns = 2;
-
-        subplot(rows,columns,1); Driv_PFC.dispVoltage('Driv_PFC');
-        subplot(rows,columns,3); CN.dispVoltage('CN');
-        subplot(rows,columns,5); GP.dispVoltage('GP');
-        subplot(rows,columns,7); MDN_A.dispVoltage('MDN_A');
-        subplot(rows,columns,9); MDN_B.dispVoltage('MDN_B');
-        subplot(rows,columns,11); AC_A.dispVoltage('AC_A');
-        subplot(rows,columns,13); AC_B.dispVoltage('AC_B');
-
-        subplot(rows,columns,2); Driv_PFC.dispOutput('Driv_PFC');
-        subplot(rows,columns,4); CN.dispOutput('CN');
-        subplot(rows,columns,6); GP.dispOutput('GP');
-        subplot(rows,columns,8); MDN_A.dispOutput('MDN_A');
-        subplot(rows,columns,10); MDN_B.dispOutput('MDN_B');
-        subplot(rows,columns,12); AC_A.dispOutput('AC_A');
-        subplot(rows,columns,14); AC_B.dispOutput('AC_B');
-
-        suplabel('Neuron Information from Last Trial, Rx Times, Etc.', 't');
-    end
-
-    %% COVIS Figures
-    if config.isCOVISEnabled
-        config.dispCOVISLog();
-    end
+    config.dispResults(RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B);
 
     %% Figure 2 - Synaptic Weight Heatmaps
     % Only relevant if any learning trials were conducted
@@ -88,8 +21,6 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
             rows = 1; columns = 2;
             PMC_A.dispWeightsWithSlider('PMC_A', rows, columns, 1, config);
             PMC_B.dispWeightsWithSlider('PMC_B', rows, columns, 2, config);
-            
-            suplabel('Synaptic Heatmaps', 't');
         % Create figures for button switch
         elseif isa(config, 'ModelConfigButtonSwitch')
             rows = 2; columns = 4;
@@ -186,28 +117,9 @@ function displayautoresults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_
     
     %% Figure 7 - Accuracy
     config.dispAccuracy()
-    
-    %% Utility matrix that holds:
-    % x-coordinates (padded with border size)
-    % y-coordinates (padded with border size)
-    % PFC neuron ID
-    % PMC neuron ID
-    % MC neuron ID
-    % MC_A out integral
-    % MC_B out integral
-    % accuracy
-    reactioninfo = [x_coordinates(1:TRIALS) + BORDER_SIZE, ...
-                    y_coordinates(1:TRIALS) + BORDER_SIZE, ...
-                    PFC.reactions(:,1), ...
-                    PMC.reactions(:,1), ...
-                    MC.reactions(:,1), ...
-                    MC.A_area, ...
-                    MC.B_area, ...
-                    accuracy ...
-    ];
 
     %% Starts debug mode, allowing variables to be observed before the function ends
-%     keyboard;
+    keyboard;
 
 end
 

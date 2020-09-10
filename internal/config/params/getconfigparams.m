@@ -1,9 +1,9 @@
 function [params] = getconfigparams(configuration)
 %GETPARAMS Get parameters that are dependent on configuration.
-    param_names          = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'PFC_DECISION_PT'; 'PMC_DECISION_PT'; 'MC_DECISION_PT'};
-    ELECTRO_CONFIG       = {                  100;               200;                    100;               400;               400;              400};
-    BUTTON_SWITCH_CONFIG = {                    0;             11520;                      0;               700;               700;              700};
-    DUAL_TASK_CONFIG     = {                    0;             11520;                      0;               700;               700;              700};
+    param_names          = {'PRE_LEARNING_TRIALS'; 'LEARNING_TRIALS'; 'POST_LEARNING_TRIALS'; 'W_MAX'};
+    ELECTRO_CONFIG       = {                  5;              500;                    5;       5};
+    BUTTON_SWITCH_CONFIG = {                    0;             11520;                      0;       5};
+    DUAL_TASK_CONFIG     = {                    0;             11520;                      0;       5};
     switch class(configuration)
         case 'ModelConfigElectro'
             param_vals = ELECTRO_CONFIG;

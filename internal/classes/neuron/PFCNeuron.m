@@ -4,7 +4,7 @@ classdef PFCNeuron < RSN
 
     properties
         W_OUT = 9
-        W_OUT_MDN
+        W_OUT_MDN = 1
         W_OUT_AC = 1
         v_stim = 0
     end
@@ -12,13 +12,13 @@ classdef PFCNeuron < RSN
     properties (Constant)
         V_SCALE = 1 % scaling factor for visual input into PFC neurons
         W_LI = 2 % lateral inhibition between PFC A / PFC B
-        NOISE = getconstants().NOISE_PFC
+        NOISE = 3
+        RESPONSE_THRESHOLD = 400
     end
     
     methods
-        function obj = PFCNeuron(W_OUT_MDN)
+        function obj = PFCNeuron()
             obj@RSN();
-            obj.W_OUT_MDN = W_OUT_MDN;
             obj.v = repmat(obj.rv,obj.n,1);
         end
         

@@ -3,36 +3,36 @@ classdef PMCNeuron < HebbianLearningNeuron
     %   This class represents a neuron from the Primary Motor Cortex (PMC).
     
     properties
-        W_OUT
         v_stim = 0
         weights_avg
     end
     
     properties (Constant)
+        W_OUT = 1
         V_SCALE = 1 % can use to scale PMC visual input value if it comes out too high
         W_LI = 5 % lateral inhibition between PMC A / PMC B
         INIT_WEIGHT = 0.08
-        NOISE = getconstants().NOISE_PMC
+        NOISE = 3
+        RESPONSE_THRESHOLD = 400
     end
     
     methods
-        function obj = PMCNeuron(trials, W_OUT, max_weight, COVIS_ENABLED, GRID_SIZE, hebbianConsts)
-            obj@HebbianLearningNeuron(hebbianConsts, max_weight);
-            obj.W_OUT = W_OUT;
+        function obj = PMCNeuron(config, max_weight)
+            obj@HebbianLearningNeuron(config.hebbianValues(), max_weight);
             obj.v = repmat(obj.rv,obj.n,1);
             
             % Create weights matrix conditionally
-            if trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY
+            if config.trials > HebbianLearningNeuron.LARGE_TRIAL_BOUNDARY
                 weight_length = 1;
             else
-                weight_length = trials;
+                weight_length = config.trials;
             end
-            if COVIS_ENABLED
-                obj.weights = obj.INIT_WEIGHT*ones(GRID_SIZE, GRID_SIZE, weight_length, 4);
+            if config.isCOVISEnabled
+                obj.weights = obj.INIT_WEIGHT*ones(config.GRID_SIZE, config.GRID_SIZE, weight_length, 4);
             else
-                obj.weights = obj.INIT_WEIGHT*ones(GRID_SIZE, GRID_SIZE, weight_length);
+                obj.weights = obj.INIT_WEIGHT*ones(config.GRID_SIZE, config.GRID_SIZE, weight_length);
             end
-            obj.weights_avg = zeros(trials,1);
+            obj.weights_avg = zeros(config.trials,1);
         end
 
         function obj = iterate(obj, PMC_OTHER, PFC)
@@ -67,8 +67,8 @@ classdef PMCNeuron < HebbianLearningNeuron
         % PMC weights multiplied by Neuron.n (the amount of time where the
         % visual stimulus is exposed), which is then multiplied by the
         % scalar (the radial basis vector).
-        function obj = doHebbianLearning(obj, config, scalar, preSynapticOutput)
-            w = obj.calcHebbianWeights(config, scalar, preSynapticOutput);
+        function obj = doHebbianLearning(obj, config, preSynapticOutput)
+            w = obj.calcHebbianWeights(config, 1, preSynapticOutput);
             if config.isCOVISEnabled
                 obj.weights(:,:,config.weightIdx,config.COVISRules.chosen) = w;
             else
@@ -96,7 +96,8 @@ classdef PMCNeuron < HebbianLearningNeuron
         end
         
         function dispWeightsWithSlider(obj, name, subplot_x, subplot_y, position, config)
-            subplot(subplot_x, subplot_y, position);
+%             subplot(subplot_x, subplot_y, position);
+            figure;
             weights_no_border = obj.weights( ...
                 ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE, ...
                 ModelConfig.BORDER_SIZE:end-ModelConfig.BORDER_SIZE, ...
@@ -121,7 +122,7 @@ classdef PMCNeuron < HebbianLearningNeuron
             title(sprintf('%s Synaptic Heatmap, Trial %d\n', name, trial));
         end
         function synapticSliderCallback(src, ~, subplot_x, subplot_y, position, data, name)
-            subplot(subplot_x, subplot_y, position);
+%             subplot(subplot_x, subplot_y, position);
             idx = round(get(src, 'value'));
             set(src, 'value', idx);
             PMCNeuron.dispWeights(data, idx, name);

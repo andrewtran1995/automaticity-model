@@ -3,14 +3,13 @@ classdef Driv_PFCNeuron < RSN
     %   Driving signal from the PFC. Input from rule stimulus (arbitrary value - constant). Output to CN Neuron.
     
     properties
-        W_OUT
+        W_OUT = 1
         rule_stim = 0
     end
     
     methods
-        function obj = Driv_PFCNeuron(W_OUT)
+        function obj = Driv_PFCNeuron()
             obj@RSN();
-            obj.W_OUT = W_OUT;
             obj.v = repmat(obj.rv,obj.n,1);
         end
 
