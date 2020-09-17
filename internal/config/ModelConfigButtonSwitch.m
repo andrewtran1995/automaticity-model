@@ -50,8 +50,8 @@ classdef ModelConfigButtonSwitch < ModelConfig
             return
         end
         
-        function dispResults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B)
-            dispResults@ModelConfig(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B);
+        function dispResults(config, neurons)
+            dispResults@ModelConfig(config, neurons);
         end
         
         function dispButtonSwitchLine(config)

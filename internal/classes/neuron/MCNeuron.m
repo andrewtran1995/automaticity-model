@@ -82,6 +82,17 @@ classdef MCNeuron < HebbianLearningNeuron
         function w = weightsForTrial(obj, config)
             w = obj.weights(:,config.trial);
         end
+        
+        function dispWeights(obj, config, name)
+            plot(smooth(obj.weights(1,:),50), 'r'); hold on;
+            plot(smooth(obj.weights(2,:),50), 'b');
+            if isa(config, 'ModelConfigButtonSwitch')
+                config.dispButtonSwitchLine();
+            end
+            xlim([0 config.trials]);
+            legend('Weight to same PMC', 'Weight to other PMC');
+            title(name)
+        end
     end
     
 end

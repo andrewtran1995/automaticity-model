@@ -2,8 +2,13 @@ classdef RadialBasisFunction
     % Radial Basis Function
     %   Utility class that applies a Radial Basis Function to a visual
     %   stimulus input
+
     properties
-        rbv % grid to keep track of radial basis vector output
+        % Grid to keep track of radial basis vector output.
+        % The grid is column-major order, with points accessed as
+        % grid(y,x) The origin is situated at the top-left corner and axes
+        % increase right and down for x and y, respectively.
+        rbv
     end
     
     properties (Access = private)

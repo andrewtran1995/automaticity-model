@@ -33,8 +33,8 @@ classdef ModelConfigDualTask < ModelConfig
             return
         end
         
-        function dispResults(obj)
-            
+        function dispResults(config, neurons)
+            dispResults@ModelConfig(config, neurons);
         end
     end
 end

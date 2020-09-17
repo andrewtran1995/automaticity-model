@@ -153,7 +153,26 @@ classdef (Abstract) ModelConfig
             end
         end
         
-        function dispResults(config, RBF, PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B)
+        function dispResults(config, neurons)
+            %% Unpack neurons from struct.
+            PFC = neurons.PFC;
+            PFC_A = neurons.PFC_A;
+            PFC_B = neurons.PFC_B;
+            PFC_Stroop_A = neurons.PFC_Stroop_A;
+            PFC_Stroop_B = neurons.PFC_Stroop_B;
+            PMC = neurons.PMC;
+            PMC_A = neurons.PMC_A;
+            PMC_B = neurons.PMC_B;
+            MC = neurons.MC;
+            MC_A = neurons.MC_A;
+            MC_B = neurons.MC_B;
+            Driv_PFC = neurons.Driv_PFC;
+            CN = neurons.CN;
+            GP = neurons.GP;
+            MDN_A = neurons.MDN_A;
+            MDN_B = neurons.MDN_B;
+            AC_A = neurons.AC_A;
+            AC_B = neurons.AC_B;
             %% Neuron information from last trial or throughout trials
             figure;
             rows = 3; columns = 4;
@@ -168,7 +187,7 @@ classdef (Abstract) ModelConfig
             subplot(rows,columns,8); PMC_B.dispOutput('PMC_B');
             
             subplot(rows,columns,9);
-            RBF.dispStimulus(config.visual.coord);
+            config.RBF.dispStimulus(config.visual.coord);
 
             subplot(rows,columns,10);
             x_axis = linspace(1, config.trials, config.trials);
@@ -213,6 +232,97 @@ classdef (Abstract) ModelConfig
             if config.isCOVISEnabled
                 config.dispCOVISLog();
             end
+            
+            % If not BUTTONS_SWITCH, assume there is a record for the weights for each trial
+            if not(isa(config, 'ModelConfigButtonSwitch'))
+                figure;
+                rows = 1; columns = 2;
+                PMC_A.dispWeightsWithSlider('PMC_A', rows, columns, 1, config);
+                PMC_B.dispWeightsWithSlider('PMC_B', rows, columns, 2, config);
+            % Create figures for button switch
+            elseif isa(config, 'ModelConfigButtonSwitch')
+                rows = 2; columns = 4;
+                figure;
+                for i=1:4
+                    subplot(rows,columns,i);
+                    colormap('hot');
+                    imagesc(config.meta.PMC_A_weights(config.BORDER_SIZE:end-config.BORDER_SIZE, config.BORDER_SIZE:end-config.BORDER_SIZE, 1, i));
+                    title(sprintf('PMC_A Rule %d', i));
+                end
+                for i=1:4
+                    subplot(rows,columns,i + 4);
+                    colormap('hot');
+                    imagesc(config.meta.PMC_B_weights(config.BORDER_SIZE:end-config.BORDER_SIZE, config.BORDER_SIZE:end-config.BORDER_SIZE, 1, i));
+                    title(sprintf('PMC_B Rule %d', i));
+                end
+                suplabel('Initial Heatmaps (Upon Button Switch)', 't');
+                figure;
+                subplot(rows,columns,1);
+                for i=1:4
+                    subplot(rows,columns,i);
+                    colormap('hot');
+                    imagesc(PMC_A.weights(config.BORDER_SIZE:end-config.BORDER_SIZE, config.BORDER_SIZE:end-config.BORDER_SIZE, 1, i));
+                    title(sprintf('PMC_A Rule %d', i));
+                end
+                for i=1:4
+                    subplot(rows,columns,i + 4);
+                    colormap('hot');
+                    imagesc(PMC_B.weights(config.BORDER_SIZE:end-config.BORDER_SIZE, config.BORDER_SIZE:end-config.BORDER_SIZE, 1, i));
+                    title(sprintf('PMC_B Rule %d', i));
+                end
+                suplabel('Final Heatmaps', 't');
+            end
+            
+            %% MC Weights
+            figure;
+            rows = 2; columns = 1;
+            subplot(rows,columns,1);
+            MC_A.dispWeights(config, 'MC_A');
+            
+            subplot(rows,columns,2);
+            MC_B.dispWeights(config, 'MC_B');
+            suplabel('MC Weights', 't');
+            
+            %% Reaction Latency
+            % Histograms of reaction latencies by neuron and trial subsets
+            figure;
+            LEARNING_IDX = (config.preLearningTrials+1):(config.preLearningTrials+config.learningTrials);
+            latencies = {PFC.reactions(1:config.preLearningTrials,2), 'PFC Latencies (Pre-Learning)'; ...
+                         PMC.reactions(1:config.preLearningTrials,2), 'PMC Latencies (Pre-Learning)'; ...
+                         PFC.reactions(LEARNING_IDX,2), 'PFC Latencies (Learning)'; ...
+                         PMC.reactions(LEARNING_IDX,2), 'PMC Latencies (Learning)'; ...
+                         PFC.reactions(end-config.postLearningTrials+1:end, 2), 'PFC Latencies (Post-Learning)'; ...
+                         PMC.reactions(end-config.postLearningTrials+1:end, 2), 'PMC Latencies (Post-Learning)'};
+            latencies(cellfun(@isempty, latencies(:,1)), :) = [];
+            rows = length(latencies(:,1))/2; columns = 2;
+            numBins = 20;
+            for i=1:rows*columns
+                subplot(rows,columns,i);
+                histogram(latencies{i,1}, numBins);
+                xlabel('Latency of selectivity for the behavioral response (ms)');
+                ylabel('Number of neurons');
+                title(latencies{i,2});
+            end
+            suplabel('Reaction Latency Histograms', 't');
+
+            %% Reaction Plots
+            figure;
+            rows = 3; columns = 1;
+            latencies = {PFC.reactions(:,2), PMC.reactions(:,2), MC.reactions(:,2)};
+            latencyTitles = {'PFC Reaction Time', 'PMC Reaction Time', 'MC Reaction Time'};
+            for i=1:3
+                subplot(rows,columns,i);
+                plot(smooth(latencies{i},30));
+                xlim([0, config.trials]);
+                if isa(config, 'ModelConfigButtonSwitch')
+                    config.dispButtonSwitchLine();
+                end
+                title(latencyTitles{i});
+            end
+            suplabel('Reaction Latencies Over Time', 't');
+            
+            %% Accuracy
+            config.dispAccuracy()
         end
     end
 end

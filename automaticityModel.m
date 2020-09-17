@@ -1,50 +1,3 @@
-%AUTOMATICITYMODEL automaticity model for PMC neurons
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%        Model of Automaticity in Rule-Based Learning        %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%{
-# Description
-Run an automaticity model based on configurations defined
- by ModelConfig.
-
-# General Notes
-Variables written in all capital letters are generally meant
- to be constant values, initialized once in the beginning of the program.
-
-Structures are meant to group variables that have some commonality.
- Note that this has a (negligible) effect on performance.
-
-The grid is column-major order, with points accessed as
- grid(y,x) The origin is situated at the top-left corner and axes
- increase right and down for x and y, respectively.
-
-# MATLAB Code Generation
-This file is compatible with MATLAB Code Generation, which greatly improves
- runtime. In order to keep it compatible, UI-related logic has been moved
- into a separate function. Note that this file's function allows optional
- arguments if being used in the non-codegen version. However, the codegen
- version of this function does not allow any optional arguments or
- structure fields: All arguments must be supplied as defined by the
- function definition.
-
-# Tips/Tricks
-If debugging, one can observe the workspace of the function by
- issuing the following command before execution: "dbstop if error".
-
-# Function Signature
-## Input Variables
-arg_struct     - structure of n fields used to pass parameters that are
-                 exposed in global optimization; if any fields are not
-                 specified in the non-codegen version, they will be given
-                 default values based on config
-optional_parms - struct that contains additional arguments for the
-                 model separate from specific model parameters
-## Output Variables
-opt_val_1      - return value signifying value of some cost function, used
-                 for global optimization
-opt_val_2      - return value (array) signifying value of cost function
-                 used in FMRI group runs
-%}
 function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides, optional_params) %#codegen
     %% Pre-processing
     % Code-generation declarations.
@@ -94,7 +47,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     config = config.setTrials(PARAMS.PRE_LEARNING_TRIALS, PARAMS.LEARNING_TRIALS, PARAMS.POST_LEARNING_TRIALS);
     TRIALS = config.trials;
     W_MAX = PARAMS.W_MAX;
-    RBF = RadialBasisFunction(config.GRID_SIZE, VisualStimulus.STIM);
+    RBF = config.RBF; % Create local copy of RBF for performance reasons.
 
     % Initialize COVIS model.
     chosen_rule = 1;
@@ -319,6 +272,30 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     end
     
     %% Post-processing
+    % Re-assign local variables back into config.
+    config.RBF = RBF;
+    
+    % Create neuron struct for ease of output.
+    neurons = struct( ...
+        'PFC', PFC, ...
+        'PFC_A', PFC_A, ...
+        'PFC_B', PFC_B, ...
+        'PFC_Stroop_A', PFC_Stroop_A, ...
+        'PFC_Stroop_B', PFC_Stroop_B, ...
+        'PMC', PMC, ...
+        'PMC_A', PMC_A, ...
+        'PMC_B', PMC_B, ...
+        'MC', MC, ...
+        'MC_A', MC_A, ...
+        'MC_B', MC_B, ...
+        'Driv_PFC', Driv_PFC, ...
+        'CN', CN, ...
+        'GP', GP, ...
+        'MDN_A', MDN_A, ...
+        'MDN_B', MDN_B, ...
+        'AC_A', AC_A, ...
+        'AC_B', AC_B ...
+    );
     
     % Optimization calculations.
     opt_val_1 = 0;
@@ -360,9 +337,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     
     % Results display.
     if not(SUPPRESS_UI)
-        displayautoresults(config, RBF, ...
-            PFC, PMC, MC, PFC_A, PFC_B, PMC_A, PMC_B, MC_A, MC_B, Driv_PFC, CN, GP, MDN_A, MDN_B, AC_A, AC_B ...
-        );
+        dispResults(config, neurons);
     end
     return;
 end

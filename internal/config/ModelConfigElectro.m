@@ -34,8 +34,8 @@ classdef ModelConfigElectro < ModelConfig
             return
         end
         
-        function dispResults(obj)
-            return
+        function dispResults(config, neurons)
+            dispResults@ModelConfig(config, neurons);
         end
     end
 end
