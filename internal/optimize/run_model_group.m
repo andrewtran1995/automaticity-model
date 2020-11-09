@@ -8,7 +8,7 @@ results = zeros(4,4,GROUP_SIZE);
 % Get parameters for automaticityModel
 loaded = load('fmri/particleswarm_target_17_12_14.mat');
 arg_vector = loaded.x;
-CONFIG = ModelConfig.BUTTON_SWITCH;
+CONFIG = ModelConfigButtonSwitch();
 
 % Create parallel pool
 tic;
@@ -17,10 +17,10 @@ parfor i=1:GROUP_SIZE
     arg_struct = argvectortostruct(arg_vector, CONFIG);
     [r_x_vals, r_y_vals] = createFMRIInput(11520);
     visualinput = [r_x_vals, r_y_vals];
-    optional_parms = struct('FMRI_META_GROUP_RUN', 1, ...
-                            'VIS_INPUT_FROM_PARM', 1, ...
+    optional_parms = struct('VIS_INPUT_FROM_PARM', 1, ...
                             'visualinput', visualinput);
-    [~,results(:,:,i)] = automaticityModel_mex(arg_struct, optional_parms);
+    [config, neurons] = automaticityModel_mex(arg_struct, optional_parms);
+    results(:,:,i) = calc_FMRI_corr_data(config, neurons)
 end
 % Delete parallel pool
 delete(gcp('nocreate'));

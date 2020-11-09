@@ -52,7 +52,7 @@ classdef (Abstract) ModelConfig
 
     methods (Static)
         function vals = hebbianValues()
-            vals = Hebbian()
+            vals = Hebbian();
         end
     end
     

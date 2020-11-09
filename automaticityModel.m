@@ -1,4 +1,4 @@
-function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides, optional_params) %#codegen
+function [config, neurons] = automaticityModel(parameter_overrides, optional_params) %#codegen
     %% Pre-processing
     % Code-generation declarations.
     coder.extrinsic('struct2table','cell2struct','addpath','genpath','getmodelparams','getconstants','displayautoresults','dispResults','dispStimulus','dispWeightsWithSlider','dispCOVISLog');
@@ -12,7 +12,6 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
     % Model/function behavior parameters (default values).
     VIS_INPUT_FROM_PARM   = 0;
     SUPPRESS_UI           = 0;
-    OPTIMIZATION_CALC     = 0;
     
     if nargin >= 1
         % Determine if parameters are valid.
@@ -26,9 +25,6 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
 
     % Override values with optional_parms if passed as an argument
     if nargin == 2
-        if isfield(optional_params, 'FMRI_META_GROUP_RUN') && isa(config, 'ModelConfigButtonSwitch')
-            config.meta.optimization.GROUP_RUN = optional_params.FMRI_META_GROUP_RUN;
-        end
         if isfield(optional_params, 'VIS_INPUT_FROM_PARM')
             VIS_INPUT_FROM_PARM = optional_params.VIS_INPUT_FROM_PARM;
         end
@@ -67,7 +63,7 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
 
     PMC = struct( ...
         'reactions',   zeros(TRIALS,2), ...          % stores information about PMC neuron reactions during trial
-        'alpha',       zeros(TRIALS,Neuron.n), ...          % PMC_A.out + PMC_B.out
+        'alpha',       zeros(TRIALS,Neuron.n), ...   % PMC_A.out + PMC_B.out
         'activations', zeros(TRIALS,1) ...
     );
     PMC_A = PMCNeuron(config, W_MAX);
@@ -297,54 +293,14 @@ function [config, opt_val_1, opt_val_2] = automaticityModel(parameter_overrides,
         'AC_B', AC_B ...
     );
     
-    % Optimization calculations.
-    opt_val_1 = 0;
-    opt_val_2 = zeros(4,4);
-    % Calculate Sum of Squared Errors of Prediction (SSE)
-    if OPTIMIZATION_CALC && isa(config, 'ModelConfigButtonSwitch')
-        FMRI_META = config.meta.optimization;
-        if ~FMRI_META.GROUP_RUN
-            target = load('data/buttonSwitch/targetMeans1dCondition.mat');
-            % Calculate Mean Accuracy for trials from Session 4, 10, and 20
-            output_acc = [mean(config.accuracy(FMRI_META.SES_1)), ...
-                          mean(config.accuracy(FMRI_META.SES_4)), ...
-                          mean(config.accuracy(FMRI_META.SES_10)), ...
-                          mean(config.accuracy(FMRI_META.SES_20))];
-            % Calculate Mean Median RT for trials from Session 4, 10, and 20
-            % Reaction times must be converted from ms to seconds
-            norm_output_rt = [median(PMC.reactions(FMRI_META.SES_1,2)), ...
-                              median(PMC.reactions(FMRI_META.SES_4,2)), ...
-                              median(PMC.reactions(FMRI_META.SES_10,2)), ...
-                              median(PMC.reactions(FMRI_META.SES_20,2))]./1000;
-            % Weight reaction time greater than accuracy
-            target_diff = [target.means1dCondition(1,:) - output_acc;
-                            (target.means1dCondition(2,:) - norm_output_rt)*20];
-            opt_val_1 = sum(sum(target_diff.^2));
-        else
-            % Set parameter values of hrf
-            t1 = 1; n = 4; lamda = 2;
-            % Define time axis
-            t = 1:LEARNING_TRIALS;
-            % Create hrf
-            hrf = ((t-t1).^(n-1)).*exp(-(t-t1)/lamda)/((lamda^n)*factorial(n-1));
-            % Get value for opt_val_2
-            opt_val_2 = [get_FMRI_corr_data(CN.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(MDN.activations, FMRI_META, hrf); ...
-                         get_FMRI_corr_data(PMC.activations, FMRI_META, hrf); ...
-                         mean(config.accuracy(FMRI_META.SES_1)), mean(config.accuracy(FMRI_META.SES_4)), mean(config.accuracy(FMRI_META.SES_10)), mean(config.accuracy(FMRI_META.SES_20))];
-        end
-    end
-    
-    % Results display.
+    % Display results unless specified otherwise.
     if not(SUPPRESS_UI)
         dispResults(config, neurons);
     end
     return;
 end
 
-%% =============================== %%
-%%%%%%%%%% HELPER FUNCTIONS %%%%%%%%%
-%  ===============================  %
+%% Helper functions
 % Return what neuron reacts to the stimuli, and the latency
 % Returns neuron_id = 1 for n1, neuron_id = 2 for n2
 function [neuron_id, latency] = determine_reacting_neuron(neuron_1, neuron_2, decision_pt)
@@ -381,14 +337,4 @@ function [neuron_id] = determinecorrectneuron(coord, rule)
     % Add one to the result, since neuron IDs are 1-indexed, and cast the result
     % to a double for code-generation compatibility.
     neuron_id = double(equalsNeuronB + 1);
-end
-
-% Finds correlation between different neurons and accuracy
-function [corr_vec] = get_FMRI_corr_data(activations, FMRI_META, hrf)
-    % Compute convolution for each trial
-    boldPMC = conv(activations, hrf');
-    corr_vec = [mean(boldPMC(FMRI_META.SES_1)), ...
-                mean(boldPMC(FMRI_META.SES_4)), ...
-                mean(boldPMC(FMRI_META.SES_10)), ...
-                mean(boldPMC(FMRI_META.SES_20))];
 end
