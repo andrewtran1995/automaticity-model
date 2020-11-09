@@ -1,7 +1,7 @@
 function [config, neurons] = automaticityModel(parameter_overrides, optional_params) %#codegen
     %% Pre-processing
     % Code-generation declarations.
-    coder.extrinsic('struct2table','cell2struct','addpath','genpath','getmodelparams','getconstants','displayautoresults','dispResults','dispStimulus','dispWeightsWithSlider','dispCOVISLog');
+    coder.extrinsic('struct2table','cell2struct','addpath','genpath','getmodelparams','getconstants','displayautoresults','dispResults','dispStimulus','dispWeightsWithSlider','dispCOVISLog','saveOutput');
     coder.varsize('chosen_rule');
 
     % Get model parameters.
@@ -292,6 +292,9 @@ function [config, neurons] = automaticityModel(parameter_overrides, optional_par
         'AC_A', AC_A, ...
         'AC_B', AC_B ...
     );
+
+    % Save results to an output file.
+    saveOutput(config,neurons);
     
     % Display results unless specified otherwise.
     if not(SUPPRESS_UI)
