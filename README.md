@@ -6,7 +6,7 @@ A biologically-detailed computational model of how rule-guided behaviors become 
 ## How the model works
 The model is run by specifying a **model configuration** and passing it as an argument (along with other parameters, if desired) to the function **automaticityModel** (found in `automaticityModel.m`).
 
-The **automaticityModel** runs through logic which can be thought of in the following stages:
+The **automaticityModel** runs through logic which is roughly segmented by the following stages:
 * *Pre-processing* - The model initializes variables and objects.
 	* Initialize configuration-specific and configuration-agnostic variables.
 	* Create neuron objects.
@@ -18,13 +18,13 @@ The **automaticityModel** runs through logic which can be thought of in the foll
 * *Post-processing* - The model displays results or does other processing (e.g., calculating global parameter optimization values).
 
 ### Model configurations
-A **model configuration** can affect how the model behaves, especially for the  purpose of replicating real-world phemonemon. This includes (but is not limited to):
+A **model configuration** affects how the model behaves. This includes (but is not limited to):
 * Affecting how many trials the model runs through.
 * Determining for which trials learning is active.
 * Deciding if the COVIS model of rule learning is enabled.
 * Deciding if the FROST model of working memory maintenance is used.
 
-Configurations are represented as (object-oriented programming) classes. Individual configurations inherit from `ModelConfig`, which contains logic shared between all configurations. These classes can be found in `internal/config`.
+Configurations are represented as [classes](https://www.mathworks.com/help/matlab/object-oriented-programming.html). Configurations inherit from the class `ModelConfig`, which contains logic shared between all configurations. These classes can be found in `internal/config`.
 
 The following configurations are available, along with their in-code class name.
 * **Electrophysiology**/`ModelConfigElectro` - Wallis, Jonathan D., and Earl K. Miller. “From Rule to Response: Neuronal Processes in the Premotor and Prefrontal Cortex.” Journal of Neurophysiology, vol. 90, no. 3, 7 May 2003, pp. 1790–1806., doi:10.1152/jn.00086.2003.
